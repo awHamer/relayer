@@ -1,0 +1,40 @@
+{
+  "name": "@relayerjs/core",
+  "version": "0.1.0",
+  "description": "ORM-agnostic types and contracts for Relayer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/awHamer/relayer",
+    "directory": "packages/core"
+  },
+  "keywords": ["orm", "repository", "typescript", "query-builder", "computed-fields", "derived-fields"],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@relayerjs/example-drizzle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "seed": "tsx src/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@relayerjs/core": "workspace:*",
+    "@relayerjs/drizzle": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "^0.45.1",
+    "mysql2": "^3.20.0",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  }
+}

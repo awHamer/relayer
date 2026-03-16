@@ -1,0 +1,59 @@
+{
+  "name": "@relayerjs/drizzle",
+  "version": "0.1.0",
+  "description": "Type-safe repository layer for Drizzle ORM with computed fields, derived fields, and query DSL",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/awHamer/relayer",
+    "directory": "packages/drizzle"
+  },
+  "keywords": ["drizzle", "orm", "repository", "typescript", "query-builder", "computed-fields", "derived-fields", "json-filtering"],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@relayerjs/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.38.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:pg": "vitest run tests/integration/pg.test.ts",
+    "test:mysql": "vitest run tests/integration/mysql.test.ts",
+    "test:sqlite": "vitest run tests/integration/sqlite.test.ts"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.8.0",
+    "mysql2": "^3.20.0",
+    "postgres": "^3.4.8",
+    "vitest": "^3.2.4"
+  }
+}

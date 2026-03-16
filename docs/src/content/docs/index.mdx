@@ -1,0 +1,78 @@
+---
+title: Relayer
+description: Type-safe repository layer for ORMs with computed fields, derived fields, and a powerful query DSL.
+template: splash
+hero:
+  tagline: Type-safe repository layer for ORMs with computed fields, derived fields, and a powerful query DSL. Currently supports Drizzle ORM.
+  actions:
+    - text: Get Started
+      link: /getting-started/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/awHamer/relayer
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Why Relayer?
+
+Over the years, across many projects, the same pattern kept appearing: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model -- with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
+
+Relayer is that pattern extracted into a library. Built with **API integration in mind** from day one.
+
+## Key Features
+
+<CardGrid>
+  <Card title="Query DSL" icon="magnifier">
+    Prisma-like `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain JSON-serializable object, making it trivial to wire up as REST/GraphQL filters.
+  </Card>
+  <Card title="Computed Fields" icon="puzzle">
+    Virtual SQL expressions evaluated at SELECT time. No raw queries, no post-processing -- just declare and use.
+  </Card>
+  <Card title="Derived Fields" icon="rocket">
+    Automatic subquery JOINs with full filtering and sorting support. Scalar and object-type values with type-safe dot notation.
+  </Card>
+  <Card title="JSON Filtering" icon="list-format">
+    Transparent nested path queries on JSON columns with auto type casting for numeric and boolean comparisons.
+  </Card>
+  <Card title="Relation Filters" icon="random">
+    `$exists`, `$some`, `$every`, `$none` -- filter parent records based on related data via EXISTS subqueries.
+  </Card>
+  <Card title="Aggregations" icon="bars">
+    `_count`, `_sum`, `_avg`, `_min`, `_max` with `groupBy` and dot-notation for cross-table grouping via automatic LEFT JOIN.
+  </Card>
+  <Card title="Typed Context" icon="setting">
+    Pass per-request data (current user, tenant, locale) to field resolvers. Fully typed, available in computed and derived fields.
+  </Card>
+  <Card title="Multi-Dialect" icon="translate">
+    PostgreSQL, MySQL, and SQLite. Dialect-specific SQL is handled automatically -- `ILIKE`, array operators, JSON paths, `RETURNING`.
+  </Card>
+</CardGrid>
+
+## Packages
+
+| Package | Description |
+|---|---|
+| `@relayerjs/drizzle` | Drizzle ORM adapter -- the main package |
+| `@relayerjs/core` | ORM-agnostic types and contracts |
+
+## Quick Example
+
+```ts
+import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+
+const r = createRelayerDrizzle({ db, schema, entities: { /* ... */ } });
+
+const users = await r.users.findMany({
+  select: { id: true, firstName: true, postsCount: true },
+  where: { email: { contains: '@example.com' } },
+  orderBy: { field: 'firstName', order: 'asc' },
+  limit: 10,
+});
+```
+
+## Inspiration
+
+Relayer is inspired by Prisma query API, Hasura GraphQL filters, nestjs-query, and many other tools that make database access feel effortless.

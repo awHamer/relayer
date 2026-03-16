@@ -1,0 +1,36 @@
+{
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' run build",
+    "dev": "pnpm -r --filter './packages/*' run dev",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @relayerjs/drizzle test",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs build"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "^0.45.1"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "eslint": "^10.0.3",
+    "prettier": "^3.8.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.1"
+  }
+}

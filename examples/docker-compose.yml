@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:17
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: relayer
+      POSTGRES_PASSWORD: relayer
+      POSTGRES_DB: relayer_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - '3307:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: relayer
+      MYSQL_DATABASE: relayer_dev
+      MYSQL_USER: relayer
+      MYSQL_PASSWORD: relayer
+    volumes:
+      - mysqldata:/var/lib/mysql
+
+volumes:
+  pgdata:
+  mysqldata:
