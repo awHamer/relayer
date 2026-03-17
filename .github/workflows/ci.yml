@@ -36,6 +36,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm typecheck
 
   build:
@@ -62,6 +63,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @relayerjs/drizzle test:unit
       - run: pnpm --filter @relayerjs/drizzle test:sqlite
 
@@ -90,6 +92,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @relayerjs/drizzle test:pg
         env:
           PG_URL: postgres://relayer:relayer@localhost:5433/relayer_test
@@ -120,6 +123,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @relayerjs/drizzle test:mysql
         env:
           MYSQL_URL: mysql://relayer:relayer@localhost:3307/relayer_test
