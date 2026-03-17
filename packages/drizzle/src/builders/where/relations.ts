@@ -38,6 +38,7 @@ export function buildRelationFilter(
   }
 
   let nestedWhere: Record<string, unknown> | undefined;
+  // eslint-disable-next-line no-useless-assignment
   let mode: 'some' | 'every' | 'none' = 'some';
 
   if (filter.$some) {

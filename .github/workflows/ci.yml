@@ -63,6 +63,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm rebuild better-sqlite3
       - run: pnpm build
       - run: pnpm --filter @relayerjs/drizzle test:unit
       - run: pnpm --filter @relayerjs/drizzle test:sqlite
@@ -107,7 +108,7 @@ jobs:
           MYSQL_USER: relayer
           MYSQL_PASSWORD: relayer
           MYSQL_DATABASE: relayer_test
-          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_PASSWORD: relayer
         ports:
           - 3307:3306
         options: >-
