@@ -1,0 +1,54 @@
+name: Bug Report
+description: Report a bug in Relayer
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+
+  - type: input
+    id: package
+    attributes:
+      label: Package
+      description: Which package is affected?
+      placeholder: "@relayerjs/drizzle or @relayerjs/core"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.1.3"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Code snippet or repo link that reproduces the issue
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, DB, drizzle-orm version
+      placeholder: |
+        - Node: 20.x
+        - DB: PostgreSQL 16
+        - drizzle-orm: 0.45.1
+    validations:
+      required: true
