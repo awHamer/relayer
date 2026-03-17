@@ -63,7 +63,9 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm rebuild
+      - name: Rebuild better-sqlite3
+        working-directory: packages/drizzle
+        run: node -e "const{execSync}=require('child_process'),path=require('path');execSync('npm run install',{cwd:path.dirname(require.resolve('better-sqlite3/package.json')),stdio:'inherit'})"
       - run: pnpm build
       - run: pnpm --filter @relayerjs/drizzle test:unit
       - run: pnpm --filter @relayerjs/drizzle test:sqlite
