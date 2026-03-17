@@ -26,44 +26,58 @@ Relayer is that pattern extracted into a library. Built with **API integration i
 
 <CardGrid>
   <Card title="Query DSL" icon="magnifier">
-    Prisma-like `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain JSON-serializable object, making it trivial to wire up as REST/GraphQL filters.
+    Prisma-like `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain
+    JSON-serializable object, making it trivial to wire up as REST/GraphQL filters.
   </Card>
   <Card title="Computed Fields" icon="puzzle">
-    Virtual SQL expressions evaluated at SELECT time. No raw queries, no post-processing -- just declare and use.
+    Virtual SQL expressions evaluated at SELECT time. No raw queries, no post-processing -- just
+    declare and use.
   </Card>
   <Card title="Derived Fields" icon="rocket">
-    Automatic subquery JOINs with full filtering and sorting support. Scalar and object-type values with type-safe dot notation.
+    Automatic subquery JOINs with full filtering and sorting support. Scalar and object-type values
+    with type-safe dot notation.
   </Card>
   <Card title="JSON Filtering" icon="list-format">
-    Transparent nested path queries on JSON columns with auto type casting for numeric and boolean comparisons.
+    Transparent nested path queries on JSON columns with auto type casting for numeric and boolean
+    comparisons.
   </Card>
   <Card title="Relation Filters" icon="random">
-    `$exists`, `$some`, `$every`, `$none` -- filter parent records based on related data via EXISTS subqueries.
+    `$exists`, `$some`, `$every`, `$none` -- filter parent records based on related data via EXISTS
+    subqueries.
   </Card>
   <Card title="Aggregations" icon="bars">
-    `_count`, `_sum`, `_avg`, `_min`, `_max` with `groupBy` and dot-notation for cross-table grouping via automatic LEFT JOIN.
+    `_count`, `_sum`, `_avg`, `_min`, `_max` with `groupBy` and dot-notation for cross-table
+    grouping via automatic LEFT JOIN.
   </Card>
   <Card title="Typed Context" icon="setting">
-    Pass per-request data (current user, tenant, locale) to field resolvers. Fully typed, available in computed and derived fields.
+    Pass per-request data (current user, tenant, locale) to field resolvers. Fully typed, available
+    in computed and derived fields.
   </Card>
   <Card title="Multi-Dialect" icon="translate">
-    PostgreSQL, MySQL, and SQLite. Dialect-specific SQL is handled automatically -- `ILIKE`, array operators, JSON paths, `RETURNING`.
+    PostgreSQL, MySQL, and SQLite. Dialect-specific SQL is handled automatically -- `ILIKE`, array
+    operators, JSON paths, `RETURNING`.
   </Card>
 </CardGrid>
 
 ## Packages
 
-| Package | Description |
-|---|---|
+| Package              | Description                             |
+| -------------------- | --------------------------------------- |
 | `@relayerjs/drizzle` | Drizzle ORM adapter -- the main package |
-| `@relayerjs/core` | ORM-agnostic types and contracts |
+| `@relayerjs/core`    | ORM-agnostic types and contracts        |
 
 ## Quick Example
 
 ```ts
 import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
 
-const r = createRelayerDrizzle({ db, schema, entities: { /* ... */ } });
+const r = createRelayerDrizzle({
+  db,
+  schema,
+  entities: {
+    /* ... */
+  },
+});
 
 const users = await r.users.findMany({
   select: { id: true, firstName: true, postsCount: true },

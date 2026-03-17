@@ -53,9 +53,7 @@ const result = await db
 ```ts
 const db = r.$orm;
 
-const result = await db.execute(
-  sql`SELECT * FROM users WHERE first_name ~* ${'^jo'}`,
-);
+const result = await db.execute(sql`SELECT * FROM users WHERE first_name ~* ${'^jo'}`);
 ```
 
 ## Mixing Relayer and raw Drizzle

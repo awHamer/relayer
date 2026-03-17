@@ -27,7 +27,7 @@ Relayer is that pattern extracted into a library. Built with **API integration i
 - **20+ filter operators** -- eq, ne, gt, gte, lt, lte, in, contains, ilike, isNull, and more
 - **Array operators** -- arrayContains, arrayContained, arrayOverlaps (PostgreSQL)
 - **Relation filters** -- $exists, $some, $every, $none
-- **Aggregations** -- _count, _sum, _avg, _min, _max with groupBy and dot-notation
+- **Aggregations** -- \_count, \_sum, \_avg, \_min, \_max with groupBy and dot-notation
 - **Typed context** -- pass per-query context to computed/derived resolvers
 - **Transactions** -- $transaction with automatic client scoping
 - **Multi-dialect** -- PostgreSQL, MySQL, SQLite
@@ -44,8 +44,8 @@ npm install @relayerjs/drizzle drizzle-orm
 ### Define your Drizzle schema
 
 ```ts
-import { integer, jsonb, pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import { integer, jsonb, pgTable, serial, text } from 'drizzle-orm/pg-core';
 
 const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -59,7 +59,9 @@ const posts = pgTable('posts', {
   id: serial('id').primaryKey(),
   title: text('title').notNull(),
   published: boolean('published').default(false).notNull(),
-  authorId: integer('author_id').notNull().references(() => users.id),
+  authorId: integer('author_id')
+    .notNull()
+    .references(() => users.id),
 });
 
 const usersRelations = relations(users, ({ many }) => ({
@@ -101,7 +103,8 @@ const r = createRelayerDrizzle({
           type: FieldType.Derived,
           valueType: 'number',
           query: ({ db, schema: s, sql }) =>
-            db.select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
+            db
+              .select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
               .from(s.posts)
               .groupBy(s.posts.authorId),
           on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
@@ -111,7 +114,8 @@ const r = createRelayerDrizzle({
           type: FieldType.Derived,
           valueType: { totalAmount: 'string', orderCount: 'number' },
           query: ({ db, schema: s, sql }) =>
-            db.select({
+            db
+              .select({
                 orderStats_totalAmount: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
                 orderStats_orderCount: sql`count(*)::int`,
                 userId: s.orders.userId,
@@ -181,10 +185,10 @@ const ordersByUser = await r.orders.aggregate({
 
 ## Packages
 
-| Package | Description |
-|---|---|
+| Package                                  | Description                         |
+| ---------------------------------------- | ----------------------------------- |
 | [@relayerjs/drizzle](./packages/drizzle) | Drizzle ORM adapter -- main package |
-| [@relayerjs/core](./packages/core) | ORM-agnostic types and contracts |
+| [@relayerjs/core](./packages/core)       | ORM-agnostic types and contracts    |
 
 ## Documentation
 

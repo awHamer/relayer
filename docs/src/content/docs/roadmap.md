@@ -7,9 +7,9 @@ Relayer is in early development. The core query layer (`@relayerjs/drizzle`) is 
 
 ## Current packages
 
-| Package | Status | Description |
-|---|---|---|
-| `@relayerjs/core` | Published | ORM-agnostic types and contracts |
+| Package              | Status    | Description                             |
+| -------------------- | --------- | --------------------------------------- |
+| `@relayerjs/core`    | Published | ORM-agnostic types and contracts        |
 | `@relayerjs/drizzle` | Published | Drizzle ORM adapter with full query DSL |
 
 ## Planned packages

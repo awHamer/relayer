@@ -8,7 +8,14 @@
     "url": "https://github.com/awHamer/relayer",
     "directory": "packages/core"
   },
-  "keywords": ["orm", "repository", "typescript", "query-builder", "computed-fields", "derived-fields"],
+  "keywords": [
+    "orm",
+    "repository",
+    "typescript",
+    "query-builder",
+    "computed-fields",
+    "derived-fields"
+  ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

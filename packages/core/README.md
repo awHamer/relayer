@@ -22,8 +22,8 @@ import { FieldType } from '@relayerjs/drizzle';
 If you're building a custom adapter or need core types directly:
 
 ```ts
-import { FieldType, EntityRegistry } from '@relayerjs/core';
-import type { StringOperators, ComputedFieldDef } from '@relayerjs/core';
+import { EntityRegistry, FieldType } from '@relayerjs/core';
+import type { ComputedFieldDef, StringOperators } from '@relayerjs/core';
 ```
 
 ## License

@@ -40,13 +40,13 @@ const stats = await r.orders.aggregate({
 
 ### Available functions
 
-| Function | Description | Result key |
-|---|---|---|
-| `_count: true` | Count of rows | `_count` |
-| `_sum: { field: true }` | Sum of field values | `_sum_field` |
+| Function                | Description             | Result key   |
+| ----------------------- | ----------------------- | ------------ |
+| `_count: true`          | Count of rows           | `_count`     |
+| `_sum: { field: true }` | Sum of field values     | `_sum_field` |
 | `_avg: { field: true }` | Average of field values | `_avg_field` |
-| `_min: { field: true }` | Minimum value | `_min_field` |
-| `_max: { field: true }` | Maximum value | `_max_field` |
+| `_min: { field: true }` | Minimum value           | `_min_field` |
+| `_max: { field: true }` | Maximum value           | `_max_field` |
 
 Multiple fields can be aggregated at once:
 
@@ -100,6 +100,7 @@ const ordersByUser = await r.orders.aggregate({
 ```
 
 The dot notation `'user.firstName'` tells Relayer to:
+
 1. Follow the `user` relation from `orders`
 2. LEFT JOIN the `users` table
 3. Group by `users.first_name`

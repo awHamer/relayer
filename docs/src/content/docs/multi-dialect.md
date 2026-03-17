@@ -7,16 +7,16 @@ Relayer detects the SQL dialect from your Drizzle schema (by checking whether yo
 
 ## Dialect comparison
 
-| Feature | PostgreSQL | MySQL | SQLite |
-|---|---|---|---|
-| `ilike` | Native `ILIKE` | `LOWER(col) LIKE LOWER(val)` | `col LIKE val COLLATE NOCASE` |
-| `notIlike` | Native `NOT ILIKE` | `LOWER(col) NOT LIKE LOWER(val)` | `col NOT LIKE val COLLATE NOCASE` |
-| Array operators | Native (`@>`, `<@`, `&&`) | Not supported | Not supported |
-| JSON path | `col->>'key'` with `::cast` | `col->>'$.key'` with `CAST()` | `json_extract(col, '$.key')` with `CAST()` |
-| Nested JSON | `col->'a'->>'b'` | `col->>'$.a.b'` | `json_extract(col, '$.a.b')` |
-| Numeric JSON cast | `::numeric` | `CAST(... AS DECIMAL)` | `CAST(... AS REAL)` |
-| Boolean JSON cast | `::boolean` | `CAST(... AS UNSIGNED)` | `CAST(... AS INTEGER)` |
-| `RETURNING` | Yes | No (`insertId` fallback) | Yes |
+| Feature           | PostgreSQL                  | MySQL                            | SQLite                                     |
+| ----------------- | --------------------------- | -------------------------------- | ------------------------------------------ |
+| `ilike`           | Native `ILIKE`              | `LOWER(col) LIKE LOWER(val)`     | `col LIKE val COLLATE NOCASE`              |
+| `notIlike`        | Native `NOT ILIKE`          | `LOWER(col) NOT LIKE LOWER(val)` | `col NOT LIKE val COLLATE NOCASE`          |
+| Array operators   | Native (`@>`, `<@`, `&&`)   | Not supported                    | Not supported                              |
+| JSON path         | `col->>'key'` with `::cast` | `col->>'$.key'` with `CAST()`    | `json_extract(col, '$.key')` with `CAST()` |
+| Nested JSON       | `col->'a'->>'b'`            | `col->>'$.a.b'`                  | `json_extract(col, '$.a.b')`               |
+| Numeric JSON cast | `::numeric`                 | `CAST(... AS DECIMAL)`           | `CAST(... AS REAL)`                        |
+| Boolean JSON cast | `::boolean`                 | `CAST(... AS UNSIGNED)`          | `CAST(... AS INTEGER)`                     |
+| `RETURNING`       | Yes                         | No (`insertId` fallback)         | Yes                                        |
 
 ## Usage with PostgreSQL
 
@@ -47,7 +47,7 @@ MySQL uses fallback implementations for `ilike` (LOWER wrapping) and does not su
 ## Usage with SQLite
 
 ```ts
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -75,6 +75,7 @@ Using array operators with MySQL or SQLite will throw a runtime error. These ope
 ## Writing dialect-agnostic code
 
 If you need to support multiple dialects, avoid:
+
 - Array operators (`arrayContains`, `arrayContained`, `arrayOverlaps`)
 - Relying on MySQL-specific `insertId` behavior
 

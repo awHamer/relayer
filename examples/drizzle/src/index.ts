@@ -1,4 +1,4 @@
-import {createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
 
 import { client, db } from './db';
 import * as schema from './schema';
@@ -81,7 +81,8 @@ async function main() {
 
   // ─── Derived with Column ref (no sql`` wrapper) ──
 
-  log('derived with Column ref: latestEmail',
+  log(
+    'derived with Column ref: latestEmail',
     await r.users.findMany({
       select: { id: true, firstName: true, latestEmail: true },
     }),
@@ -89,7 +90,8 @@ async function main() {
 
   // ─── Eager: orderSummary in where (LEFT JOIN in main query) ──
 
-  log('eager: where orderSummary.orderCount lte 2',
+  log(
+    'eager: where orderSummary.orderCount lte 2',
     await r.users.findMany({
       select: { id: true, firstName: true, orderSummary: true },
       where: { orderSummary: { orderCount: { lte: 2 } } },
@@ -107,14 +109,16 @@ async function main() {
 
   // ─── Eager: orderBy dot notation (LEFT JOIN in main query) ───
 
-  log('eager: orderBy orderSummary.orderCount desc',
+  log(
+    'eager: orderBy orderSummary.orderCount desc',
     await r.users.findMany({
       select: { id: true, firstName: true, orderSummary: true },
       orderBy: { field: 'orderSummary.orderCount', order: 'desc' },
     }),
   );
 
-  log('eager: orderBy orderSummary.totalAmount asc',
+  log(
+    'eager: orderBy orderSummary.totalAmount asc',
     await r.users.findMany({
       select: { id: true, firstName: true, orderSummary: { totalAmount: true } },
       orderBy: { field: 'orderSummary.totalAmount', order: 'asc' },

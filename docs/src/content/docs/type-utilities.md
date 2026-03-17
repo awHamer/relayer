@@ -54,7 +54,7 @@ function getSortedUsers(orderBy: UserOrderBy) {
 These types make it trivial to build type-safe API endpoints:
 
 ```ts
-import type { InferEntityWhere, InferEntityOrderBy } from '@relayerjs/drizzle';
+import type { InferEntityOrderBy, InferEntityWhere } from '@relayerjs/drizzle';
 
 type UserWhere = InferEntityWhere<typeof r, 'users'>;
 type UserOrderBy = InferEntityOrderBy<typeof r, 'users'>;

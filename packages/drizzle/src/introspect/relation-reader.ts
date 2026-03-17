@@ -32,7 +32,8 @@ export function readRelations(
         kind: 'relation',
         name: relationName,
         relationType: relation instanceof One ? 'one' : 'many',
-        targetEntity: dbNameToTsName.get(relation.referencedTableName) ?? relation.referencedTableName,
+        targetEntity:
+          dbNameToTsName.get(relation.referencedTableName) ?? relation.referencedTableName,
       });
     }
 

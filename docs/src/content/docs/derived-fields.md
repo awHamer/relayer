@@ -34,16 +34,17 @@ const r = createRelayerDrizzle({
 
 Each derived field requires:
 
-| Property | Description |
-|---|---|
-| `type` | Must be `FieldType.Derived` |
+| Property    | Description                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| `type`      | Must be `FieldType.Derived`                                                                         |
 | `valueType` | Scalar (`'number'`, `'string'`, etc.) or object (`{ totalAmount: 'string', orderCount: 'number' }`) |
-| `query` | A function that builds a Drizzle subquery |
-| `on` | A function that defines the JOIN condition |
+| `query`     | A function that builds a Drizzle subquery                                                           |
+| `on`        | A function that defines the JOIN condition                                                          |
 
 ## The query function
 
 The `query` function receives `{ db, schema, sql, context }` and must return a Drizzle query builder. The selected columns must include:
+
 - The **value column(s)** to be exposed as the derived field
 - A **join key** column used in the `on` condition
 

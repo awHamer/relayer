@@ -106,11 +106,11 @@ await r.users.findMany({
 
 JSON path syntax varies by dialect:
 
-| Feature | PostgreSQL | MySQL | SQLite |
-|---|---|---|---|
-| Path operator | `->>'key'` | `->>'$.key'` | `json_extract(col, '$.key')` |
-| Numeric cast | `::numeric` | `CAST(... AS DECIMAL)` | `CAST(... AS REAL)` |
-| Boolean cast | `::boolean` | `CAST(... AS UNSIGNED)` | `CAST(... AS INTEGER)` |
-| Nested path | `col->'a'->>'b'` | `col->>'$.a.b'` | `json_extract(col, '$.a.b')` |
+| Feature       | PostgreSQL       | MySQL                   | SQLite                       |
+| ------------- | ---------------- | ----------------------- | ---------------------------- |
+| Path operator | `->>'key'`       | `->>'$.key'`            | `json_extract(col, '$.key')` |
+| Numeric cast  | `::numeric`      | `CAST(... AS DECIMAL)`  | `CAST(... AS REAL)`          |
+| Boolean cast  | `::boolean`      | `CAST(... AS UNSIGNED)` | `CAST(... AS INTEGER)`       |
+| Nested path   | `col->'a'->>'b'` | `col->>'$.a.b'`         | `json_extract(col, '$.a.b')` |
 
 These differences are handled automatically -- you write the same filter syntax regardless of dialect.

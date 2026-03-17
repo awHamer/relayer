@@ -2,7 +2,15 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import * as schema from '../fixtures/pg-schema';
-import { CATEGORIES, COMMENTS, ORDERS, POST_CATEGORIES, POSTS, PROFILES, USERS } from '../fixtures/seed';
+import {
+  CATEGORIES,
+  COMMENTS,
+  ORDERS,
+  POST_CATEGORIES,
+  POSTS,
+  PROFILES,
+  USERS,
+} from '../fixtures/seed';
 
 const PG_URL = process.env.PG_URL ?? 'postgres://relayer:relayer@localhost:5433/relayer_test';
 

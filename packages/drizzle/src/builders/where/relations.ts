@@ -124,7 +124,8 @@ export function resolveRelationFields(
       kind: 'relation',
       name,
       relationType: relation instanceof One ? 'one' : 'many',
-      targetEntity: dbNameToTsName.get(relation.referencedTableName) ?? relation.referencedTableName,
+      targetEntity:
+        dbNameToTsName.get(relation.referencedTableName) ?? relation.referencedTableName,
     });
   }
   return result;

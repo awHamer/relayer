@@ -1,3 +1,7 @@
+// ---------------------------------------------------------------------------
+// Table without relations — scalar where must still work
+// ---------------------------------------------------------------------------
+import { pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { expectTypeOf } from 'vitest';
 
 import { createRelayerDrizzle, FieldType } from '../../src';
@@ -137,11 +141,6 @@ describe('InferEntityOrderBy', () => {
     expectTypeOf<UserOrderBy['order']>().toEqualTypeOf<'asc' | 'desc'>();
   });
 });
-
-// ---------------------------------------------------------------------------
-// Table without relations — scalar where must still work
-// ---------------------------------------------------------------------------
-import { pgTable, serial, text } from 'drizzle-orm/pg-core';
 
 const tags = pgTable('tags', {
   id: serial('id').primaryKey(),

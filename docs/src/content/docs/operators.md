@@ -7,28 +7,28 @@ Relayer provides 20+ operators for filtering in the `where` clause. The availabl
 
 ## Operator reference
 
-| Operator | Example | Description |
-|---|---|---|
-| `eq` | `{ name: 'John' }` or `{ name: { eq: 'John' } }` | Equal. Shorthand: passing a raw value is treated as `eq` |
-| `ne` | `{ name: { ne: 'John' } }` | Not equal |
-| `gt` | `{ age: { gt: 18 } }` | Greater than |
-| `gte` | `{ age: { gte: 18 } }` | Greater than or equal |
-| `lt` | `{ age: { lt: 65 } }` | Less than |
-| `lte` | `{ age: { lte: 65 } }` | Less than or equal |
-| `in` | `{ id: { in: [1, 2, 3] } }` | Value is in array |
-| `notIn` | `{ id: { notIn: [4, 5] } }` | Value is not in array |
-| `like` | `{ email: { like: '%@gmail%' } }` | SQL LIKE pattern match |
-| `notLike` | `{ email: { notLike: '%spam%' } }` | SQL NOT LIKE |
-| `ilike` | `{ name: { ilike: '%john%' } }` | Case-insensitive LIKE |
-| `notIlike` | `{ name: { notIlike: '%test%' } }` | Case-insensitive NOT LIKE |
-| `contains` | `{ email: { contains: 'gmail' } }` | Contains substring (wraps in `%...%`) |
-| `startsWith` | `{ name: { startsWith: 'Jo' } }` | Starts with prefix |
-| `endsWith` | `{ email: { endsWith: '.com' } }` | Ends with suffix |
-| `isNull` | `{ deletedAt: { isNull: true } }` | Is NULL |
-| `isNotNull` | `{ email: { isNotNull: true } }` | Is NOT NULL |
-| `arrayContains` | `{ tags: { arrayContains: ['ts'] } }` | Array contains all values (PG only) |
-| `arrayContained` | `{ tags: { arrayContained: ['ts', 'js'] } }` | Array is contained by values (PG only) |
-| `arrayOverlaps` | `{ tags: { arrayOverlaps: ['ts', 'js'] } }` | Array has any overlap (PG only) |
+| Operator         | Example                                          | Description                                              |
+| ---------------- | ------------------------------------------------ | -------------------------------------------------------- |
+| `eq`             | `{ name: 'John' }` or `{ name: { eq: 'John' } }` | Equal. Shorthand: passing a raw value is treated as `eq` |
+| `ne`             | `{ name: { ne: 'John' } }`                       | Not equal                                                |
+| `gt`             | `{ age: { gt: 18 } }`                            | Greater than                                             |
+| `gte`            | `{ age: { gte: 18 } }`                           | Greater than or equal                                    |
+| `lt`             | `{ age: { lt: 65 } }`                            | Less than                                                |
+| `lte`            | `{ age: { lte: 65 } }`                           | Less than or equal                                       |
+| `in`             | `{ id: { in: [1, 2, 3] } }`                      | Value is in array                                        |
+| `notIn`          | `{ id: { notIn: [4, 5] } }`                      | Value is not in array                                    |
+| `like`           | `{ email: { like: '%@gmail%' } }`                | SQL LIKE pattern match                                   |
+| `notLike`        | `{ email: { notLike: '%spam%' } }`               | SQL NOT LIKE                                             |
+| `ilike`          | `{ name: { ilike: '%john%' } }`                  | Case-insensitive LIKE                                    |
+| `notIlike`       | `{ name: { notIlike: '%test%' } }`               | Case-insensitive NOT LIKE                                |
+| `contains`       | `{ email: { contains: 'gmail' } }`               | Contains substring (wraps in `%...%`)                    |
+| `startsWith`     | `{ name: { startsWith: 'Jo' } }`                 | Starts with prefix                                       |
+| `endsWith`       | `{ email: { endsWith: '.com' } }`                | Ends with suffix                                         |
+| `isNull`         | `{ deletedAt: { isNull: true } }`                | Is NULL                                                  |
+| `isNotNull`      | `{ email: { isNotNull: true } }`                 | Is NOT NULL                                              |
+| `arrayContains`  | `{ tags: { arrayContains: ['ts'] } }`            | Array contains all values (PG only)                      |
+| `arrayContained` | `{ tags: { arrayContained: ['ts', 'js'] } }`     | Array is contained by values (PG only)                   |
+| `arrayOverlaps`  | `{ tags: { arrayOverlaps: ['ts', 'js'] } }`      | Array has any overlap (PG only)                          |
 
 ## Operators by type
 

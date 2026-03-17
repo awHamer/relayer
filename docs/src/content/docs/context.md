@@ -19,7 +19,9 @@ const r = createRelayerDrizzle({
   db,
   schema,
   context: {} as AppContext,
-  entities: { /* ... */ },
+  entities: {
+    /* ... */
+  },
 });
 ```
 

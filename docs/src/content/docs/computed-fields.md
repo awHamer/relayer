@@ -21,8 +21,7 @@ const r = createRelayerDrizzle({
         fullName: {
           type: FieldType.Computed,
           valueType: 'string',
-          resolve: ({ table, sql }) =>
-            sql`${table.firstName} || ' ' || ${table.lastName}`,
+          resolve: ({ table, sql }) => sql`${table.firstName} || ' ' || ${table.lastName}`,
         },
       },
     },
@@ -32,11 +31,11 @@ const r = createRelayerDrizzle({
 
 Each computed field requires:
 
-| Property | Description |
-|---|---|
-| `type` | Must be `FieldType.Computed` |
+| Property    | Description                                          |
+| ----------- | ---------------------------------------------------- |
+| `type`      | Must be `FieldType.Computed`                         |
 | `valueType` | One of `'string'`, `'number'`, `'boolean'`, `'date'` |
-| `resolve` | A function that returns an SQL expression |
+| `resolve`   | A function that returns an SQL expression            |
 
 ## The resolve function
 
@@ -76,6 +75,7 @@ const users = await r.users.findMany({
 ```
 
 The operators available for filtering depend on `valueType`:
+
 - `'string'` -> string operators (eq, contains, ilike, startsWith, etc.)
 - `'number'` -> number operators (eq, gt, gte, lt, lte, etc.)
 - `'boolean'` -> boolean operators (eq, ne)

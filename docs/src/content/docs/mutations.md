@@ -86,11 +86,11 @@ const result = await r.users.deleteMany({
 
 The `create`, `update`, and `delete` methods return the affected row(s). This depends on dialect support:
 
-| Dialect | RETURNING support |
-|---|---|
-| PostgreSQL | Native `RETURNING *` |
-| SQLite | Native `RETURNING *` |
-| MySQL | No RETURNING -- uses `insertId` fallback for create |
+| Dialect    | RETURNING support                                   |
+| ---------- | --------------------------------------------------- |
+| PostgreSQL | Native `RETURNING *`                                |
+| SQLite     | Native `RETURNING *`                                |
+| MySQL      | No RETURNING -- uses `insertId` fallback for create |
 
 ## Combining with transactions
 

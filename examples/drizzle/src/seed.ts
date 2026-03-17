@@ -135,11 +135,9 @@ export async function seed() {
     { bio: 'Backend engineer', userId: 2 },
   ]);
 
-  await db.insert(schema.categories).values([
-    { name: 'TypeScript' },
-    { name: 'General' },
-    { name: 'DevOps' },
-  ]);
+  await db
+    .insert(schema.categories)
+    .values([{ name: 'TypeScript' }, { name: 'General' }, { name: 'DevOps' }]);
 
   await db.insert(schema.postCategories).values([
     { postId: 1, categoryId: 2, isPrimary: true },

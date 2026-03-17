@@ -120,10 +120,10 @@ await r.users.findMany({
 
 ## Summary
 
-| Operator | Meaning | SQL |
-|---|---|---|
-| `$exists: true` | Related record exists | `EXISTS (SELECT 1 ...)` |
-| `$exists: false` | No related record | `NOT EXISTS (SELECT 1 ...)` |
-| `$some: { ... }` | At least one match | `EXISTS (SELECT 1 ... WHERE condition)` |
-| `$every: { ... }` | All match | `NOT EXISTS (SELECT 1 ... WHERE NOT condition)` |
-| `$none: { ... }` | None match | `NOT EXISTS (SELECT 1 ... WHERE condition)` |
+| Operator          | Meaning               | SQL                                             |
+| ----------------- | --------------------- | ----------------------------------------------- |
+| `$exists: true`   | Related record exists | `EXISTS (SELECT 1 ...)`                         |
+| `$exists: false`  | No related record     | `NOT EXISTS (SELECT 1 ...)`                     |
+| `$some: { ... }`  | At least one match    | `EXISTS (SELECT 1 ... WHERE condition)`         |
+| `$every: { ... }` | All match             | `NOT EXISTS (SELECT 1 ... WHERE NOT condition)` |
+| `$none: { ... }`  | None match            | `NOT EXISTS (SELECT 1 ... WHERE condition)`     |

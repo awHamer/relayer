@@ -1,7 +1,6 @@
 import { pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-
 import { createRelayerDrizzle } from '@relayerjs/drizzle';
 
 const log = (label: string, data: unknown) =>
@@ -81,10 +80,7 @@ async function main() {
 
   log('count', await r.tags.count());
 
-  log(
-    'count with where',
-    await r.tags.count({ where: { name: { contains: 'Script' } } }),
-  );
+  log('count with where', await r.tags.count({ where: { name: { contains: 'Script' } } }));
 
   await client.unsafe('DROP TABLE IF EXISTS tags CASCADE');
   await client.end();

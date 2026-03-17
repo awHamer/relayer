@@ -146,7 +146,7 @@ You can choose which columns to load from the related table:
 const usersWithPosts = await r.users.findMany({
   select: {
     id: true,
-    posts: { title: true },  // only load title from posts
+    posts: { title: true }, // only load title from posts
   },
 });
 ```
@@ -161,8 +161,8 @@ Relations work alongside all other query features:
 const users = await r.users.findMany({
   select: {
     id: true,
-    fullName: true,        // computed field
-    postsCount: true,       // derived field
+    fullName: true, // computed field
+    postsCount: true, // derived field
     posts: { title: true }, // relation
   },
   where: { email: { contains: '@example.com' } },

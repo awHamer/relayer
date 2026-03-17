@@ -10,13 +10,22 @@ export const mysqlAdapter: DialectAdapter = {
   notIlike: (col, val) => sql`LOWER(${col}) NOT LIKE LOWER(${val})`,
 
   arrayContains: () => {
-    throw new RelayerDialectError('mysql', 'Array operators are not supported in MySQL. Use JSON columns instead.');
+    throw new RelayerDialectError(
+      'mysql',
+      'Array operators are not supported in MySQL. Use JSON columns instead.',
+    );
   },
   arrayContained: () => {
-    throw new RelayerDialectError('mysql', 'Array operators are not supported in MySQL. Use JSON columns instead.');
+    throw new RelayerDialectError(
+      'mysql',
+      'Array operators are not supported in MySQL. Use JSON columns instead.',
+    );
   },
   arrayOverlaps: () => {
-    throw new RelayerDialectError('mysql', 'Array operators are not supported in MySQL. Use JSON columns instead.');
+    throw new RelayerDialectError(
+      'mysql',
+      'Array operators are not supported in MySQL. Use JSON columns instead.',
+    );
   },
 
   jsonPath: (col, path, castType) => {

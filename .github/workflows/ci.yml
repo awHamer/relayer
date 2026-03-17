@@ -63,7 +63,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm rebuild better-sqlite3
+      - run: pnpm rebuild
       - run: pnpm build
       - run: pnpm --filter @relayerjs/drizzle test:unit
       - run: pnpm --filter @relayerjs/drizzle test:sqlite

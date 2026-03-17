@@ -12,7 +12,7 @@ body:
     attributes:
       label: Package
       description: Which package is this for?
-      placeholder: "@relayerjs/drizzle, @relayerjs/core, or new package"
+      placeholder: '@relayerjs/drizzle, @relayerjs/core, or new package'
     validations:
       required: true
 

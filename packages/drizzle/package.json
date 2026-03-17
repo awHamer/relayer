@@ -8,7 +8,16 @@
     "url": "https://github.com/awHamer/relayer",
     "directory": "packages/drizzle"
   },
-  "keywords": ["drizzle", "orm", "repository", "typescript", "query-builder", "computed-fields", "derived-fields", "json-filtering"],
+  "keywords": [
+    "drizzle",
+    "orm",
+    "repository",
+    "typescript",
+    "query-builder",
+    "computed-fields",
+    "derived-fields",
+    "json-filtering"
+  ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

@@ -46,11 +46,12 @@ export type RelationTargetName<
   TTableName extends string,
   TSchema extends Record<string, unknown>,
   K extends string,
-> = ReferencedDbName<TTableName, TSchema, K> extends infer DbName extends string
-  ? DbName extends keyof DbNameToTsName<TSchema>
-    ? DbNameToTsName<TSchema>[DbName]
-    : DbName
-  : never;
+> =
+  ReferencedDbName<TTableName, TSchema, K> extends infer DbName extends string
+    ? DbName extends keyof DbNameToTsName<TSchema>
+      ? DbNameToTsName<TSchema>[DbName]
+      : DbName
+    : never;
 
 export type RelationTargetTable<
   TTableName extends string,

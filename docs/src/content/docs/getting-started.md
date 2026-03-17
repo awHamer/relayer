@@ -57,20 +57,20 @@ const schema = { users, posts, usersRelations, postsRelations };
 
 ```ts
 import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+
 import { db } from './db';
 import * as schema from './schema';
 
 const r = createRelayerDrizzle({
-  db,       // your drizzle instance
-  schema,   // the full schema including relations
+  db, // your drizzle instance
+  schema, // the full schema including relations
   entities: {
     users: {
       fields: {
         fullName: {
           type: FieldType.Computed,
           valueType: 'string',
-          resolve: ({ table, sql }) =>
-            sql`${table.firstName} || ' ' || ${table.lastName}`,
+          resolve: ({ table, sql }) => sql`${table.firstName} || ' ' || ${table.lastName}`,
         },
         postsCount: {
           type: FieldType.Derived,

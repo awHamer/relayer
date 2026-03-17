@@ -10,13 +10,22 @@ export const sqliteAdapter: DialectAdapter = {
   notIlike: (col, val) => sql`${col} NOT LIKE ${val} COLLATE NOCASE`,
 
   arrayContains: () => {
-    throw new RelayerDialectError('sqlite', 'Array operators are not supported in SQLite. Use JSON columns instead.');
+    throw new RelayerDialectError(
+      'sqlite',
+      'Array operators are not supported in SQLite. Use JSON columns instead.',
+    );
   },
   arrayContained: () => {
-    throw new RelayerDialectError('sqlite', 'Array operators are not supported in SQLite. Use JSON columns instead.');
+    throw new RelayerDialectError(
+      'sqlite',
+      'Array operators are not supported in SQLite. Use JSON columns instead.',
+    );
   },
   arrayOverlaps: () => {
-    throw new RelayerDialectError('sqlite', 'Array operators are not supported in SQLite. Use JSON columns instead.');
+    throw new RelayerDialectError(
+      'sqlite',
+      'Array operators are not supported in SQLite. Use JSON columns instead.',
+    );
   },
 
   jsonPath: (col, path, castType) => {

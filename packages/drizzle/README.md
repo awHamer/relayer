@@ -12,6 +12,7 @@ npm install @relayerjs/drizzle drizzle-orm
 
 ```ts
 import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+
 import { db } from './db';
 import * as schema from './schema';
 
@@ -30,8 +31,7 @@ const r = createRelayerDrizzle({
         fullName: {
           type: FieldType.Computed,
           valueType: 'string',
-          resolve: ({ table, sql }) =>
-            sql`${table.firstName} || ' ' || ${table.lastName}`,
+          resolve: ({ table, sql }) => sql`${table.firstName} || ' ' || ${table.lastName}`,
         },
         // Computed with context
         isMe: {
@@ -45,7 +45,8 @@ const r = createRelayerDrizzle({
           type: FieldType.Derived,
           valueType: 'number',
           query: ({ db, schema: s, sql }) =>
-            db.select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
+            db
+              .select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
               .from(s.posts)
               .groupBy(s.posts.authorId),
           on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
@@ -55,7 +56,8 @@ const r = createRelayerDrizzle({
           type: FieldType.Derived,
           valueType: { totalAmount: 'string', orderCount: 'number' },
           query: ({ db, schema: s, sql }) =>
-            db.select({
+            db
+              .select({
                 orderSummary_totalAmount: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
                 orderSummary_orderCount: sql`count(*)::int`,
                 userId: s.orders.userId,
@@ -87,6 +89,7 @@ const users = await r.users.findMany({
 ## Derived Fields
 
 Subqueries automatically joined to the main query. Useful for aggregations and cross-table computations. Each derived field has:
+
 - `query` -- a function that builds a Drizzle subquery (receives `{ db, schema, sql, context }`)
 - `on` -- a function that defines the JOIN condition (receives `{ parent, derived, eq }`)
 
@@ -134,21 +137,21 @@ const user = await r.users.findFirst({
 
 ### Operators
 
-| Operator | Example | Description |
-|---|---|---|
-| eq | `{ name: 'John' }` or `{ name: { eq: 'John' } }` | Equal |
-| ne | `{ name: { ne: 'John' } }` | Not equal |
-| gt, gte, lt, lte | `{ age: { gt: 18 } }` | Comparison |
-| in, notIn | `{ id: { in: [1, 2, 3] } }` | Array membership |
-| like, notLike | `{ email: { like: '%@gmail%' } }` | Pattern match |
-| ilike, notIlike | `{ name: { ilike: '%john%' } }` | Case-insensitive (PG native, MySQL/SQLite fallback) |
-| contains | `{ email: { contains: 'gmail' } }` | Contains substring |
-| startsWith | `{ name: { startsWith: 'Jo' } }` | Starts with |
-| endsWith | `{ email: { endsWith: '.com' } }` | Ends with |
-| isNull | `{ deletedAt: { isNull: true } }` | Is null |
-| isNotNull | `{ email: { isNotNull: true } }` | Is not null |
-| arrayContains | `{ tags: { arrayContains: ['ts'] } }` | Array contains all (PG only) |
-| arrayOverlaps | `{ tags: { arrayOverlaps: ['ts', 'js'] } }` | Array overlaps (PG only) |
+| Operator         | Example                                          | Description                                         |
+| ---------------- | ------------------------------------------------ | --------------------------------------------------- |
+| eq               | `{ name: 'John' }` or `{ name: { eq: 'John' } }` | Equal                                               |
+| ne               | `{ name: { ne: 'John' } }`                       | Not equal                                           |
+| gt, gte, lt, lte | `{ age: { gt: 18 } }`                            | Comparison                                          |
+| in, notIn        | `{ id: { in: [1, 2, 3] } }`                      | Array membership                                    |
+| like, notLike    | `{ email: { like: '%@gmail%' } }`                | Pattern match                                       |
+| ilike, notIlike  | `{ name: { ilike: '%john%' } }`                  | Case-insensitive (PG native, MySQL/SQLite fallback) |
+| contains         | `{ email: { contains: 'gmail' } }`               | Contains substring                                  |
+| startsWith       | `{ name: { startsWith: 'Jo' } }`                 | Starts with                                         |
+| endsWith         | `{ email: { endsWith: '.com' } }`                | Ends with                                           |
+| isNull           | `{ deletedAt: { isNull: true } }`                | Is null                                             |
+| isNotNull        | `{ email: { isNotNull: true } }`                 | Is not null                                         |
+| arrayContains    | `{ tags: { arrayContains: ['ts'] } }`            | Array contains all (PG only)                        |
+| arrayOverlaps    | `{ tags: { arrayOverlaps: ['ts', 'js'] } }`      | Array overlaps (PG only)                            |
 
 ### JSON Filtering
 
@@ -196,10 +199,7 @@ await r.users.findMany({
 ```ts
 await r.users.findMany({
   where: {
-    OR: [
-      { firstName: 'John' },
-      { AND: [{ role: 'admin' }, { active: true }] },
-    ],
+    OR: [{ firstName: 'John' }, { AND: [{ role: 'admin' }, { active: true }] }],
     NOT: { email: { contains: 'spam' } },
   },
 });
@@ -343,12 +343,12 @@ const users = await r.users.findMany({
 
 Relayer detects the dialect from your Drizzle schema and adjusts SQL generation accordingly.
 
-| Feature | PostgreSQL | MySQL | SQLite |
-|---|---|---|---|
-| ilike | Native `ILIKE` | `LOWER() LIKE LOWER()` | `LIKE COLLATE NOCASE` |
-| Array operators | Native (`@>`, `&&`) | Not supported | Not supported |
-| JSON path | `->>` with `::cast` | `->>` with `CAST()` | `json_extract()` with `CAST()` |
-| RETURNING | Yes | No (`insertId` fallback) | Yes |
+| Feature         | PostgreSQL          | MySQL                    | SQLite                         |
+| --------------- | ------------------- | ------------------------ | ------------------------------ |
+| ilike           | Native `ILIKE`      | `LOWER() LIKE LOWER()`   | `LIKE COLLATE NOCASE`          |
+| Array operators | Native (`@>`, `&&`) | Not supported            | Not supported                  |
+| JSON path       | `->>` with `::cast` | `->>` with `CAST()`      | `json_extract()` with `CAST()` |
+| RETURNING       | Yes                 | No (`insertId` fallback) | Yes                            |
 
 ## Escape Hatch
 
@@ -367,7 +367,7 @@ const result = await db.select().from(users).where(...);
 Extract `Where`, `Select`, and `OrderBy` types for any entity from your Relayer client. Useful for building custom methods, API handlers, or reusable query helpers.
 
 ```ts
-import type { InferEntityWhere, InferEntitySelect, InferEntityOrderBy } from '@relayerjs/drizzle';
+import type { InferEntityOrderBy, InferEntitySelect, InferEntityWhere } from '@relayerjs/drizzle';
 
 // Extract types from your client instance
 type UserWhere = InferEntityWhere<typeof r, 'users'>;

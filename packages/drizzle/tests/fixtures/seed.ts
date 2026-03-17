@@ -72,15 +72,11 @@ export const PROFILES = [
   { bio: 'Backend engineer', userId: 2 },
 ];
 
-export const CATEGORIES = [
-  { name: 'TypeScript' },
-  { name: 'General' },
-  { name: 'DevOps' },
-];
+export const CATEGORIES = [{ name: 'TypeScript' }, { name: 'General' }, { name: 'DevOps' }];
 
 export const POST_CATEGORIES = [
-  { postId: 1, categoryId: 2, isPrimary: true },   // Hello World -> General (primary)
-  { postId: 2, categoryId: 1, isPrimary: true },   // TS Tips -> TypeScript (primary)
-  { postId: 2, categoryId: 2, isPrimary: false },  // TS Tips -> General
-  { postId: 4, categoryId: 1, isPrimary: true },   // Hello Relayer -> TypeScript (primary)
+  { postId: 1, categoryId: 2, isPrimary: true }, // Hello World -> General (primary)
+  { postId: 2, categoryId: 1, isPrimary: true }, // TS Tips -> TypeScript (primary)
+  { postId: 2, categoryId: 2, isPrimary: false }, // TS Tips -> General
+  { postId: 4, categoryId: 1, isPrimary: true }, // Hello Relayer -> TypeScript (primary)
 ];

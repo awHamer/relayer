@@ -44,6 +44,7 @@ const users = await r.users.findMany({
 ```
 
 You can select:
+
 - **Scalar columns** -- `{ id: true, email: true }`
 - **Computed fields** -- `{ fullName: true }`
 - **Derived fields** -- `{ postsCount: true }` or `{ orderSummary: { totalAmount: true } }`
@@ -84,19 +85,13 @@ Combine conditions with logical operators:
 ```ts
 await r.users.findMany({
   where: {
-    OR: [
-      { firstName: 'John' },
-      { firstName: 'Jane' },
-    ],
+    OR: [{ firstName: 'John' }, { firstName: 'Jane' }],
   },
 });
 
 await r.users.findMany({
   where: {
-    AND: [
-      { role: 'admin' },
-      { active: true },
-    ],
+    AND: [{ role: 'admin' }, { active: true }],
   },
 });
 
@@ -112,10 +107,7 @@ They can be nested:
 ```ts
 await r.users.findMany({
   where: {
-    OR: [
-      { firstName: 'John' },
-      { AND: [{ role: 'admin' }, { active: true }] },
-    ],
+    OR: [{ firstName: 'John' }, { AND: [{ role: 'admin' }, { active: true }] }],
     NOT: { email: { contains: 'spam' } },
   },
 });
