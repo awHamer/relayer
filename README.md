@@ -188,7 +188,9 @@ const ordersByUser = await r.orders.aggregate({
 
 ## Documentation
 
-See the [Drizzle adapter README](./packages/drizzle/README.md) for full API reference with examples.
+Full documentation is available at **[relayerjs.vercel.app](https://relayerjs.vercel.app)**
+
+See also the [Drizzle adapter README](./packages/drizzle/README.md) for a quick API reference.
 
 ## Examples
 
