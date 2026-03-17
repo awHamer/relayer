@@ -44,6 +44,19 @@ async function main() {
                 .groupBy(s.posts.authorId),
             on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
           },
+          // Derived with direct Column reference (no sql`` wrapper) — tests auto-aliasing fix
+          latestEmail: {
+            type: FieldType.Derived,
+            valueType: 'string',
+            query: ({ db, schema: s }) =>
+              db
+                .select({
+                  latestEmail: s.users.email,
+                  userId: s.users.id,
+                })
+                .from(s.users),
+            on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
+          },
           orderSummary: {
             type: FieldType.Derived,
             valueType: {
@@ -65,6 +78,14 @@ async function main() {
       },
     },
   });
+
+  // ─── Derived with Column ref (no sql`` wrapper) ──
+
+  log('derived with Column ref: latestEmail',
+    await r.users.findMany({
+      select: { id: true, firstName: true, latestEmail: true },
+    }),
+  );
 
   // ─── Eager: orderSummary in where (LEFT JOIN in main query) ──
 

@@ -95,6 +95,19 @@ export function resolveDerivedFields(
   return result;
 }
 
+function needsAlias(field: unknown): boolean {
+  if (field instanceof SQL) return true;
+  // Drizzle Column objects (schema.table.column)
+  if (field && typeof field === 'object' && 'name' in field && 'table' in field) return true;
+  return false;
+}
+
+function wrapWithAlias(field: unknown, aliasName: string): unknown {
+  if (field instanceof SQL) return field.as(aliasName);
+  // Wrap Column as sql`${column}`.as(aliasName) to force the alias
+  return sql`${field as Column}`.as(aliasName);
+}
+
 function createAutoAliasProxy(db: any, fieldName: string, isObjectType: boolean): any {
   return new Proxy(db, {
     get(target, prop) {
@@ -105,20 +118,13 @@ function createAutoAliasProxy(db: any, fieldName: string, isObjectType: boolean)
           const patched = { ...fields };
 
           if (isObjectType) {
-            // Auto-alias all fieldName_* columns
             for (const key of Object.keys(patched)) {
-              if (key.startsWith(`${fieldName}_`)) {
-                const field = patched[key];
-                if (field instanceof SQL && !('fieldAlias' in field)) {
-                  patched[key] = (field as SQL).as(key);
-                }
+              if (key.startsWith(`${fieldName}_`) && needsAlias(patched[key])) {
+                patched[key] = wrapWithAlias(patched[key], key);
               }
             }
-          } else if (fieldName in patched) {
-            const field = patched[fieldName];
-            if (field instanceof SQL && !('fieldAlias' in field)) {
-              patched[fieldName] = (field as SQL).as(fieldName);
-            }
+          } else if (fieldName in patched && needsAlias(patched[fieldName])) {
+            patched[fieldName] = wrapWithAlias(patched[fieldName], fieldName);
           }
 
           return (target as any).select(patched);

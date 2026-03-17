@@ -34,14 +34,16 @@ type RelationNestedWhere<
 type RelationWhereFields<
   TTableName extends string,
   TSchema extends Record<string, unknown> = Record<string, unknown>,
-> = {
-  [K in TableRelationKeys<TTableName, TSchema>]?:
-    | { $exists?: boolean }
-    | { $some?: RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema> }
-    | { $every?: RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema> }
-    | { $none?: RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema> }
-    | RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema>;
-};
+> = string extends TableRelationKeys<TTableName, TSchema>
+  ? {}
+  : {
+      [K in TableRelationKeys<TTableName, TSchema>]?:
+        | { $exists?: boolean }
+        | { $some?: RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema> }
+        | { $every?: RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema> }
+        | { $none?: RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema> }
+        | RelationNestedWhere<RelationTargetName<TTableName, TSchema, K> & string, TSchema>;
+    };
 
 export type EntityWhere<
   TTable,

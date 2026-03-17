@@ -137,3 +137,50 @@ describe('InferEntityOrderBy', () => {
     expectTypeOf<UserOrderBy['order']>().toEqualTypeOf<'asc' | 'desc'>();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Table without relations — scalar where must still work
+// ---------------------------------------------------------------------------
+import { pgTable, serial, text } from 'drizzle-orm/pg-core';
+
+const tags = pgTable('tags', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+});
+
+const standaloneSchema = { tags };
+const rStandalone = createRelayerDrizzle({ db: {} as any, schema: standaloneSchema });
+type TagWhere = InferEntityWhere<typeof rStandalone, 'tags'>;
+type TagSelect = InferEntitySelect<typeof rStandalone, 'tags'>;
+
+describe('table without relations', () => {
+  it('where accepts scalar operators', () => {
+    const w1: TagWhere = { name: 'test' };
+    const w2: TagWhere = { name: { contains: 'test' } };
+    const w3: TagWhere = { id: { gt: 1 } };
+    const w4: TagWhere = { id: { gt: 1 }, name: { startsWith: 'a' } };
+    const w5: TagWhere = { AND: [{ name: 'a' }], OR: [{ id: 1 }] };
+    expect(w1).toBeDefined();
+    expect(w2).toBeDefined();
+    expect(w3).toBeDefined();
+    expect(w4).toBeDefined();
+    expect(w5).toBeDefined();
+  });
+
+  it('select accepts scalar columns', () => {
+    const s1: TagSelect = { id: true, name: true };
+    const s2: TagSelect = { slug: true };
+    expect(s1).toBeDefined();
+    expect(s2).toBeDefined();
+  });
+
+  it('where has correct properties', () => {
+    expectTypeOf<TagWhere>().toHaveProperty('id');
+    expectTypeOf<TagWhere>().toHaveProperty('name');
+    expectTypeOf<TagWhere>().toHaveProperty('slug');
+    expectTypeOf<TagWhere>().toHaveProperty('AND');
+    expectTypeOf<TagWhere>().toHaveProperty('OR');
+    expectTypeOf<TagWhere>().toHaveProperty('NOT');
+  });
+});

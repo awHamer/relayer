@@ -1,6 +1,6 @@
 {
   "name": "@relayerjs/drizzle",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "Type-safe repository layer for Drizzle ORM with computed fields, derived fields, and query DSL",
   "license": "MIT",
   "repository": {
