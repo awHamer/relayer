@@ -102,9 +102,9 @@ const r = createRelayerDrizzle({
         postsCount: {
           type: FieldType.Derived,
           valueType: 'number',
-          query: ({ db, schema: s, sql }) =>
+          query: ({ db, schema: s, sql, field }) =>
             db
-              .select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
+              .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
               .from(s.posts)
               .groupBy(s.posts.authorId),
           on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
@@ -113,11 +113,11 @@ const r = createRelayerDrizzle({
         orderStats: {
           type: FieldType.Derived,
           valueType: { totalAmount: 'string', orderCount: 'number' },
-          query: ({ db, schema: s, sql }) =>
+          query: ({ db, schema: s, sql, field }) =>
             db
               .select({
-                orderStats_totalAmount: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
-                orderStats_orderCount: sql`count(*)::int`,
+                [field('totalAmount')]: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
+                [field('orderCount')]: sql`count(*)::int`,
                 userId: s.orders.userId,
               })
               .from(s.orders)
