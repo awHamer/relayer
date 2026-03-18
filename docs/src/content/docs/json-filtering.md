@@ -102,6 +102,30 @@ await r.users.findMany({
 });
 ```
 
+## Ordering by JSON paths
+
+`orderBy` supports dot-notation for JSON columns -- the same paths you use in `where`:
+
+```ts
+const users = await r.users.findMany({
+  orderBy: { field: 'metadata.role', order: 'asc' },
+});
+```
+
+Nested paths work too:
+
+```ts
+const users = await r.users.findMany({
+  orderBy: { field: 'metadata.settings.theme', order: 'desc' },
+});
+```
+
+The `field` value is type-safe -- TypeScript infers valid JSON paths from your column's `$type<>()` definition, up to 4 levels of nesting.
+
+:::note
+JSON path ordering compares values as text. If you need numeric ordering on a JSON field (e.g., sorting by `metadata.level`), define a [computed field](/computed-fields/) with an explicit numeric cast instead.
+:::
+
 ## Dialect differences
 
 JSON path syntax varies by dialect:

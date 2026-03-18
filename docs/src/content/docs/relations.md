@@ -153,20 +153,53 @@ const usersWithPosts = await r.users.findMany({
 
 Foreign key columns needed for joining are loaded automatically (and stripped from the result).
 
+## Ordering by relation fields
+
+Sort records by a column from a related table using `relation.column` dot notation:
+
+```ts
+// Sort posts by their author's first name
+const posts = await r.posts.findMany({
+  select: { id: true, title: true },
+  orderBy: { field: 'author.firstName', order: 'asc' },
+});
+```
+
+Relayer generates a `LEFT JOIN` on the related table:
+
+```sql
+SELECT posts.id, posts.title
+FROM posts
+LEFT JOIN users ON posts.author_id = users.id
+ORDER BY users.first_name ASC
+```
+
+Multiple `orderBy` entries can reference the same or different relations. Joins are deduplicated automatically:
+
+```ts
+const posts = await r.posts.findMany({
+  orderBy: [
+    { field: 'author.firstName', order: 'asc' },
+    { field: 'title', order: 'desc' },
+  ],
+});
+```
+
+The `field` value is type-safe -- TypeScript autocompletes valid relation names and their column names.
+
 ## Combining with other features
 
 Relations work alongside all other query features:
 
 ```ts
-const users = await r.users.findMany({
+const posts = await r.posts.findMany({
   select: {
     id: true,
-    fullName: true, // computed field
-    postsCount: true, // derived field
-    posts: { title: true }, // relation
+    title: true,
+    author: { firstName: true }, // relation loading
   },
-  where: { email: { contains: '@example.com' } },
-  orderBy: { field: 'fullName', order: 'asc' },
+  where: { published: true },
+  orderBy: { field: 'author.firstName', order: 'asc' }, // relation ordering
   limit: 10,
 });
 ```
