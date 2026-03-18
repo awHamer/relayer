@@ -3,7 +3,7 @@ import type { Column, SQL } from 'drizzle-orm';
 import type { EntityMetadata } from '@relayerjs/core';
 
 import { buildOrderBy, buildSelect, buildWhere, loadRelations } from '../builders';
-import type { WhereBuilderContext } from '../builders';
+import type { SelectResult, WhereBuilderContext } from '../builders';
 import type { DialectAdapter } from '../dialect';
 import type { TableInfo } from '../introspect';
 import type { DerivedFieldResolution } from '../resolvers';
@@ -30,10 +30,18 @@ export interface FindManyDeps {
   ): WhereBuilderContext;
 }
 
-export async function executeFindMany(
+export interface BuiltQuery {
+  query: any;
+  selectResult: SelectResult;
+  eagerResolutions: Map<string, DerivedFieldResolution>;
+  deferredDerived: string[];
+}
+
+export function buildFindManyQuery(
   deps: FindManyDeps,
   options: any = {},
-): Promise<Record<string, unknown>[]> {
+  forceAllDerivedEager = false,
+): BuiltQuery {
   const { db, table, metadata } = deps;
   const context = options.context;
 
@@ -43,7 +51,6 @@ export async function executeFindMany(
   const computedSqlMap = deps.getComputedSqlMap(context, requestedComputed);
   const selectResult = buildSelect(options.select, table, metadata, computedSqlMap);
 
-  // Split derived into eager (in where/orderBy) vs deferred (select only)
   const whereKeys = new Set(options.where ? Object.keys(options.where) : []);
   const orderByFields = new Set(
     options.orderBy
@@ -56,7 +63,7 @@ export async function executeFindMany(
   const eagerDerived: string[] = [];
   const deferredDerived: string[] = [];
   for (const name of selectResult.requestedDerived) {
-    if (whereKeys.has(name) || orderByFields.has(name)) {
+    if (forceAllDerivedEager || whereKeys.has(name) || orderByFields.has(name)) {
       eagerDerived.push(name);
     } else {
       deferredDerived.push(name);
@@ -120,6 +127,49 @@ export async function executeFindMany(
   if (orderByResult.clauses.length > 0) query = query.orderBy(...orderByResult.clauses);
   if (options.limit !== undefined) query = query.limit(options.limit);
   if (options.offset !== undefined) query = query.offset(options.offset);
+
+  return { query, selectResult, eagerResolutions, deferredDerived };
+}
+
+export function hydrateRow(
+  row: Record<string, unknown>,
+  objectDerivedFields: Map<string, Set<string>>,
+): void {
+  for (const [name, subFields] of objectDerivedFields) {
+    const obj: Record<string, unknown> = {};
+    for (const subField of subFields) {
+      const sqlKey = `${name}_${subField}`;
+      if (sqlKey in row) {
+        obj[subField] = row[sqlKey];
+        delete row[sqlKey];
+      }
+    }
+    row[name] = Object.keys(obj).length > 0 ? obj : null;
+  }
+}
+
+export function stripUnrequestedFields(
+  row: Record<string, unknown>,
+  requestedKeys: Set<string>,
+): void {
+  for (const key of Object.keys(row)) {
+    if (!requestedKeys.has(key)) {
+      delete row[key];
+    }
+  }
+}
+
+export async function executeFindMany(
+  deps: FindManyDeps,
+  options: any = {},
+): Promise<Record<string, unknown>[]> {
+  const { db, table, metadata } = deps;
+  const context = options.context;
+
+  const { query, selectResult, eagerResolutions, deferredDerived } = buildFindManyQuery(
+    deps,
+    options,
+  );
 
   const results = (await query) as Record<string, unknown>[];
 
@@ -201,32 +251,21 @@ export async function executeFindMany(
     });
   }
 
-  // Hydrate eager object-type derived: flat fieldName_subField -> nested { subField }
+  const objectDerivedFields = new Map<string, Set<string>>();
   for (const [name, res] of eagerResolutions) {
     if (res.isObjectType && res.valueColumns) {
-      for (const row of results) {
-        const obj: Record<string, unknown> = {};
-        for (const subField of res.valueColumns.keys()) {
-          const sqlKey = `${name}_${subField}`;
-          if (sqlKey in row) {
-            obj[subField] = row[sqlKey];
-            delete row[sqlKey];
-          }
-        }
-        row[name] = Object.keys(obj).length > 0 ? obj : null;
-      }
+      objectDerivedFields.set(name, new Set(res.valueColumns.keys()));
     }
   }
 
-  // Strip fields not requested by user
+  for (const row of results) {
+    hydrateRow(row, objectDerivedFields);
+  }
+
   if (options.select) {
     const requestedKeys = new Set(Object.keys(options.select));
     for (const row of results) {
-      for (const key of Object.keys(row)) {
-        if (!requestedKeys.has(key)) {
-          delete row[key];
-        }
-      }
+      stripUnrequestedFields(row, requestedKeys);
     }
   }
 

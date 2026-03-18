@@ -524,6 +524,23 @@ async function main() {
     }),
   );
 
+  // ═══════════════════════════════════════════════════════
+  // STREAMING (MySQL only)
+  // ═══════════════════════════════════════════════════════
+
+  console.log('\n=== findManyStream: streaming users ===');
+
+  const stream = r.users.findManyStream({
+    select: { id: true, firstName: true, fullName: true, postsCount: true },
+    where: { firstName: { contains: 'o' } },
+    orderBy: { field: 'firstName', order: 'asc' },
+  });
+
+  for await (const user of stream) {
+    console.log('  streamed row:', user);
+  }
+  console.log('  (stream complete)');
+
   await connection.end();
   console.log('\nMySQL tests complete!');
 }

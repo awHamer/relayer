@@ -17,6 +17,7 @@ import type { DialectAdapter } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveComputedFields, resolveDerivedFields } from '../resolvers';
 import { executeFindMany } from './find-many';
+import { executeFindManyStream } from './find-many-stream';
 
 export function createEntityClient(
   db: any,
@@ -88,6 +89,10 @@ export function createEntityClient(
   return {
     async findMany(options: any = {}) {
       return executeFindMany(findManyDeps, options);
+    },
+
+    findManyStream(options: any = {}) {
+      return executeFindManyStream(findManyDeps, options);
     },
 
     async findFirst(options: any = {}) {
