@@ -12,10 +12,10 @@ export function pgEntities() {
         postsCount: {
           type: FieldType.Derived,
           valueType: 'number' as const,
-          query: ({ db, schema: s, sql }: any) =>
+          query: ({ db, schema: s, sql, field }: any) =>
             db
               .select({
-                postsCount: sql`count(*)::int`,
+                [field()]: sql`count(*)::int`,
                 userId: s.posts.authorId,
               })
               .from(s.posts)
@@ -28,11 +28,11 @@ export function pgEntities() {
             totalAmount: 'string',
             orderCount: 'number',
           },
-          query: ({ db, schema: s, sql }: any) =>
+          query: ({ db, schema: s, sql, field }: any) =>
             db
               .select({
-                orderSummary_totalAmount: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
-                orderSummary_orderCount: sql`count(*)::int`,
+                [field('totalAmount')]: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
+                [field('orderCount')]: sql`count(*)::int`,
                 userId: s.orders.userId,
               })
               .from(s.orders)

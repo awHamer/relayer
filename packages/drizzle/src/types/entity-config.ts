@@ -29,6 +29,7 @@ export interface DrizzleDerivedQueryContext<TDb, TSchema, TContext = unknown> {
   schema: TSchema;
   sql: typeof sql;
   context: TContext;
+  field: (subField?: string) => string;
 }
 
 export interface TypedComputedDef<TTable, TSchema, TContext = unknown> {

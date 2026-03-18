@@ -39,7 +39,14 @@ export function resolveDerivedFields(
     const alias = `__derived_${fieldName}_${counter++}`;
 
     const wrappedDb = createAutoAliasProxy(db, fieldName, isObjectType);
-    const subqueryBuilder = fieldDef.query({ db: wrappedDb as unknown, schema, sql, context });
+    const field = (subField?: string) => (subField ? `${fieldName}_${subField}` : fieldName);
+    const subqueryBuilder = fieldDef.query({
+      db: wrappedDb as unknown,
+      schema,
+      sql,
+      context,
+      field,
+    });
 
     const aliasedSubquery = (subqueryBuilder as { as: (name: string) => unknown }).as(alias);
 
