@@ -349,6 +349,58 @@ async function main() {
   );
   // expect: posts 1, 2, 4 (post 3 has no categories)
 
+  // ─── OrderBy: relation dot notation ────────────────────────
+
+  log(
+    'orderBy: posts by author.firstName asc',
+    await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.firstName', order: 'asc' },
+    }),
+  );
+  // expect: Ihor's posts first (firstName asc), then John's
+
+  log(
+    'orderBy: posts by author.firstName desc',
+    await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.firstName', order: 'desc' },
+    }),
+  );
+  // expect: John's posts first (firstName desc), then Ihor's
+
+  log(
+    'orderBy: multi — author.firstName asc + title desc',
+    await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: [
+        { field: 'author.firstName', order: 'asc' },
+        { field: 'title', order: 'desc' },
+      ],
+    }),
+  );
+  // expect: Ihor's posts sorted by title desc, then John's
+
+  // ─── OrderBy: JSON path ────────────────────────────────────
+
+  log(
+    'orderBy: users by metadata.role asc',
+    await r.users.findMany({
+      select: { id: true, firstName: true, metadata: true },
+      orderBy: { field: 'metadata.role', order: 'asc' },
+    }),
+  );
+  // expect: admins first (admin < user alphabetically)
+
+  log(
+    'orderBy: users by metadata.level desc',
+    await r.users.findMany({
+      select: { id: true, firstName: true, metadata: true },
+      orderBy: { field: 'metadata.level', order: 'desc' },
+    }),
+  );
+  // expect: highest level first
+
   await client.end();
 }
 

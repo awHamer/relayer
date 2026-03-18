@@ -52,6 +52,8 @@ You can select:
 
 The result type is inferred from the select -- you only get the fields you ask for.
 
+![select autocomplete showing scalar, computed, derived, and relation fields](/select-autocomplete.png)
+
 ## where
 
 Filters records. Accepts field names with operator objects, or shorthand equality.
@@ -130,10 +132,10 @@ The `$raw` function receives `{ table, sql }` -- the same helpers available in c
 
 ## orderBy
 
-Sort results by any field -- scalar, computed, or derived.
+Sort results by any field -- scalar, computed, derived, relation, or JSON path.
 
 ```ts
-// Single field
+// Scalar field
 const users = await r.users.findMany({
   orderBy: { field: 'firstName', order: 'asc' },
 });
@@ -147,9 +149,38 @@ const users = await r.users.findMany({
 const users = await r.users.findMany({
   orderBy: { field: 'orderSummary.totalAmount', order: 'desc' },
 });
+
+// Relation field -- automatic LEFT JOIN
+const posts = await r.posts.findMany({
+  orderBy: { field: 'author.firstName', order: 'asc' },
+});
+
+// JSON path -- dialect-specific extraction
+const users = await r.users.findMany({
+  orderBy: { field: 'metadata.role', order: 'asc' },
+});
+
+// Nested JSON path
+const users = await r.users.findMany({
+  orderBy: { field: 'metadata.settings.theme', order: 'desc' },
+});
+
+// Multiple fields (array)
+const posts = await r.posts.findMany({
+  orderBy: [
+    { field: 'author.firstName', order: 'asc' },
+    { field: 'title', order: 'desc' },
+  ],
+});
 ```
 
-The `field` value is type-safe -- TypeScript will autocomplete valid field names including dot-notation paths for object-type derived fields.
+**Relation ordering** generates a `LEFT JOIN` on the related table. If multiple `orderBy` entries reference the same relation, the join is added only once.
+
+**JSON path ordering** uses dialect-specific JSON extraction (`->>'key'` on PostgreSQL, `json_extract()` on SQLite, `->>'$.key'` on MySQL). Values are compared as text. For numeric ordering on JSON fields, use a [computed field](/computed-fields/) instead.
+
+The `field` value is fully type-safe -- TypeScript will autocomplete valid field names including relation columns, JSON paths, and dot-notation paths for object-type derived fields.
+
+![orderBy autocomplete for JSON paths](/sort-autocomplete.png)
 
 ## limit and offset
 

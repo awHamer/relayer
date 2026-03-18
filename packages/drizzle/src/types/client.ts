@@ -17,7 +17,9 @@ export interface TypedEntityClient<
   findMany(options?: {
     select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
     where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
-    orderBy?: EntityOrderBy<TTable, TEntityConfig> | EntityOrderBy<TTable, TEntityConfig>[];
+    orderBy?:
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>[];
     limit?: number;
     offset?: number;
     context?: TContext;
@@ -27,7 +29,9 @@ export interface TypedEntityClient<
   findFirst(options?: {
     select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
     where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
-    orderBy?: EntityOrderBy<TTable, TEntityConfig> | EntityOrderBy<TTable, TEntityConfig>[];
+    orderBy?:
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>[];
     context?: TContext;
   }): Promise<(Partial<InferTableSelect<TTable>> & Record<string, unknown>) | null>;
 

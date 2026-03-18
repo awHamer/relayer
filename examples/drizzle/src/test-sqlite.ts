@@ -237,6 +237,48 @@ async function main() {
     }),
   );
 
+  // ─── OrderBy: relation dot notation ────────────────────
+
+  log(
+    'orderBy: posts by author.firstName asc',
+    await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.firstName', order: 'asc' },
+    }),
+  );
+  // expect: Ihor's posts first, then John's
+
+  log(
+    'orderBy: posts by author.firstName desc + title asc',
+    await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: [
+        { field: 'author.firstName', order: 'desc' },
+        { field: 'title', order: 'asc' },
+      ],
+    }),
+  );
+
+  // ─── OrderBy: JSON path ─────────────────────────────────
+
+  log(
+    'orderBy: users by metadata.role asc',
+    await r.users.findMany({
+      select: { id: true, firstName: true, metadata: true },
+      orderBy: { field: 'metadata.role', order: 'asc' },
+    }),
+  );
+  // expect: admins first (admin < user)
+
+  log(
+    'orderBy: users by metadata.level desc',
+    await r.users.findMany({
+      select: { id: true, firstName: true, metadata: true },
+      orderBy: { field: 'metadata.level', order: 'desc' },
+    }),
+  );
+  // expect: highest level first
+
   sqlite.close();
   console.log('\nSQLite tests complete!');
 }

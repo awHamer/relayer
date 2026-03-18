@@ -98,3 +98,49 @@ export type EntityFields<TEntityConfig> = TEntityConfig extends { fields?: infer
   : {};
 
 export type ExtractValueType<T> = T extends { valueType: infer VT extends ValueType } ? VT : never;
+
+// ── Relation dot-path types ──────────────────────────────────────
+
+export type RelationColumnDotPaths<
+  TTableName extends string,
+  TSchema extends Record<string, unknown>,
+> = TTableName extends keyof ExtractTablesWithRelations<TSchema>
+  ? {
+      [K in TableRelationKeys<TTableName, TSchema>]: RelationTargetName<
+        TTableName,
+        TSchema,
+        K
+      > extends keyof TSchema
+        ? `${K}.${TableColumnKeys<TSchema[RelationTargetName<TTableName, TSchema, K>]>}`
+        : never;
+    }[TableRelationKeys<TTableName, TSchema>]
+  : never;
+
+// ── JSON dot-path types ──────────────────────────────────────────
+
+type JsonObjectPaths<
+  T,
+  Prefix extends string,
+  Depth extends unknown[] = [],
+> = Depth['length'] extends 4
+  ? never
+  : {
+      [K in keyof T & string]:
+        | `${Prefix}${K}`
+        | (NonNullable<T[K]> extends Record<string, unknown>
+            ? NonNullable<T[K]> extends Date | unknown[]
+              ? never
+              : JsonObjectPaths<NonNullable<T[K]>, `${Prefix}${K}.`, [...Depth, unknown]>
+            : never);
+    }[keyof T & string];
+
+export type JsonColumnDotPaths<TTable> = {
+  [K in TableColumnKeys<TTable>]: NonNullable<InferTableSelect<TTable>[K]> extends Record<
+    string,
+    unknown
+  >
+    ? NonNullable<InferTableSelect<TTable>[K]> extends Date | unknown[]
+      ? never
+      : JsonObjectPaths<NonNullable<InferTableSelect<TTable>[K]>, `${K}.`>
+    : never;
+}[TableColumnKeys<TTable>];

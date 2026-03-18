@@ -261,6 +261,83 @@ describe('core: mutations', () => {
 // ---------------------------------------------------------------------------
 // core: AND / OR
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// orderBy: relation dot notation
+// ---------------------------------------------------------------------------
+describe('orderBy: relation dot notation', () => {
+  it('orders posts by author.firstName asc', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.firstName', order: 'asc' },
+    });
+    expect(results.length).toBeGreaterThan(0);
+    // Ihor (authorId=1) has posts 1,2; John (authorId=2) has post 3
+    // asc by firstName: Ihor < John → Ihor's posts first
+    const ihorPostIds = results.filter((_: any, i: number) => i < 2).map((r: any) => r.id);
+    expect(ihorPostIds).toEqual(expect.arrayContaining([1, 2]));
+    expect(results[results.length - 1].id).toBe(3);
+  });
+
+  it('orders posts by author.firstName desc', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.firstName', order: 'desc' },
+    });
+    // desc: John first, then Ihor
+    expect(results[0].id).toBe(3);
+  });
+
+  it('works with multiple orderBy including relation', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: [
+        { field: 'author.firstName', order: 'asc' },
+        { field: 'title', order: 'desc' },
+      ],
+    });
+    expect(results.length).toBe(3);
+    // Ihor's posts sorted by title desc: TS Tips, Hello World
+    expect(results[0].title).toBe('TS Tips');
+    expect(results[1].title).toBe('Hello World');
+    // John's post
+    expect(results[2].title).toBe('Draft');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// orderBy: JSON path
+// ---------------------------------------------------------------------------
+describe('orderBy: JSON path', () => {
+  it('orders users by metadata.role asc', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, firstName: true, metadata: true },
+      where: { metadata: { isNotNull: true } },
+      orderBy: { field: 'metadata.role', order: 'asc' },
+    });
+    // admin < user alphabetically
+    expect(results.length).toBeGreaterThan(0);
+    const roles = results.map((u: any) => u.metadata?.role);
+    for (let i = 1; i < roles.length; i++) {
+      expect(roles[i]! >= roles[i - 1]!).toBe(true);
+    }
+  });
+
+  it('orders users by metadata.role desc', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, firstName: true, metadata: true },
+      where: { metadata: { isNotNull: true } },
+      orderBy: { field: 'metadata.role', order: 'desc' },
+    });
+    const roles = results.map((u: any) => u.metadata?.role);
+    for (let i = 1; i < roles.length; i++) {
+      expect(roles[i]! <= roles[i - 1]!).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// core: AND / OR
+// ---------------------------------------------------------------------------
 describe('core: AND/OR', () => {
   it('OR: firstName Ihor or Jane', async () => {
     const results = await r.users.findMany({
