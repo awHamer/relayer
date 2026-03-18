@@ -205,3 +205,26 @@ const users = await r.users.findMany({
 ```
 
 See [Context](/context/) for full details.
+
+## Streaming (MySQL)
+
+For large datasets, use `findManyStream()` to iterate over results without loading all rows into memory:
+
+```ts
+const stream = r.users.findManyStream({
+  select: { id: true, firstName: true, postsCount: true },
+  where: { email: { contains: '@example.com' } },
+  orderBy: { field: 'firstName', order: 'asc' },
+});
+
+for await (const user of stream) {
+  console.log(user);
+}
+```
+
+`findManyStream()` accepts the same options as `findMany()`. Scalar fields, computed fields, and derived fields (both scalar and object-type) all work in stream mode.
+
+### Limitations
+
+- **MySQL only** -- Drizzle's `.iterator()` is currently stable only for MySQL. Throws on PostgreSQL and SQLite.
+- **No relation loading** -- relations require batch queries, which are incompatible with streaming. Use `findMany()` if you need relations.

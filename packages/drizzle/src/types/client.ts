@@ -25,6 +25,18 @@ export interface TypedEntityClient<
     context?: TContext;
   }): Promise<Partial<InferTableSelect<TTable>> & Record<string, unknown>[]>;
 
+  /** Stream records as an async iterator. MySQL only. Does not support relation loading. */
+  findManyStream(options?: {
+    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
+    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    orderBy?:
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>[];
+    limit?: number;
+    offset?: number;
+    context?: TContext;
+  }): AsyncGenerator<Partial<InferTableSelect<TTable>> & Record<string, unknown>>;
+
   /** Query a single record. Returns `null` if not found. */
   findFirst(options?: {
     select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
