@@ -191,10 +191,10 @@ async function main() {
           postsCount: {
             type: FieldType.Derived,
             valueType: 'number',
-            query: ({ db, schema: s, sql }) =>
+            query: ({ db, schema: s, sql, field }) =>
               db
                 .select({
-                  postsCount: sql<number>`COUNT(*)`,
+                  [field()]: sql<number>`COUNT(*)`,
                   userId: s.posts.authorId,
                 })
                 .from(s.posts)
@@ -207,11 +207,11 @@ async function main() {
               totalAmount: 'string',
               orderCount: 'number',
             },
-            query: ({ db, schema: s, sql }) =>
+            query: ({ db, schema: s, sql, field }) =>
               db
                 .select({
-                  orderSummary_totalAmount: sql<string>`COALESCE(SUM(${s.orders.total}), 0)`,
-                  orderSummary_orderCount: sql<number>`COUNT(*)`,
+                  [field('totalAmount')]: sql<string>`COALESCE(SUM(${s.orders.total}), 0)`,
+                  [field('orderCount')]: sql<number>`COUNT(*)`,
                   userId: s.orders.userId,
                 })
                 .from(s.orders)

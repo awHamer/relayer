@@ -69,21 +69,87 @@ Relayer is that pattern extracted into a library. Built with **API integration i
 ## Quick Example
 
 ```ts
+import { relations } from 'drizzle-orm';
+import { integer, jsonb, pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
 
+// ─── Schema ───────────────────────────────────────────
+const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  metadata: jsonb('metadata').$type<{ role: string; level: number }>(),
+});
+
+const posts = pgTable('posts', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  authorId: integer('author_id')
+    .notNull()
+    .references(() => users.id),
+});
+
+const usersRelations = relations(users, ({ many }) => ({ posts: many(posts) }));
+const postsRelations = relations(posts, ({ one }) => ({
+  author: one(users, { fields: [posts.authorId], references: [users.id] }),
+}));
+
+// ─── Relayer Client ───────────────────────────────────
 const r = createRelayerDrizzle({
   db,
-  schema,
+  schema: { users, posts, usersRelations, postsRelations },
   entities: {
-    /* ... */
+    users: {
+      fields: {
+        // Computed: virtual SQL expression, evaluated at SELECT time
+        displayName: {
+          type: FieldType.Computed,
+          valueType: 'string',
+          resolve: ({ table, sql }) => sql`upper(${table.name})`,
+        },
+        // Derived: automatic subquery JOIN — counts posts per user
+        stats: {
+          type: FieldType.Derived,
+          valueType: { postsCount: 'number', latestTitle: 'string' },
+          query: ({ db, schema: s, sql, field }) =>
+            db
+              .select({
+                [field('postsCount')]: sql<number>`count(*)::int`,
+                [field('latestTitle')]: sql<string>`max(${s.posts.title})`,
+                authorId: s.posts.authorId,
+              })
+              .from(s.posts)
+              .groupBy(s.posts.authorId),
+          on: ({ parent, derived, eq }) => eq(parent.id, derived.authorId),
+        },
+      },
+    },
   },
 });
 
-const users = await r.users.findMany({
-  select: { id: true, firstName: true, postsCount: true },
-  where: { email: { contains: '@example.com' } },
-  orderBy: { field: 'firstName', order: 'asc' },
+// ─── Query — everything is fully type-safe ────────────
+const result = await r.users.findMany({
+  select: {
+    id: true,
+    displayName: true, // computed field
+    stats: { postsCount: true }, // derived sub-field select
+    posts: { id: true, title: true }, // relation loading (no N+1!)
+  },
+  where: {
+    metadata: { role: 'admin' }, // JSON path filtering
+    posts: { $some: { title: { contains: 'Relayer' } } }, // relation filter
+  },
+  orderBy: [
+    { field: 'metadata.level', order: 'desc' }, // type-safe JSON path ordering 🎉
+    { field: 'stats.postsCount', order: 'desc' }, // type-safe derived field ordering 🎉
+  ],
   limit: 10,
+});
+
+// ─── Aggregation ──────────────────────────────────────
+const stats = await r.posts.aggregate({
+  groupBy: ['author.name'], // dot-notation: LEFT JOIN + group by related column
+  _count: true,
+  _max: { title: true },
 });
 ```
 

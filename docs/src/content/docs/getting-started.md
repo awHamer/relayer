@@ -75,9 +75,9 @@ const r = createRelayerDrizzle({
         postsCount: {
           type: FieldType.Derived,
           valueType: 'number',
-          query: ({ db, schema: s, sql }) =>
+          query: ({ db, schema: s, sql, field }) =>
             db
-              .select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
+              .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
               .from(s.posts)
               .groupBy(s.posts.authorId),
           on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),

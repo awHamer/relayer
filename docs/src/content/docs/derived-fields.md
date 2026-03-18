@@ -19,9 +19,9 @@ const r = createRelayerDrizzle({
         postsCount: {
           type: FieldType.Derived,
           valueType: 'number',
-          query: ({ db, schema: s, sql }) =>
+          query: ({ db, schema: s, sql, field }) =>
             db
-              .select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
+              .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
               .from(s.posts)
               .groupBy(s.posts.authorId),
           on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
@@ -43,21 +43,30 @@ Each derived field requires:
 
 ## The query function
 
-The `query` function receives `{ db, schema, sql, context }` and must return a Drizzle query builder. The selected columns must include:
+The `query` function receives `{ db, schema, sql, context, field }` and must return a Drizzle query builder. The selected columns must include:
 
 - The **value column(s)** to be exposed as the derived field
 - A **join key** column used in the `on` condition
 
+Use the `field()` helper to name your value columns -- it generates the correct key automatically:
+
 ```ts
-query: ({ db, schema: s, sql }) =>
+query: ({ db, schema: s, sql, field }) =>
   db
     .select({
-      postsCount: sql`count(*)::int`,   // value column
+      [field()]: sql`count(*)::int`,    // value column — resolves to 'postsCount'
       userId: s.posts.authorId,          // join key
     })
     .from(s.posts)
     .groupBy(s.posts.authorId),
 ```
+
+The `field()` helper:
+
+- **`field()`** -- returns the field name (e.g., `'postsCount'`) for scalar derived fields
+- **`field('subField')`** -- returns `fieldName_subField` (e.g., `'orderSummary_totalAmount'`) for object-type derived fields
+
+This removes the need to manually match column names to the field definition.
 
 ## The on function
 
@@ -79,9 +88,9 @@ When `valueType` is a scalar type, the field resolves to a single value:
 postsCount: {
   type: FieldType.Derived,
   valueType: 'number',
-  query: ({ db, schema: s, sql }) =>
+  query: ({ db, schema: s, sql, field }) =>
     db
-      .select({ postsCount: sql`count(*)::int`, userId: s.posts.authorId })
+      .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
       .from(s.posts)
       .groupBy(s.posts.authorId),
   on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
@@ -97,17 +106,17 @@ const users = await r.users.findMany({
 
 ## Object-type derived fields
 
-When `valueType` is an object, the field resolves to a nested object. Sub-fields in the subquery **must be prefixed** with `fieldName_`:
+When `valueType` is an object, the field resolves to a nested object. Use `field('subField')` to name each sub-field column:
 
 ```ts
 orderSummary: {
   type: FieldType.Derived,
   valueType: { totalAmount: 'string', orderCount: 'number' },
-  query: ({ db, schema: s, sql }) =>
+  query: ({ db, schema: s, sql, field }) =>
     db
       .select({
-        orderSummary_totalAmount: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
-        orderSummary_orderCount: sql`count(*)::int`,
+        [field('totalAmount')]: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
+        [field('orderCount')]: sql`count(*)::int`,
         userId: s.orders.userId,
       })
       .from(s.orders)
@@ -199,9 +208,9 @@ Like computed fields, derived fields can access per-query context:
 recentOrderCount: {
   type: FieldType.Derived,
   valueType: 'number',
-  query: ({ db, schema: s, sql, context }) =>
+  query: ({ db, schema: s, sql, context, field }) =>
     db
-      .select({ recentOrderCount: sql`count(*)::int`, userId: s.orders.userId })
+      .select({ [field()]: sql`count(*)::int`, userId: s.orders.userId })
       .from(s.orders)
       .where(sql`${s.orders.createdAt} > ${context.since}`)
       .groupBy(s.orders.userId),

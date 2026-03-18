@@ -34,10 +34,10 @@ async function main() {
           postsCount: {
             type: FieldType.Derived,
             valueType: 'number',
-            query: ({ db, schema: s, sql }) =>
+            query: ({ db, schema: s, sql, field }) =>
               db
                 .select({
-                  postsCount: sql<number>`count(*)::int`,
+                  [field()]: sql<number>`count(*)::int`,
                   userId: s.posts.authorId,
                 })
                 .from(s.posts)
@@ -48,10 +48,10 @@ async function main() {
           latestEmail: {
             type: FieldType.Derived,
             valueType: 'string',
-            query: ({ db, schema: s }) =>
+            query: ({ db, schema: s, field }) =>
               db
                 .select({
-                  latestEmail: s.users.email,
+                  [field()]: s.users.email,
                   userId: s.users.id,
                 })
                 .from(s.users),
@@ -63,11 +63,11 @@ async function main() {
               totalAmount: 'string',
               orderCount: 'number',
             },
-            query: ({ db, schema: s, sql }) =>
+            query: ({ db, schema: s, sql, field }) =>
               db
                 .select({
-                  orderSummary_totalAmount: sql<string>`COALESCE(sum(${s.orders.total}), 0)::text`,
-                  orderSummary_orderCount: sql<number>`count(*)::int`,
+                  [field('totalAmount')]: sql<string>`COALESCE(sum(${s.orders.total}), 0)::text`,
+                  [field('orderCount')]: sql<number>`count(*)::int`,
                   userId: s.orders.userId,
                 })
                 .from(s.orders)

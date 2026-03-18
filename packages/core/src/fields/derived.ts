@@ -5,6 +5,7 @@ export interface DerivedQueryContext<TDb = any, TSchema = any, TContext = unknow
   schema: TSchema;
   sql: any;
   context: TContext;
+  field: (subField?: string) => string;
 }
 
 export interface DerivedJoinContext<TTable = any> {
