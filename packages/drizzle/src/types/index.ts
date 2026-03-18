@@ -20,6 +20,8 @@ export type {
   OpsForValueType,
   EntityFields,
   ExtractValueType,
+  RelationColumnDotPaths,
+  JsonColumnDotPaths,
 } from './helpers';
 export type { EntitySelect } from './select';
 export type { EntityWhere } from './where';

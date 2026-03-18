@@ -140,6 +140,30 @@ describe('InferEntityOrderBy', () => {
   it('restricts order to asc | desc', () => {
     expectTypeOf<UserOrderBy['order']>().toEqualTypeOf<'asc' | 'desc'>();
   });
+
+  // ─── Relation dot notation ─────────────────────────────────
+
+  it('is assignable with relation dot notation', () => {
+    const ob: UserOrderBy = { field: 'posts.title', order: 'asc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('is assignable with one-to-one relation dot notation', () => {
+    const ob: UserOrderBy = { field: 'profile.bio', order: 'desc' };
+    expect(ob).toBeDefined();
+  });
+
+  // ─── JSON path dot notation ────────────────────────────────
+
+  it('is assignable with JSON path (top level)', () => {
+    const ob: UserOrderBy = { field: 'metadata.role', order: 'asc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('is assignable with JSON path (nested)', () => {
+    const ob: UserOrderBy = { field: 'metadata.settings.theme', order: 'desc' };
+    expect(ob).toBeDefined();
+  });
 });
 
 const tags = pgTable('tags', {

@@ -1,22 +1,5 @@
-import type { ExtractTablesWithRelations } from 'drizzle-orm';
-
-import type { RelationTargetName, TableColumnKeys, TableRelationKeys } from './helpers';
+import type { RelationColumnDotPaths, TableColumnKeys } from './helpers';
 import type { EntityWhere } from './where';
-
-type RelationColumnDotPaths<
-  TTableName extends string,
-  TSchema extends Record<string, unknown>,
-> = TTableName extends keyof ExtractTablesWithRelations<TSchema>
-  ? {
-      [K in TableRelationKeys<TTableName, TSchema>]: RelationTargetName<
-        TTableName,
-        TSchema,
-        K
-      > extends keyof TSchema
-        ? `${K}.${TableColumnKeys<TSchema[RelationTargetName<TTableName, TSchema, K>]>}`
-        : never;
-    }[TableRelationKeys<TTableName, TSchema>]
-  : never;
 
 export type EntityAggregateGroupBy<
   TTable,

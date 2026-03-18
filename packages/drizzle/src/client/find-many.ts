@@ -96,12 +96,15 @@ export async function executeFindMany(
 
   const whereCtx = deps.makeWhereCtx(computedSqlMap, derivedAliasMap);
   const whereCondition = options.where ? buildWhere(options.where, whereCtx) : undefined;
-  const orderByColumns = buildOrderBy(
+  const orderByResult = buildOrderBy(
     options.orderBy,
     table,
     metadata,
     computedSqlMap,
     derivedAliasMap,
+    deps.allTables,
+    deps.schema,
+    deps.adapter,
   );
 
   let query = db.select(selectResult.columns as any).from(table) as any;
@@ -109,9 +112,12 @@ export async function executeFindMany(
   for (const [, res] of eagerResolutions) {
     query = query.leftJoin(res.subquery, res.joinCondition);
   }
+  for (const join of orderByResult.joins) {
+    query = query.leftJoin(join.table, join.on);
+  }
 
   if (whereCondition) query = query.where(whereCondition);
-  if (orderByColumns.length > 0) query = query.orderBy(...orderByColumns);
+  if (orderByResult.clauses.length > 0) query = query.orderBy(...orderByResult.clauses);
   if (options.limit !== undefined) query = query.limit(options.limit);
   if (options.offset !== undefined) query = query.offset(options.offset);
 

@@ -3,26 +3,33 @@ import type { Column } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
 import { buildOrderBy } from '../../src/builders/order-by-builder';
+import type { OrderByResult } from '../../src/builders/order-by-builder';
+import { pgAdapter } from '../../src/dialect/pg';
 import { buildRegistry } from '../../src/introspect';
 import * as pgSchema from '../fixtures/pg-schema';
-import { users } from '../fixtures/pg-schema';
+import { posts, users } from '../fixtures/pg-schema';
 
 const mockDb = drizzle({} as any);
-const { registry } = buildRegistry(pgSchema as unknown as Record<string, unknown>);
+const { registry, tables } = buildRegistry(pgSchema as unknown as Record<string, unknown>);
 const metadata = registry.get('users')!;
+const postsMetadata = registry.get('posts')!;
+const adapter = pgAdapter;
+const schema = pgSchema as unknown as Record<string, unknown>;
 
-function toSql(orderByResult: SQL[]) {
+function toSql(orderByClauses: SQL[]) {
   return mockDb
     .select()
     .from(users)
-    .orderBy(...orderByResult)
+    .orderBy(...orderByClauses)
     .toSQL();
 }
 
+const emptyArgs = [tables, schema, adapter] as const;
+
 describe('buildOrderBy', () => {
-  it('returns empty array for undefined', () => {
-    const result = buildOrderBy(undefined, users, metadata, new Map(), new Map());
-    expect(result).toEqual([]);
+  it('returns empty result for undefined', () => {
+    const result = buildOrderBy(undefined, users, metadata, new Map(), new Map(), ...emptyArgs);
+    expect(result).toEqual({ clauses: [], joins: [] });
   });
 
   it('single scalar field asc', () => {
@@ -32,9 +39,11 @@ describe('buildOrderBy', () => {
       metadata,
       new Map(),
       new Map(),
+      ...emptyArgs,
     );
-    expect(result).toHaveLength(1);
-    const { sql: query } = toSql(result);
+    expect(result.clauses).toHaveLength(1);
+    expect(result.joins).toHaveLength(0);
+    const { sql: query } = toSql(result.clauses);
     expect(query).toContain('"first_name" asc');
   });
 
@@ -45,9 +54,10 @@ describe('buildOrderBy', () => {
       metadata,
       new Map(),
       new Map(),
+      ...emptyArgs,
     );
-    expect(result).toHaveLength(1);
-    const { sql: query } = toSql(result);
+    expect(result.clauses).toHaveLength(1);
+    const { sql: query } = toSql(result.clauses);
     expect(query).toContain('"first_name" desc');
   });
 
@@ -61,9 +71,10 @@ describe('buildOrderBy', () => {
       metadata,
       new Map(),
       new Map(),
+      ...emptyArgs,
     );
-    expect(result).toHaveLength(2);
-    const { sql: query } = toSql(result);
+    expect(result.clauses).toHaveLength(2);
+    const { sql: query } = toSql(result.clauses);
     expect(query).toContain('"last_name" asc');
     expect(query).toContain('"first_name" desc');
   });
@@ -89,9 +100,10 @@ describe('buildOrderBy', () => {
       metadataWithComputed,
       computedSqlMap,
       new Map(),
+      ...emptyArgs,
     );
-    expect(result).toHaveLength(1);
-    const { sql: query } = toSql(result);
+    expect(result.clauses).toHaveLength(1);
+    const { sql: query } = toSql(result.clauses);
     expect(query).toContain('asc');
   });
 
@@ -116,9 +128,10 @@ describe('buildOrderBy', () => {
       metadataWithDerived,
       new Map(),
       derivedAliasMap,
+      ...emptyArgs,
     );
-    expect(result).toHaveLength(1);
-    const { sql: query } = toSql(result);
+    expect(result.clauses).toHaveLength(1);
+    const { sql: query } = toSql(result.clauses);
     expect(query).toContain('desc');
   });
 
@@ -143,20 +156,82 @@ describe('buildOrderBy', () => {
       metadataWithDerived,
       new Map(),
       derivedAliasMap,
+      ...emptyArgs,
     );
-    expect(result).toHaveLength(1);
-    const { sql: query } = toSql(result);
+    expect(result.clauses).toHaveLength(1);
+    const { sql: query } = toSql(result.clauses);
     expect(query).toContain('asc');
   });
 
-  it('unknown field is skipped and returns empty array', () => {
+  it('unknown field is skipped and returns empty result', () => {
     const result = buildOrderBy(
       { field: 'nonExistent', order: 'asc' },
       users,
       metadata,
       new Map(),
       new Map(),
+      ...emptyArgs,
     );
-    expect(result).toEqual([]);
+    expect(result).toEqual({ clauses: [], joins: [] });
+  });
+
+  // ─── New: Relation dot notation ──────────────────────────────
+
+  it('relation dot notation produces join and order clause', () => {
+    const result = buildOrderBy(
+      { field: 'author.firstName', order: 'asc' },
+      posts,
+      postsMetadata,
+      new Map(),
+      new Map(),
+      ...emptyArgs,
+    );
+    expect(result.clauses).toHaveLength(1);
+    expect(result.joins).toHaveLength(1);
+    expect(result.joins[0]!.relationName).toBe('author');
+  });
+
+  it('deduplicates joins for same relation', () => {
+    const result = buildOrderBy(
+      [
+        { field: 'author.firstName', order: 'asc' },
+        { field: 'author.lastName', order: 'desc' },
+      ],
+      posts,
+      postsMetadata,
+      new Map(),
+      new Map(),
+      ...emptyArgs,
+    );
+    expect(result.clauses).toHaveLength(2);
+    expect(result.joins).toHaveLength(1);
+  });
+
+  // ─── New: JSON path dot notation ─────────────────────────────
+
+  it('JSON path produces order clause', () => {
+    const result = buildOrderBy(
+      { field: 'metadata.role', order: 'asc' },
+      users,
+      metadata,
+      new Map(),
+      new Map(),
+      ...emptyArgs,
+    );
+    expect(result.clauses).toHaveLength(1);
+    expect(result.joins).toHaveLength(0);
+  });
+
+  it('nested JSON path works', () => {
+    const result = buildOrderBy(
+      { field: 'metadata.settings.theme', order: 'desc' },
+      users,
+      metadata,
+      new Map(),
+      new Map(),
+      ...emptyArgs,
+    );
+    expect(result.clauses).toHaveLength(1);
+    expect(result.joins).toHaveLength(0);
   });
 });
