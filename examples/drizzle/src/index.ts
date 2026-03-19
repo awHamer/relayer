@@ -401,6 +401,70 @@ async function main() {
   );
   // expect: highest level first
 
+  // ─── OrderBy: relation derived field ────────────────────
+
+  // orderBy by relation derived field — types need TEntities propagation
+  log(
+    'orderBy: posts by author.postsCount desc (relation derived field)',
+    await r.posts.findMany({
+      select: {
+        id: true,
+        title: true,
+        author: {
+          postsCount: true,
+          posts: {
+            title: true,
+            author: { id: true, fullName: true, orderSummary: true, postsCount: true },
+          },
+        },
+      },
+      where: {
+        author: {
+          fullName: { contains: 'Ihor' },
+          postsCount: { gte: 2 },
+          posts: {
+            $some: {
+              title: { contains: 'TypeScript' },
+            },
+          },
+        },
+      },
+      orderBy: { field: 'author.postsCount', order: 'desc' },
+    }),
+  );
+  // expect: posts by authors with most posts first (Ihor has 2)
+
+  // ─── Aggregate: relation derived/computed fields ─────────
+
+  log(
+    'aggregate: posts grouped by author.fullName with _sum on author.postsCount',
+    await r.posts.aggregate({
+      groupBy: ['author.fullName'],
+      _count: true,
+      _sum: { 'author.postsCount': true },
+    }),
+  );
+  // expect: Ihor Ivanov -> count 2, sum postsCount 4
+
+  log(
+    'aggregate: orders grouped by user.metadata.role with _sum total',
+    await r.orders.aggregate({
+      groupBy: ['user.firstName'],
+      _count: true,
+      _sum: { total: true },
+      _avg: { total: true },
+    }),
+  );
+
+  log(
+    'aggregate: posts _max on author.orderSummary.totalAmount',
+    await r.posts.aggregate({
+      _max: { 'author.orderSummary.totalAmount': true },
+      _count: true,
+    }),
+  );
+  // expect: max totalAmount = 3000 (Jane)
+
   await client.end();
 }
 

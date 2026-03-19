@@ -1,4 +1,5 @@
 import type {
+  EntityConfigFor,
   EntityFields,
   RelationTargetName,
   RelationTargetTable,
@@ -11,6 +12,7 @@ export type EntitySelect<
   TEntityConfig = {},
   TTableName extends string = string,
   TSchema extends Record<string, unknown> = Record<string, unknown>,
+  TEntities = {},
 > = {
   [K in TableColumnKeys<TTable>]?: boolean;
 } & {
@@ -24,8 +26,9 @@ export type EntitySelect<
     | boolean
     | EntitySelect<
         RelationTargetTable<TTableName, TSchema, K>,
-        {},
+        EntityConfigFor<TEntities, RelationTargetName<TTableName, TSchema, K> & string>,
         RelationTargetName<TTableName, TSchema, K> & string,
-        TSchema
+        TSchema,
+        TEntities
       >;
 };

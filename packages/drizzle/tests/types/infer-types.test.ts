@@ -166,6 +166,157 @@ describe('InferEntityOrderBy', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Nested relation types — derived/computed on relations
+// ---------------------------------------------------------------------------
+type PostWhere = InferEntityWhere<typeof r, 'posts'>;
+type PostSelect = InferEntitySelect<typeof r, 'posts'>;
+type PostOrderBy = InferEntityOrderBy<typeof r, 'posts'>;
+
+describe('nested relation: select', () => {
+  it('relation with scalar columns', () => {
+    const s: PostSelect = { id: true, author: { firstName: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation with computed field on target', () => {
+    const s: PostSelect = { id: true, author: { fullName: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation with derived field on target', () => {
+    const s: PostSelect = { id: true, author: { postsCount: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation with object derived field on target', () => {
+    const s: PostSelect = { id: true, author: { orderSummary: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation with object derived sub-field select', () => {
+    const s: PostSelect = { id: true, author: { orderSummary: { totalAmount: true } } };
+    expect(s).toBeDefined();
+  });
+
+  it('deep nesting: relation -> relation -> computed/derived', () => {
+    const s: PostSelect = {
+      id: true,
+      author: {
+        posts: {
+          title: true,
+          author: { fullName: true, postsCount: true, orderSummary: true },
+        },
+      },
+    };
+    expect(s).toBeDefined();
+  });
+});
+
+describe('nested relation: where', () => {
+  it('relation with scalar filter', () => {
+    const w: PostWhere = { author: { firstName: 'Ihor' } };
+    expect(w).toBeDefined();
+  });
+
+  it('relation with computed field filter', () => {
+    const w: PostWhere = { author: { fullName: { contains: 'Ihor' } } };
+    expect(w).toBeDefined();
+  });
+
+  it('relation with derived field filter', () => {
+    const w: PostWhere = { author: { postsCount: { gte: 2 } } };
+    expect(w).toBeDefined();
+  });
+
+  it('relation with $some + computed', () => {
+    const w: PostWhere = { author: { $some: { fullName: { contains: 'test' } } } };
+    expect(w).toBeDefined();
+  });
+
+  it('relation with nested relation filter', () => {
+    const w: PostWhere = { author: { posts: { title: { contains: 'Hello' } } } };
+    expect(w).toBeDefined();
+  });
+});
+
+describe('nested relation: orderBy', () => {
+  it('relation scalar column', () => {
+    const ob: PostOrderBy = { field: 'author.firstName', order: 'asc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('relation computed field', () => {
+    const ob: PostOrderBy = { field: 'author.fullName', order: 'desc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('relation derived field', () => {
+    const ob: PostOrderBy = { field: 'author.postsCount', order: 'desc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('relation object derived sub-field', () => {
+    const ob: PostOrderBy = { field: 'author.orderSummary.totalAmount', order: 'desc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('relation object derived other sub-field', () => {
+    const ob: PostOrderBy = { field: 'author.orderSummary.orderCount', order: 'asc' };
+    expect(ob).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nested relation: aggregate
+// ---------------------------------------------------------------------------
+describe('nested relation: aggregate', () => {
+  it('groupBy with relation derived', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    const opts: Opts = { groupBy: ['author.postsCount'], _count: true };
+    expect(opts).toBeDefined();
+  });
+
+  it('groupBy with relation computed', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    const opts: Opts = { groupBy: ['author.fullName'], _count: true };
+    expect(opts).toBeDefined();
+  });
+
+  it('groupBy with relation object derived sub-field', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    const opts: Opts = { groupBy: ['author.orderSummary.totalAmount'], _count: true };
+    expect(opts).toBeDefined();
+  });
+
+  it('_sum with relation derived', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    const opts: Opts = { _sum: { 'author.postsCount': true } };
+    expect(opts).toBeDefined();
+  });
+
+  it('_avg with relation object derived sub-field', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    const opts: Opts = { _avg: { 'author.orderSummary.totalAmount': true } };
+    expect(opts).toBeDefined();
+  });
+
+  it('_min/_max with relation computed', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    const opts: Opts = { _min: { 'author.fullName': true }, _max: { 'author.fullName': true } };
+    expect(opts).toBeDefined();
+  });
+
+  it('_sum with own derived field', () => {
+    type Opts = Parameters<typeof r.users.aggregate>[0];
+    const opts: Opts = { _sum: { postsCount: true } };
+    expect(opts).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Standalone table without relations
+// ---------------------------------------------------------------------------
 const tags = pgTable('tags', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),

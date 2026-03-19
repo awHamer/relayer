@@ -1037,6 +1037,44 @@ describe('$transaction', () => {
 });
 
 // ---------------------------------------------------------------------------
+// orderBy: relation derived field
+// ---------------------------------------------------------------------------
+describe('orderBy: relation derived field', () => {
+  it('orders posts by author.postsCount desc', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.postsCount', order: 'desc' },
+    });
+    expect(results.length).toBeGreaterThan(0);
+    // Ihor has 2 posts, others have 1 -> Ihor's posts should come first
+    expect(results[0].id).toBe(1); // or 2 (both Ihor's)
+  });
+
+  it('orders posts by author.postsCount asc', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.postsCount', order: 'asc' },
+    });
+    expect(results.length).toBeGreaterThan(0);
+    // Users with 1 post first, then Ihor with 2
+  });
+});
+
+// ---------------------------------------------------------------------------
+// where: relation derived field
+// ---------------------------------------------------------------------------
+describe('where: relation derived field', () => {
+  it('filters posts by author.postsCount', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      where: { author: { postsCount: { gte: 2 } } },
+    });
+    // Only Ihor has 2+ posts
+    expect(results.length).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // $orm / getOrm()
 // ---------------------------------------------------------------------------
 describe('$orm / getOrm()', () => {

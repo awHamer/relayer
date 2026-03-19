@@ -19,6 +19,18 @@ export type InferTableInsert<TTable> = TTable extends Table & { $inferInsert: in
 
 export type TableColumnKeys<TTable> = keyof InferTableSelect<TTable> & string;
 
+// Columns where numeric aggregation makes sense at DB level.
+// Includes string because PG numeric/decimal infers as string in TS.
+// DB will reject truly invalid operations (e.g. SUM on boolean/date/json).
+export type NumericColumnKeys<TTable> = {
+  [K in keyof InferTableSelect<TTable> & string]: NonNullable<InferTableSelect<TTable>[K]> extends
+    | number
+    | bigint
+    | string
+    ? K
+    : never;
+}[keyof InferTableSelect<TTable> & string];
+
 export type TableRelationKeys<TTableName extends string, TSchema> =
   TSchema extends Record<string, unknown>
     ? TTableName extends keyof ExtractTablesWithRelations<TSchema>
@@ -98,6 +110,15 @@ export type EntityFields<TEntityConfig> = TEntityConfig extends { fields?: infer
   : {};
 
 export type ExtractValueType<T> = T extends { valueType: infer VT extends ValueType } ? VT : never;
+
+export type EntityConfigFor<
+  TEntities,
+  TEntityName extends string,
+> = TEntityName extends keyof TEntities
+  ? TEntities[TEntityName] extends object
+    ? TEntities[TEntityName]
+    : {}
+  : {};
 
 // ── Relation dot-path types ──────────────────────────────────────
 

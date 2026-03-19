@@ -1,6 +1,6 @@
 import { and, not, or, sql, SQL } from 'drizzle-orm';
 import type { Column, Table } from 'drizzle-orm';
-import type { EntityMetadata } from '@relayerjs/core';
+import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
 import type { DialectAdapter } from '../../dialect';
 import type { TableInfo } from '../../introspect';
@@ -17,6 +17,9 @@ export interface WhereBuilderContext {
   computedSqlMap: Map<string, SQL>;
   derivedAliasMap: Map<string, { column: Column | SQL }>;
   adapter: DialectAdapter;
+  registry?: EntityRegistry;
+  db?: unknown;
+  queryContext?: unknown;
 }
 
 export function buildWhere(

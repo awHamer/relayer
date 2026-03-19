@@ -34,6 +34,7 @@ export function createRelayerDrizzle<
   schema: TSchema;
   entities?: TEntities;
   context?: TContext;
+  maxRelationDepth?: number;
 }): RelayerClient<TSchema, TEntities, TContext, TDb> {
   return _createRelayerDrizzle(config);
 }
@@ -42,6 +43,7 @@ function _createRelayerDrizzle(config: {
   db: unknown;
   schema: Record<string, unknown>;
   entities?: Record<string, unknown>;
+  maxRelationDepth?: number;
 }): any {
   const db = config.db as any;
   const schema = config.schema as Record<string, unknown>;
@@ -97,7 +99,16 @@ function _createRelayerDrizzle(config: {
       const tableInfo = tables.get(prop);
       if (!tableInfo) return undefined;
 
-      return createEntityClient(db, schema, tables, tableInfo, metadata, adapter);
+      return createEntityClient(
+        db,
+        schema,
+        tables,
+        tableInfo,
+        metadata,
+        adapter,
+        registry,
+        config.maxRelationDepth ?? 3,
+      );
     },
   });
 }

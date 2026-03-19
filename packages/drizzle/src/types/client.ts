@@ -12,14 +12,15 @@ export interface TypedEntityClient<
   TTableName extends string = string,
   TSchema extends Record<string, unknown> = Record<string, unknown>,
   TContext = unknown,
+  TEntities = {},
 > {
   /** Query multiple records with optional select, where, orderBy, limit, and offset. */
   findMany(options?: {
-    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
+    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
     orderBy?:
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>[];
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
     limit?: number;
     offset?: number;
     context?: TContext;
@@ -27,11 +28,11 @@ export interface TypedEntityClient<
 
   /** Stream records as an async iterator. MySQL only. Does not support relation loading. */
   findManyStream(options?: {
-    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
+    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
     orderBy?:
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>[];
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
     limit?: number;
     offset?: number;
     context?: TContext;
@@ -39,23 +40,23 @@ export interface TypedEntityClient<
 
   /** Query a single record. Returns `null` if not found. */
   findFirst(options?: {
-    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema>;
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
+    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
     orderBy?:
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema>[];
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>
+      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
     context?: TContext;
   }): Promise<(Partial<InferTableSelect<TTable>> & Record<string, unknown>) | null>;
 
   /** Count records matching an optional where condition. */
   count(options?: {
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
     context?: TContext;
   }): Promise<number>;
 
   /** Run aggregate functions (_count, _sum, _avg, _min, _max) with optional groupBy. */
   aggregate(
-    options: EntityAggregateOptions<TTable, TEntityConfig, TTableName, TSchema>,
+    options: EntityAggregateOptions<TTable, TEntityConfig, TTableName, TSchema, TEntities>,
   ): Promise<Record<string, unknown>[] | Record<string, unknown>>;
 
   /** Insert a single record. Returns the created row. */
@@ -66,24 +67,24 @@ export interface TypedEntityClient<
 
   /** Update a single record matching where. Returns the updated row. */
   update(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
     data: Partial<InferTableInsert<TTable>>;
   }): Promise<InferTableSelect<TTable>>;
 
   /** Update multiple records matching where. Returns `{ count }`. */
   updateMany(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
     data: Partial<InferTableInsert<TTable>>;
   }): Promise<{ count: number }>;
 
   /** Delete a single record matching where. Returns the deleted row. */
   delete(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
   }): Promise<InferTableSelect<TTable>>;
 
   /** Delete multiple records matching where. Returns `{ count }`. */
   deleteMany(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema>;
+    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
   }): Promise<{ count: number }>;
 }
 
@@ -99,7 +100,8 @@ export type RelayerClient<
     K extends keyof TEntities ? (TEntities[K] extends object ? TEntities[K] : {}) : {},
     K,
     TSchema,
-    TContext
+    TContext,
+    TEntities
   >;
 } & {
   /** Direct access to the underlying Drizzle ORM instance. */
