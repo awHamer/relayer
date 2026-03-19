@@ -31,6 +31,10 @@ export function applyOperators(
     return eq(column as Column, value);
   }
 
+  if (Array.isArray(value)) {
+    return inArray(column as Column, value);
+  }
+
   if (typeof value !== 'object' || value === null) return undefined;
 
   const ops = value as Record<string, unknown>;

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { Column, SQL } from 'drizzle-orm';
 import type { EntityMetadata } from '@relayerjs/core';
+import { EntityRegistry } from '@relayerjs/core';
 
 import {
   buildAggregate,
@@ -16,6 +17,7 @@ import type { WhereBuilderContext } from '../builders';
 import type { DialectAdapter } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveComputedFields, resolveDerivedFields } from '../resolvers';
+import { buildDerivedAliasMap } from '../utils';
 import { executeFindMany } from './find-many';
 import { executeFindManyStream } from './find-many-stream';
 
@@ -26,6 +28,8 @@ export function createEntityClient(
   tableInfo: TableInfo,
   metadata: EntityMetadata,
   adapter: DialectAdapter,
+  registry: EntityRegistry = new EntityRegistry(),
+  maxRelationDepth?: number,
 ): Record<string, (...args: any[]) => any> {
   const table = tableInfo.table;
 
@@ -44,22 +48,13 @@ export function createEntityClient(
       context,
       adapter.dialect,
     );
-    const aliasMap = new Map<string, { column: Column | SQL }>();
-    for (const [name, res] of filtered) {
-      if (res.isObjectType && res.valueColumns) {
-        for (const [subField, col] of res.valueColumns) {
-          aliasMap.set(`${name}_${subField}`, { column: col });
-        }
-      } else {
-        aliasMap.set(name, { column: res.valueColumn });
-      }
-    }
-    return { resolutions: filtered, aliasMap };
+    return { resolutions: filtered, aliasMap: buildDerivedAliasMap(filtered) };
   }
 
   function makeWhereCtx(
     computedSqlMap: Map<string, SQL>,
     derivedAliasMap: Map<string, { column: Column | SQL }>,
+    queryContext?: unknown,
   ): WhereBuilderContext {
     return {
       table,
@@ -70,6 +65,9 @@ export function createEntityClient(
       computedSqlMap,
       derivedAliasMap,
       adapter,
+      registry,
+      db,
+      queryContext,
     };
   }
 
@@ -81,6 +79,8 @@ export function createEntityClient(
     allTables,
     metadata,
     adapter,
+    registry,
+    maxRelationDepth,
     getComputedSqlMap,
     getDerivedResolutions,
     makeWhereCtx,
@@ -116,7 +116,16 @@ export function createEntityClient(
     },
 
     async aggregate(options: any = {}) {
-      const aggResult = buildAggregate(options, table, metadata, allTables, schema);
+      const aggResult = buildAggregate({
+        options,
+        table,
+        metadata,
+        allTables,
+        schema,
+        registry,
+        db,
+        adapter,
+      });
 
       let query = db.select(aggResult.selectColumns as any).from(table) as any;
 

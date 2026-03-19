@@ -106,6 +106,27 @@ beforeAll(() => {
             valueType: 'string',
             resolve: ({ table, sql }: any) => sql`${table.firstName} || ' ' || ${table.lastName}`,
           },
+          postsCount: {
+            type: FieldType.Derived,
+            valueType: 'number',
+            query: ({ db, schema: s, sql, field }: any) =>
+              db
+                .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
+                .from(s.posts)
+                .groupBy(s.posts.authorId),
+            on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
+          },
+          recentPostsCount: {
+            type: FieldType.Derived,
+            valueType: 'number',
+            query: ({ db, schema: s, sql, field, context }: any) =>
+              db
+                .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
+                .from(s.posts)
+                .where(context?.minPostId ? sql`${s.posts.id} >= ${context.minPostId}` : sql`1=1`)
+                .groupBy(s.posts.authorId),
+            on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
+          },
         },
       },
     },
@@ -332,6 +353,181 @@ describe('orderBy: JSON path', () => {
     for (let i = 1; i < roles.length; i++) {
       expect(roles[i]! <= roles[i - 1]!).toBe(true);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregate: relation derived/computed groupBy
+// ---------------------------------------------------------------------------
+describe('aggregate: relation derived/computed groupBy', () => {
+  it('groupBy author.postsCount (derived on relation)', async () => {
+    const results = await r.posts.aggregate({
+      groupBy: ['author.postsCount'],
+      _count: true,
+    });
+    expect(Array.isArray(results)).toBe(true);
+    const arr = results as Record<string, unknown>[];
+    // Ihor has 2 posts (postsCount=2), John has 1, Jane has 1
+    expect(arr.length).toBeGreaterThan(0);
+    const group2 = arr.find((r) => Number(r.author_postsCount) === 2);
+    expect(group2).toBeDefined();
+    expect(Number(group2!._count)).toBe(2); // Ihor's 2 posts
+  });
+
+  it('groupBy author.fullName (computed on relation)', async () => {
+    const results = await r.posts.aggregate({
+      groupBy: ['author.fullName'],
+      _count: true,
+    });
+    expect(Array.isArray(results)).toBe(true);
+    const arr = results as Record<string, unknown>[];
+    const ihor = arr.find((r) => String(r.author_fullName).includes('Ihor'));
+    expect(ihor).toBeDefined();
+    expect(Number(ihor!._count)).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregate: _sum/_avg with dot-path fields
+// ---------------------------------------------------------------------------
+describe('aggregate: _sum/_avg with relation fields', () => {
+  it('_sum on derived field (postsCount)', async () => {
+    const result = await r.users.aggregate({
+      _sum: { postsCount: true },
+    });
+    // Ihor: 2, John: 1, Jane/NullRole: NULL -> SUM = 3
+    expect(Number((result as Record<string, unknown>)._sum_postsCount)).toBe(3);
+  });
+
+  it('_avg on derived field (postsCount)', async () => {
+    const result = await r.users.aggregate({
+      _avg: { postsCount: true },
+    });
+    expect(Number((result as Record<string, unknown>)._avg_postsCount)).toBeGreaterThan(0);
+  });
+
+  it('_sum on relation.derived (author.postsCount)', async () => {
+    const result = await r.posts.aggregate({
+      _sum: { 'author.postsCount': true },
+    });
+    // Each post carries its author's postsCount: Ihor(2)+Ihor(2)+John(1) = 5
+    expect(Number((result as Record<string, unknown>)._sum_author_postsCount)).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// orderBy: relation derived field
+// ---------------------------------------------------------------------------
+describe('orderBy: relation derived field', () => {
+  it('orders posts by author.postsCount desc', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.postsCount', order: 'desc' },
+    });
+    expect(results.length).toBeGreaterThan(0);
+    // Ihor has 2 posts, John has 1 -> Ihor's posts should come first
+  });
+});
+
+// ---------------------------------------------------------------------------
+// where: relation derived field
+// ---------------------------------------------------------------------------
+describe('where: relation derived field', () => {
+  it('filters posts by author.postsCount', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      where: { author: { postsCount: { gte: 2 } } },
+    });
+    // Only Ihor has 2+ posts
+    expect(results.length).toBe(2);
+  });
+
+  it('where: relation computed field author.fullName', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      where: { author: { fullName: { contains: 'Ihor' } } },
+    });
+    // Only Ihor's posts should match
+    expect(results.length).toBe(2);
+  });
+
+  it('relation computed field: posts sorted by author.fullName', async () => {
+    // Computed field on relation target: author.fullName
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.fullName', order: 'asc' },
+    });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('context propagates to relation derived field in where', async () => {
+    // With context minPostId=2: recentPostsCount counts posts with id >= 2
+    // Ihor has posts 1,2 -> recentPostsCount = 1 (only post 2)
+    // John has post 3 -> recentPostsCount = 1
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      where: { author: { recentPostsCount: { gte: 1 } } },
+      context: { minPostId: 2 },
+    });
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('maxRelationDepth=0 disables relation derived orderBy', async () => {
+    const rLimited: any = createRelayerDrizzle({
+      db,
+      schema: schema as unknown as Record<string, unknown>,
+      entities: {
+        users: {
+          fields: {
+            postsCount: {
+              type: FieldType.Derived,
+              valueType: 'number',
+              query: ({ db, schema: s, sql, field }: any) =>
+                db
+                  .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
+                  .from(s.posts)
+                  .groupBy(s.posts.authorId),
+              on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
+            },
+          },
+        },
+      },
+      maxRelationDepth: 0,
+    });
+    // With depth 0, relation derived fields in orderBy should be silently ignored
+    const results = await rLimited.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.postsCount', order: 'desc' },
+    });
+    // Should still return results (just not sorted by derived field)
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('context propagates to relation derived field in orderBy', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, title: true },
+      orderBy: { field: 'author.recentPostsCount', order: 'desc' },
+      context: { minPostId: 3 },
+    });
+    expect(results.length).toBeGreaterThan(0);
+    // John has post 3 (id >= 3) -> recentPostsCount = 1
+    // Ihor has posts 1,2 (none >= 3) -> recentPostsCount = 0
+    // John's post should come first
+    expect(results[0].id).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// where: array shorthand for IN
+// ---------------------------------------------------------------------------
+describe('where: array shorthand', () => {
+  it('array value as IN shorthand', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, firstName: true },
+      where: { firstName: ['Ihor', 'Jane'] },
+    });
+    expect(results).toHaveLength(2);
+    expect(results.map((u: any) => u.firstName).sort()).toEqual(['Ihor', 'Jane']);
   });
 });
 

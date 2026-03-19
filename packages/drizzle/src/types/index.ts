@@ -22,6 +22,8 @@ export type {
   ExtractValueType,
   RelationColumnDotPaths,
   JsonColumnDotPaths,
+  EntityConfigFor,
+  NumericColumnKeys,
 } from './helpers';
 export type { EntitySelect } from './select';
 export type { EntityWhere } from './where';

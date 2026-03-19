@@ -1,12 +1,13 @@
 import { sql } from 'drizzle-orm';
 import type { Column, SQL } from 'drizzle-orm';
-import type { EntityMetadata } from '@relayerjs/core';
+import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
 import { buildOrderBy, buildSelect, buildWhere, loadRelations } from '../builders';
 import type { SelectResult, WhereBuilderContext } from '../builders';
 import type { DialectAdapter } from '../dialect';
 import type { TableInfo } from '../introspect';
 import type { DerivedFieldResolution } from '../resolvers';
+import { getPrimaryKeyField } from '../utils';
 
 export interface FindManyDeps {
   db: any;
@@ -16,6 +17,8 @@ export interface FindManyDeps {
   allTables: Map<string, TableInfo>;
   metadata: EntityMetadata;
   adapter: DialectAdapter;
+  registry: EntityRegistry;
+  maxRelationDepth?: number;
   getComputedSqlMap(context?: unknown, requestedFields?: string[]): Map<string, SQL>;
   getDerivedResolutions(
     requestedDerived: string[],
@@ -27,6 +30,7 @@ export interface FindManyDeps {
   makeWhereCtx(
     computedSqlMap: Map<string, SQL>,
     derivedAliasMap: Map<string, { column: Column | SQL }>,
+    queryContext?: unknown,
   ): WhereBuilderContext;
 }
 
@@ -101,7 +105,7 @@ export function buildFindManyQuery(
     }
   }
 
-  const whereCtx = deps.makeWhereCtx(computedSqlMap, derivedAliasMap);
+  const whereCtx = deps.makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
   const whereCondition = options.where ? buildWhere(options.where, whereCtx) : undefined;
   const orderByResult = buildOrderBy(
     options.orderBy,
@@ -112,6 +116,10 @@ export function buildFindManyQuery(
     deps.allTables,
     deps.schema,
     deps.adapter,
+    deps.registry,
+    db,
+    context,
+    deps.maxRelationDepth,
   );
 
   let query = db.select(selectResult.columns as any).from(table) as any;
@@ -175,13 +183,7 @@ export async function executeFindMany(
 
   // Deferred derived: batch load after main query
   if (deferredDerived.length > 0 && results.length > 0) {
-    let pkName: string | undefined;
-    for (const [name, field] of metadata.scalarFields) {
-      if (field.primaryKey) {
-        pkName = name;
-        break;
-      }
-    }
+    const pkName = getPrimaryKeyField(deps.tableInfo);
     if (pkName) {
       const pks = results.map((r) => r[pkName!]).filter(Boolean);
       const pkCol = (table as unknown as Record<string, Column>)[pkName];
@@ -248,6 +250,10 @@ export async function executeFindMany(
       allTables: deps.allTables,
       schema: deps.schema,
       parentMetadata: metadata,
+      registry: deps.registry,
+      adapter: deps.adapter,
+      queryContext: context,
+      maxRelationDepth: deps.maxRelationDepth,
     });
   }
 

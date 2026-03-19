@@ -14,6 +14,7 @@ import {
 import type { Column, Table } from 'drizzle-orm';
 import type { RelationFieldDef } from '@relayerjs/core';
 
+import { resolveDerivedFields } from '../../resolvers';
 import type { WhereBuilderContext } from './index';
 import { buildWhere } from './index';
 
@@ -60,14 +61,45 @@ export function buildRelationFilter(
   const targetInfo = ctx.allTables.get(relDef.targetEntity);
   if (!targetInfo) return undefined;
 
-  const targetRelations = resolveRelationFields(relDef.targetEntity, ctx.schema);
-  const targetMetadata = {
+  // Use registry for full target metadata (includes derived/computed fields)
+  const registryMetadata = ctx.registry?.get(relDef.targetEntity);
+  const targetMetadata = registryMetadata ?? {
     name: relDef.targetEntity,
     scalarFields: targetInfo.scalarFields,
-    relationFields: targetRelations,
+    relationFields: resolveRelationFields(relDef.targetEntity, ctx.schema),
     computedFields: new Map(),
     derivedFields: new Map(),
   };
+
+  // Split nested where into scalar fields vs derived fields
+  const scalarWhere: Record<string, unknown> = {};
+  const derivedWhere: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(nestedWhere)) {
+    if (registryMetadata?.derivedFields.has(k)) {
+      derivedWhere[k] = v;
+    } else {
+      scalarWhere[k] = v;
+    }
+  }
+
+  // Resolve computed fields on target entity for use in WHERE.
+  // Use raw SQL expressions (no .as() alias) since these go inside EXISTS subquery.
+  const targetComputedSqlMap = new Map<string, SQL>();
+  if (registryMetadata && registryMetadata.computedFields.size > 0) {
+    for (const [k] of Object.entries(nestedWhere)) {
+      const fieldDef = registryMetadata.computedFields.get(k);
+      if (!fieldDef) continue;
+      const sqlExpr = fieldDef.resolve({
+        table: targetInfo.table as unknown as Record<string, unknown>,
+        schema: ctx.schema,
+        sql,
+        context: ctx.queryContext,
+      });
+      if (sqlExpr instanceof SQL) {
+        targetComputedSqlMap.set(k, sqlExpr);
+      }
+    }
+  }
 
   const nestedCtx: WhereBuilderContext = {
     table: targetInfo.table,
@@ -75,12 +107,66 @@ export function buildRelationFilter(
     metadata: targetMetadata,
     schema: ctx.schema,
     allTables: ctx.allTables,
-    computedSqlMap: new Map(),
+    computedSqlMap: targetComputedSqlMap,
     derivedAliasMap: new Map(),
     adapter: ctx.adapter,
+    registry: ctx.registry,
+    db: ctx.db,
+    queryContext: ctx.queryContext,
   };
 
-  const nestedCondition = buildWhere(nestedWhere, nestedCtx);
+  // Build scalar conditions normally
+  const scalarCondition =
+    Object.keys(scalarWhere).length > 0 ? buildWhere(scalarWhere, nestedCtx) : undefined;
+
+  // For derived fields, resolve subqueries and build inline EXISTS conditions
+  const derivedConditions: SQL[] = [];
+  if (Object.keys(derivedWhere).length > 0 && registryMetadata && ctx.db) {
+    const derivedKeys = Object.keys(derivedWhere);
+    const resolutions = resolveDerivedFields(
+      registryMetadata.derivedFields,
+      derivedKeys,
+      targetInfo.table,
+      ctx.db,
+      ctx.schema,
+      ctx.queryContext,
+      ctx.adapter.dialect,
+    );
+
+    for (const [name, derivedValue] of Object.entries(derivedWhere)) {
+      const res = resolutions.get(name);
+      if (!res) continue;
+
+      // Build condition on derived alias column
+      const derivedAliasMap = new Map<string, { column: Column | SQL }>();
+      derivedAliasMap.set(name, { column: res.valueColumn });
+
+      const derivedCtx: WhereBuilderContext = {
+        table: targetInfo.table,
+        tableInfo: targetInfo,
+        metadata: { ...targetMetadata, scalarFields: new Map(), relationFields: new Map() },
+        schema: ctx.schema,
+        allTables: ctx.allTables,
+        computedSqlMap: new Map(),
+        derivedAliasMap,
+        adapter: ctx.adapter,
+      };
+      const cond = buildWhere({ [name]: derivedValue }, derivedCtx);
+      if (cond && res.joinCondition) {
+        const derivedExists = sql`EXISTS (SELECT 1 FROM ${res.subquery} WHERE ${and(res.joinCondition, cond)})`;
+        derivedConditions.push(derivedExists);
+      }
+    }
+  }
+
+  const nestedCondition =
+    derivedConditions.length > 0
+      ? scalarCondition
+        ? and(scalarCondition, ...derivedConditions)
+        : derivedConditions.length === 1
+          ? derivedConditions[0]!
+          : and(...derivedConditions)
+      : scalarCondition;
   const joinCondition = buildJoinCondition(ctx.table, relationName, ctx.schema);
 
   const whereParts = [joinCondition, nestedCondition].filter(Boolean);
