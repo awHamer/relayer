@@ -26,6 +26,7 @@
     "@changesets/cli": "^2.30.0",
     "@eslint/js": "^10.0.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^10.0.3",
     "prettier": "^3.8.1",
     "tsup": "^8.5.1",

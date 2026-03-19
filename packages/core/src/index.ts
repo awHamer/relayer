@@ -49,3 +49,12 @@ export type {
   ArrayOperators,
   RelationOperators,
 } from './operators/index';
+
+export type {
+  InferEntityWhere,
+  InferEntitySelect,
+  InferEntityOrderBy,
+  InferEntityResult,
+  InferCreateData,
+  InferUpdateData,
+} from './types/infer';
