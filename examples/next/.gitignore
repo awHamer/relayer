@@ -1,0 +1,4 @@
+.next/
+*.db
+*.db-shm
+*.db-wal
