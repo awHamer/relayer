@@ -1,6 +1,6 @@
 import type { sql, Table } from 'drizzle-orm';
 import { FieldType } from '@relayerjs/core';
-import type { DerivedJoinContext, ValueType } from '@relayerjs/core';
+import type { DerivedJoinContext, RelayerEntityStatics, ValueType } from '@relayerjs/core';
 
 export type SchemaTableKeys<TSchema> = {
   [K in keyof TSchema & string]: TSchema[K] extends Table ? K : never;
@@ -49,8 +49,10 @@ export type TypedFieldDef<TTable, TDb, TSchema, TContext = unknown> =
   | TypedComputedDef<TTable, TSchema, TContext>
   | TypedDerivedDef<TTable, TDb, TSchema, TContext>;
 
+type EntityConfigValue<TTable, TDb, TSchema, TContext> =
+  | { fields?: Record<string, TypedFieldDef<TTable, TDb, TSchema, TContext>> }
+  | (RelayerEntityStatics & (new (...args: unknown[]) => unknown));
+
 export type TypedEntitiesConfig<TDb, TSchema, TContext = unknown> = {
-  [K in SchemaTableKeys<TSchema>]?: {
-    fields?: Record<string, TypedFieldDef<TSchema[K], TDb, TSchema, TContext>>;
-  };
+  [K in SchemaTableKeys<TSchema>]?: EntityConfigValue<TSchema[K], TDb, TSchema, TContext>;
 };

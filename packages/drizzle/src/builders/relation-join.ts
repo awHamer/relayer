@@ -9,6 +9,7 @@ import type { Column, SQL, Table } from 'drizzle-orm';
 import type { EntityMetadata } from '@relayerjs/core';
 
 import type { TableInfo } from '../introspect';
+import { getTableColumns } from '../utils';
 
 export interface ResolvedRelationJoin {
   column: Column;
@@ -16,27 +17,32 @@ export interface ResolvedRelationJoin {
   joinCondition: SQL;
 }
 
+export interface RelationJoinCtx {
+  metadata: EntityMetadata;
+  allTables: Map<string, TableInfo>;
+  schema: Record<string, unknown>;
+}
+
 export function resolveRelationJoin(
   relationName: string,
   targetFieldName: string,
-  metadata: EntityMetadata,
-  allTables: Map<string, TableInfo>,
-  schema: Record<string, unknown>,
+  ctx: RelationJoinCtx,
 ): ResolvedRelationJoin | undefined {
-  const relDef = metadata.relationFields.get(relationName);
+  const relDef = ctx.metadata.relationFields.get(relationName);
   if (!relDef) return undefined;
 
-  const targetInfo = allTables.get(relDef.targetEntity);
+  const targetInfo = ctx.allTables.get(relDef.targetEntity);
   if (!targetInfo) return undefined;
 
-  const targetCol = (targetInfo.table as unknown as Record<string, Column>)[targetFieldName];
+  const targetCol = getTableColumns(targetInfo.table)[targetFieldName];
   if (!targetCol) return undefined;
 
   // Resolve FK join condition
-  const { tables: relConfig, tableNamesMap } = extractTablesRelationalConfig(schema, (t: Table) =>
-    createTableRelationsHelpers(t),
+  const { tables: relConfig, tableNamesMap } = extractTablesRelationalConfig(
+    ctx.schema,
+    (t: Table) => createTableRelationsHelpers(t),
   );
-  const parentConfig = relConfig[metadata.name];
+  const parentConfig = relConfig[ctx.metadata.name];
   if (!parentConfig) return undefined;
 
   const drizzleRelation = parentConfig.relations[relationName];

@@ -1,9 +1,10 @@
-import { FieldType } from '@relayerjs/core';
+import { isRelayerEntityClass } from '@relayerjs/core';
 
 import { createEntityClient } from './client';
 import { createDialectAdapter, detectDialect } from './dialect';
+import type { DrizzleDatabase } from './dialect';
 import { buildRegistry } from './introspect';
-import type { RelayerClient, TypedEntitiesConfig } from './types';
+import type { RelayerClient } from './types';
 
 /**
  * Create a type-safe Relayer client from a Drizzle ORM instance.
@@ -16,19 +17,19 @@ import type { RelayerClient, TypedEntitiesConfig } from './types';
  *
  * @example
  * ```ts
- * const r = createRelayerDrizzle({ db, schema, entities: { users: { fields: { ... } } } });
- * const users = await r.users.findMany({ where: { email: { contains: '@example.com' } } });
+ * const UserEntity = createRelayerEntity(schema, 'users');
+ * class User extends UserEntity {
+ *   @UserEntity.computed({ resolve: ({ table, sql }) => sql`...` })
+ *   fullName!: string;
+ * }
+ * const r = createRelayerDrizzle({ db, schema, entities: { users: User } });
  * ```
  */
 export function createRelayerDrizzle<
   TDb,
   TSchema extends Record<string, unknown>,
   TContext = unknown,
-  TEntities extends TypedEntitiesConfig<TDb, TSchema, TContext> = TypedEntitiesConfig<
-    TDb,
-    TSchema,
-    TContext
-  >,
+  TEntities extends Record<string, unknown> = Record<string, unknown>,
 >(config: {
   db: TDb;
   schema: TSchema;
@@ -36,7 +37,7 @@ export function createRelayerDrizzle<
   context?: TContext;
   maxRelationDepth?: number;
 }): RelayerClient<TSchema, TEntities, TContext, TDb> {
-  return _createRelayerDrizzle(config);
+  return _createRelayerDrizzle(config) as RelayerClient<TSchema, TEntities, TContext, TDb>;
 }
 
 function _createRelayerDrizzle(config: {
@@ -44,42 +45,28 @@ function _createRelayerDrizzle(config: {
   schema: Record<string, unknown>;
   entities?: Record<string, unknown>;
   maxRelationDepth?: number;
-}): any {
-  const db = config.db as any;
+}): unknown {
+  const db = config.db as DrizzleDatabase;
   const schema = config.schema as Record<string, unknown>;
   const dialect = detectDialect(schema);
   const adapter = createDialectAdapter(dialect);
 
-  let resolvedEntities: Record<string, { fields?: Record<string, any> }> | undefined;
+  let resolvedEntities: Record<string, unknown> | undefined;
   if (config.entities) {
     resolvedEntities = {};
     for (const [entityName, entityConfig] of Object.entries(config.entities)) {
       if (!entityConfig) continue;
-      const ec = entityConfig as { fields?: Record<string, any> };
-      const fields: Record<string, any> = {};
-
-      if (ec.fields) {
-        for (const [name, def] of Object.entries(ec.fields)) {
-          if (def.type === 'computed' || def.type === FieldType.Computed) {
-            fields[name] = { kind: 'computed', valueType: def.valueType, resolve: def.resolve };
-          } else if (def.type === 'derived' || def.type === FieldType.Derived) {
-            fields[name] = {
-              kind: 'derived',
-              valueType: def.valueType,
-              query: def.query,
-              on: def.on,
-            };
-          }
-        }
+      if (isRelayerEntityClass(entityConfig)) {
+        resolvedEntities[entityName] = entityConfig;
       }
-
-      resolvedEntities[entityName] = { fields };
     }
   }
 
-  const { registry, tables } = buildRegistry(schema, resolvedEntities as any);
+  const { registry, tables } = buildRegistry(schema, resolvedEntities);
+  const relayerClientCache = new Map<string, unknown>();
 
-  return new Proxy({} as any, {
+  // Create a client on first accessing to reduce unnecessary instances
+  return new Proxy({} as Record<string, unknown>, {
     get(_target, prop) {
       if (typeof prop !== 'string') return undefined;
 
@@ -87,28 +74,33 @@ function _createRelayerDrizzle(config: {
       if (prop === 'getOrm') return () => db;
       if (prop === '$transaction') {
         return async (callback: (tx: unknown) => Promise<unknown>, txConfig?: unknown) => {
-          return (db as any).transaction(async (tx: any) => {
-            const txClient = _createRelayerDrizzle({ ...config, db: tx } as any);
+          return db.transaction(async (tx: DrizzleDatabase) => {
+            const txClient = _createRelayerDrizzle({ ...config, db: tx });
             return callback(txClient);
           }, txConfig);
         };
       }
+
+      const cached = relayerClientCache.get(prop);
+      if (cached) return cached;
 
       const metadata = registry.get(prop);
       if (!metadata) return undefined;
       const tableInfo = tables.get(prop);
       if (!tableInfo) return undefined;
 
-      return createEntityClient(
+      const client = createEntityClient({
         db,
         schema,
-        tables,
+        allTables: tables,
         tableInfo,
         metadata,
         adapter,
         registry,
-        config.maxRelationDepth ?? 3,
-      );
+        maxRelationDepth: config.maxRelationDepth ?? 3,
+      });
+      relayerClientCache.set(prop, client);
+      return client;
     },
   });
 }

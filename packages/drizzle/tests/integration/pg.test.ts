@@ -1,5 +1,7 @@
-import { createRelayerDrizzle, FieldType } from '../../src';
-import { pgEntities } from '../fixtures/entities';
+import { createRelayerDrizzle } from '../../src';
+import { createRelayerEntity } from '../../src/entity';
+import { PgUser } from '../fixtures/entities';
+import * as pgSchema from '../fixtures/pg-schema';
 import * as schema from '../fixtures/pg-schema';
 import { setupPg } from '../helpers/pg';
 
@@ -11,7 +13,7 @@ beforeAll(async () => {
   r = createRelayerDrizzle({
     db: pg.db,
     schema: schema as unknown as Record<string, unknown>,
-    entities: pgEntities(),
+    entities: { users: PgUser },
   });
 });
 
@@ -450,52 +452,52 @@ describe('where: $raw', () => {
 // where: relation filters
 // ---------------------------------------------------------------------------
 describe('where: relation filters', () => {
-  it('$exists true: users with profile', async () => {
+  it('exists true: users with profile', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
-      where: { profile: { $exists: true } },
+      where: { profile: { exists: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(2);
     expect(results.map((r: any) => r.id)).toEqual([1, 2]);
   });
 
-  it('$exists false: users without profile', async () => {
+  it('exists false: users without profile', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
-      where: { profile: { $exists: false } },
+      where: { profile: { exists: false } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(2);
     expect(results.map((r: any) => r.id)).toEqual([3, 4]);
   });
 
-  it('$some: users with at least one published post', async () => {
+  it('some: users with at least one published post', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
-      where: { posts: { $some: { published: true } } },
+      where: { posts: { some: { published: true } } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(2);
     expect(results.map((r: any) => r.id)).toEqual([1, 3]);
   });
 
-  it('$every: users where all posts are published', async () => {
+  it('every: users where all posts are published', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
-      where: { posts: { $every: { published: true } } },
+      where: { posts: { every: { published: true } } },
       orderBy: { field: 'id', order: 'asc' },
     });
-    // $every uses NOT EXISTS (negated), so users with no posts (id 4) pass vacuously
+    // every uses NOT EXISTS (negated), so users with no posts (id 4) pass vacuously
     // User 1: all published -> yes, User 2: has draft -> no, User 3: all published -> yes, User 4: no posts -> yes
     expect(results.map((r: any) => r.id)).toEqual(expect.arrayContaining([1, 3]));
     expect(results.map((r: any) => r.id)).not.toContain(2);
   });
 
-  it('$none: users with no unpublished posts', async () => {
+  it('none: users with no unpublished posts', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
-      where: { posts: { $none: { published: false } } },
+      where: { posts: { none: { published: false } } },
       orderBy: { field: 'id', order: 'asc' },
     });
     // User 1: no unpublished -> yes, User 2: has draft -> no, User 3: no unpublished -> yes, User 4: no posts -> yes
@@ -503,7 +505,7 @@ describe('where: relation filters', () => {
     expect(results.map((r: any) => r.id)).toEqual(expect.arrayContaining([1, 3]));
   });
 
-  it('implicit $some: relation fields without $some/$every/$none', async () => {
+  it('implicit some: relation fields without some/every/none', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
       where: { posts: { published: true } },
@@ -526,21 +528,18 @@ describe('where: computed field', () => {
 // ---------------------------------------------------------------------------
 describe('computed: context passing', () => {
   it('computed field receives context value', async () => {
+    const CtxUserEntity = createRelayerEntity(pgSchema, 'users');
+    class CtxUser extends CtxUserEntity {
+      @CtxUserEntity.computed({
+        resolve: ({ table, sql, context }: any) =>
+          sql`CASE WHEN ${table.id} = ${context.targetUserId} THEN true ELSE false END`,
+      })
+      isTargetUser!: boolean;
+    }
     const rWithCtx: any = createRelayerDrizzle({
       db: pg.db,
-      schema: schema as unknown as Record<string, unknown>,
-      entities: {
-        users: {
-          fields: {
-            isTargetUser: {
-              type: FieldType.Computed,
-              valueType: 'boolean',
-              resolve: ({ table, sql, context }: any) =>
-                sql`CASE WHEN ${table.id} = ${context.targetUserId} THEN true ELSE false END`,
-            },
-          },
-        },
-      },
+      schema: pgSchema,
+      entities: { users: CtxUser },
     });
     const results = await rWithCtx.users.findMany({
       select: { id: true, firstName: true, isTargetUser: true },
@@ -808,11 +807,11 @@ describe('many-to-many via pivot', () => {
     expect(results[2].postCategories).toHaveLength(0);
   });
 
-  it('filter by pivot column ($some isPrimary)', async () => {
-    // $some on pivot with scalar field filter
+  it('filter by pivot column (some isPrimary)', async () => {
+    // some on pivot with scalar field filter
     const results = await r.posts.findMany({
       select: { id: true, title: true },
-      where: { postCategories: { $some: { isPrimary: true } } },
+      where: { postCategories: { some: { isPrimary: true } } },
       orderBy: { field: 'id', order: 'asc' },
     });
     // Posts 1, 2, 4 have at least one primary category; post 3 has no categories at all
@@ -820,10 +819,10 @@ describe('many-to-many via pivot', () => {
     expect(results.map((r: any) => r.id)).toEqual([1, 2, 4]);
   });
 
-  it('$exists on pivot: posts with any categories', async () => {
+  it('exists on pivot: posts with any categories', async () => {
     const results = await r.posts.findMany({
       select: { id: true, title: true },
-      where: { postCategories: { $exists: true } },
+      where: { postCategories: { exists: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     // Posts 1, 2, 4 have categories; post 3 does not

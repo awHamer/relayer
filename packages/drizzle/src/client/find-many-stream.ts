@@ -1,11 +1,11 @@
 import { RelayerDialectError } from '@relayerjs/core';
 
-import type { FindManyDeps } from './find-many';
+import type { FindManyDeps, FindManyOptions } from './find-many';
 import { buildFindManyQuery, hydrateRow, stripUnrequestedFields } from './find-many';
 
 export async function* executeFindManyStream(
   deps: FindManyDeps,
-  options: any = {},
+  options: FindManyOptions = {},
 ): AsyncGenerator<Record<string, unknown>> {
   if (deps.adapter.dialect !== 'mysql') {
     throw new RelayerDialectError(

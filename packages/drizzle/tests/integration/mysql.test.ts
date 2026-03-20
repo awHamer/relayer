@@ -11,8 +11,9 @@ import {
 import { drizzle } from 'drizzle-orm/mysql2';
 import mysql from 'mysql2/promise';
 
-import { createRelayerDrizzle, FieldType } from '../../src';
+import { createRelayerDrizzle } from '../../src';
 import { mysqlAdapter } from '../../src/dialect';
+import { createRelayerEntity } from '../../src/entity';
 
 // ---------------------------------------------------------------------------
 // Schema (inline)
@@ -80,6 +81,25 @@ const schema = {
   ordersRelations,
   profilesRelations,
 };
+
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class MysqlUser extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql }: any) => sql`CONCAT(${table.firstName}, ' ', ${table.lastName})`,
+  })
+  fullName!: string;
+
+  @UserEntity.derived({
+    query: ({ db: d, schema: s, sql }: any) =>
+      d
+        .select({ postsCount: sql`COUNT(*)`, userId: s.posts.authorId })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived: d, eq }: any) => eq(parent.id, d.userId),
+  })
+  postsCount!: number;
+}
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -176,28 +196,7 @@ beforeAll(async () => {
   r = createRelayerDrizzle({
     db,
     schema: schema as unknown as Record<string, unknown>,
-    entities: {
-      users: {
-        fields: {
-          fullName: {
-            type: FieldType.Computed,
-            valueType: 'string',
-            resolve: ({ table, sql }: any) =>
-              sql`CONCAT(${table.firstName}, ' ', ${table.lastName})`,
-          },
-          postsCount: {
-            type: FieldType.Derived,
-            valueType: 'number',
-            query: ({ db: d, schema: s, sql }: any) =>
-              d
-                .select({ postsCount: sql`COUNT(*)`, userId: s.posts.authorId })
-                .from(s.posts)
-                .groupBy(s.posts.authorId),
-            on: ({ parent, derived: d, eq }: any) => eq(parent.id, d.userId),
-          },
-        },
-      },
-    },
+    entities: { users: MysqlUser },
   });
 });
 
@@ -338,9 +337,9 @@ describe('core: relations', () => {
 // core: relation filters
 // ---------------------------------------------------------------------------
 describe('core: relation filters', () => {
-  it('$some: users with at least one published post', async () => {
+  it('some: users with at least one published post', async () => {
     const results = await r.users.findMany({
-      where: { posts: { $some: { published: true } } },
+      where: { posts: { some: { published: true } } },
       select: { id: true, firstName: true },
       orderBy: { field: 'id', order: 'asc' },
     });
@@ -348,9 +347,9 @@ describe('core: relation filters', () => {
     expect(results.map((u: any) => u.firstName).sort()).toEqual(['Ihor', 'Jane']);
   });
 
-  it('$exists: users with a profile', async () => {
+  it('exists: users with a profile', async () => {
     const results = await r.users.findMany({
-      where: { profile: { $exists: true } },
+      where: { profile: { exists: true } },
       select: { id: true, firstName: true },
       orderBy: { field: 'id', order: 'asc' },
     });

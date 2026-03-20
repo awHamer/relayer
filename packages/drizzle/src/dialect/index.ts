@@ -3,7 +3,7 @@ import { pgAdapter } from './pg';
 import { sqliteAdapter } from './sqlite';
 import type { Dialect, DialectAdapter } from './types';
 
-export type { Dialect, DialectAdapter } from './types';
+export type { Dialect, DialectAdapter, DrizzleDatabase, DrizzleQueryBuilder } from './types';
 export { detectDialect } from './detect';
 export { pgAdapter } from './pg';
 export { mysqlAdapter } from './mysql';

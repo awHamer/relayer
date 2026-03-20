@@ -341,8 +341,8 @@ describe('buildWhere', () => {
     derivedMeta.derivedFields.set('postsCount', {
       kind: 'derived' as const,
       valueType: 'number' as const,
-      query: () => null,
-      on: () => null,
+      query: (() => null) as any,
+      on: (() => null) as any,
     });
 
     const result = buildWhere(

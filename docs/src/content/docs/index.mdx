@@ -3,7 +3,7 @@ title: Relayer
 description: Type-safe repository layer for ORMs with computed fields, derived fields, and a powerful query DSL.
 template: splash
 hero:
-  tagline: Type-safe repository layer for ORMs with computed fields, derived fields, and a powerful query DSL. Currently supports Drizzle ORM.
+  tagline: Type-safe repository layer for ORMs with class-based entity models, computed fields, derived fields, and a powerful query DSL. Currently supports Drizzle ORM.
   actions:
     - text: Get Started
       link: /getting-started/
@@ -18,19 +18,23 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## Why Relayer?
 
-Over the years, across many projects, the same pattern kept appearing: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model -- with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
+Over the years, across many projects, the same pattern kept appearing: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model, with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
 
 Relayer is that pattern extracted into a library. Built with **API integration in mind** from day one.
 
 ## Key Features
 
 <CardGrid>
+  <Card title="Class-Based Entities" icon="document">
+    Define computed and derived fields with decorators on entity classes. The class is the single
+    source of truth for your data model.
+  </Card>
   <Card title="Query DSL" icon="magnifier">
     Prisma-like `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain
     JSON-serializable object, making it trivial to wire up as REST/GraphQL filters.
   </Card>
   <Card title="Computed Fields" icon="puzzle">
-    Virtual SQL expressions evaluated at SELECT time. No raw queries, no post-processing -- just
+    Virtual SQL expressions evaluated at SELECT time. No raw queries, no post-processing: just
     declare and use.
   </Card>
   <Card title="Derived Fields" icon="rocket">
@@ -42,38 +46,35 @@ Relayer is that pattern extracted into a library. Built with **API integration i
     comparisons.
   </Card>
   <Card title="Relation Filters" icon="random">
-    `$exists`, `$some`, `$every`, `$none` -- filter parent records based on related data via EXISTS
+    `exists`, `some`, `every`, `none`: filter parent records based on related data via EXISTS
     subqueries.
   </Card>
   <Card title="Aggregations" icon="bars">
     `_count`, `_sum`, `_avg`, `_min`, `_max` with `groupBy` and dot-notation for cross-table
     grouping via automatic LEFT JOIN.
   </Card>
-  <Card title="Typed Context" icon="setting">
-    Pass per-request data (current user, tenant, locale) to field resolvers. Fully typed, available
-    in computed and derived fields.
-  </Card>
   <Card title="Multi-Dialect" icon="translate">
-    PostgreSQL, MySQL, and SQLite. Dialect-specific SQL is handled automatically -- `ILIKE`, array
+    PostgreSQL, MySQL, and SQLite. Dialect-specific SQL is handled automatically: `ILIKE`, array
     operators, JSON paths, `RETURNING`.
   </Card>
 </CardGrid>
 
 ## Packages
 
-| Package              | Description                             |
-| -------------------- | --------------------------------------- |
-| `@relayerjs/drizzle` | Drizzle ORM adapter -- the main package |
-| `@relayerjs/core`    | ORM-agnostic types and contracts        |
+| Package              | Description                           |
+| -------------------- | ------------------------------------- |
+| `@relayerjs/drizzle` | Drizzle ORM adapter, the main package |
+| `@relayerjs/core`    | ORM-agnostic types and contracts      |
+| `@relayerjs/next`    | Next.js App Router integration        |
 
 ## Quick Example
 
 ```ts
 import { relations } from 'drizzle-orm';
 import { integer, jsonb, pgTable, serial, text } from 'drizzle-orm/pg-core';
-import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+import { createRelayerDrizzle, createRelayerEntity } from '@relayerjs/drizzle';
 
-// ─── Schema ───────────────────────────────────────────
+// Schema
 const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -92,62 +93,62 @@ const usersRelations = relations(users, ({ many }) => ({ posts: many(posts) }));
 const postsRelations = relations(posts, ({ one }) => ({
   author: one(users, { fields: [posts.authorId], references: [users.id] }),
 }));
+const schema = { users, posts, usersRelations, postsRelations };
 
-// ─── Relayer Client ───────────────────────────────────
+// Entity model
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class User extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql }) => sql`upper(${table.name})`,
+  })
+  displayName!: string;
+
+  @UserEntity.derived({
+    shape: { postsCount: 'number', latestTitle: 'string' },
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({
+          [field('postsCount')]: sql<number>`count(*)::int`,
+          [field('latestTitle')]: sql<string>`max(${s.posts.title})`,
+          authorId: s.posts.authorId,
+        })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.authorId),
+  })
+  stats!: { postsCount: number; latestTitle: string };
+}
+
+// Relayer client
 const r = createRelayerDrizzle({
   db,
-  schema: { users, posts, usersRelations, postsRelations },
-  entities: {
-    users: {
-      fields: {
-        // Computed: virtual SQL expression, evaluated at SELECT time
-        displayName: {
-          type: FieldType.Computed,
-          valueType: 'string',
-          resolve: ({ table, sql }) => sql`upper(${table.name})`,
-        },
-        // Derived: automatic subquery JOIN — counts posts per user
-        stats: {
-          type: FieldType.Derived,
-          valueType: { postsCount: 'number', latestTitle: 'string' },
-          query: ({ db, schema: s, sql, field }) =>
-            db
-              .select({
-                [field('postsCount')]: sql<number>`count(*)::int`,
-                [field('latestTitle')]: sql<string>`max(${s.posts.title})`,
-                authorId: s.posts.authorId,
-              })
-              .from(s.posts)
-              .groupBy(s.posts.authorId),
-          on: ({ parent, derived, eq }) => eq(parent.id, derived.authorId),
-        },
-      },
-    },
-  },
+  schema,
+  entities: { users: User },
 });
 
-// ─── Query — everything is fully type-safe ────────────
+// Query: everything is fully type-safe
 const result = await r.users.findMany({
   select: {
     id: true,
-    displayName: true, // computed field
-    stats: { postsCount: true }, // derived sub-field select
-    posts: { id: true, title: true }, // relation loading (no N+1!)
+    displayName: true,
+    stats: { postsCount: true },
+    posts: { id: true, title: true },
   },
   where: {
-    metadata: { role: 'admin' }, // JSON path filtering
-    posts: { $some: { title: { contains: 'Relayer' } } }, // relation filter
+    metadata: { role: 'admin' },
+    posts: { some: { title: { contains: 'Relayer' } } },
   },
   orderBy: [
-    { field: 'metadata.level', order: 'desc' }, // type-safe JSON path ordering 🎉
-    { field: 'stats.postsCount', order: 'desc' }, // type-safe derived field ordering 🎉
+    { field: 'metadata.level', order: 'desc' },
+    { field: 'stats.postsCount', order: 'desc' },
   ],
   limit: 10,
 });
 
-// ─── Aggregation ──────────────────────────────────────
+// Aggregation
 const stats = await r.posts.aggregate({
-  groupBy: ['author.name'], // dot-notation: LEFT JOIN + group by related column
+  groupBy: ['author.name'],
   _count: true,
   _max: { title: true },
 });

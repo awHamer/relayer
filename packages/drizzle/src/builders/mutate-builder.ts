@@ -1,12 +1,12 @@
 import type { Table } from 'drizzle-orm';
 import type { MutationResult } from '@relayerjs/core';
 
-import type { DialectAdapter } from '../dialect';
+import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { WhereBuilderContext } from './where';
 import { buildWhere } from './where';
 
 export async function executeCreate(
-  db: any,
+  db: DrizzleDatabase,
   table: Table,
   data: Record<string, unknown>,
   adapter: DialectAdapter,
@@ -16,7 +16,7 @@ export async function executeCreate(
 }
 
 export async function executeCreateMany(
-  db: any,
+  db: DrizzleDatabase,
   table: Table,
   data: Record<string, unknown>[],
   adapter: DialectAdapter,
@@ -26,7 +26,7 @@ export async function executeCreateMany(
 }
 
 export async function executeUpdate(
-  db: any,
+  db: DrizzleDatabase,
   table: Table,
   where: Record<string, unknown>,
   data: Record<string, unknown>,
@@ -39,7 +39,7 @@ export async function executeUpdate(
 }
 
 export async function executeUpdateMany(
-  db: any,
+  db: DrizzleDatabase,
   table: Table,
   where: Record<string, unknown>,
   data: Record<string, unknown>,
@@ -52,7 +52,7 @@ export async function executeUpdateMany(
 }
 
 export async function executeDelete(
-  db: any,
+  db: DrizzleDatabase,
   table: Table,
   where: Record<string, unknown>,
   whereCtx: WhereBuilderContext,
@@ -64,7 +64,7 @@ export async function executeDelete(
 }
 
 export async function executeDeleteMany(
-  db: any,
+  db: DrizzleDatabase,
   table: Table,
   where: Record<string, unknown>,
   whereCtx: WhereBuilderContext,

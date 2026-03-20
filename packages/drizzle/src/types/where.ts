@@ -1,91 +1,88 @@
 import type {
-  EntityConfigFor,
-  EntityFields,
-  ExtractValueType,
+  CustomFieldKeys,
   InferTableSelect,
+  ModelInstance,
   OpsForTSType,
-  OpsForValueType,
   RelationTargetName,
   TableColumnKeys,
   TableRelationKeys,
 } from './helpers';
 
-type ScalarWhereFields<TTable> = {
-  [K in TableColumnKeys<TTable>]?: OpsForTSType<InferTableSelect<TTable>[K]>;
-};
+type ScalarWhere<
+  TSchema extends Record<string, unknown>,
+  TKey extends string,
+> = TKey extends keyof TSchema
+  ? { [K in TableColumnKeys<TSchema[TKey]>]?: OpsForTSType<InferTableSelect<TSchema[TKey]>[K]> }
+  : {};
 
-type CustomFieldsWhere<TEntityConfig> = {
-  [K in keyof EntityFields<TEntityConfig>]?: OpsForValueType<
-    ExtractValueType<EntityFields<TEntityConfig>[K]>
+type CustomFieldsWhere<
+  TSchema extends Record<string, unknown>,
+  TEntities extends Record<string, unknown>,
+  TKey extends string,
+> = {
+  [K in CustomFieldKeys<TSchema, TEntities, TKey>]?: OpsForTSType<
+    ModelInstance<TSchema, TEntities, TKey>[K]
   >;
 };
 
 type RelationNestedWhere<
-  TTargetName extends string,
   TSchema extends Record<string, unknown>,
-  TEntities = {},
-> = TTargetName extends keyof TSchema
-  ? ScalarWhereFields<TSchema[TTargetName]> &
-      CustomFieldsWhere<EntityConfigFor<TEntities, TTargetName>> &
-      RelationWhereFields<TTargetName, TSchema, TEntities> & {
-        AND?: RelationNestedWhere<TTargetName, TSchema, TEntities>[];
-        OR?: RelationNestedWhere<TTargetName, TSchema, TEntities>[];
-        NOT?: RelationNestedWhere<TTargetName, TSchema, TEntities>;
-      }
-  : Record<string, unknown>;
+  TEntities extends Record<string, unknown>,
+  TTargetKey extends string,
+> = ScalarWhere<TSchema, TTargetKey> &
+  CustomFieldsWhere<TSchema, TEntities, TTargetKey> &
+  RelationWhereFields<TSchema, TEntities, TTargetKey> & {
+    AND?: RelationNestedWhere<TSchema, TEntities, TTargetKey>[];
+    OR?: RelationNestedWhere<TSchema, TEntities, TTargetKey>[];
+    NOT?: RelationNestedWhere<TSchema, TEntities, TTargetKey>;
+  };
 
 type RelationWhereFields<
-  TTableName extends string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TEntities = {},
+  TSchema extends Record<string, unknown>,
+  TEntities extends Record<string, unknown>,
+  TKey extends string,
 > =
-  string extends TableRelationKeys<TTableName, TSchema>
+  string extends TableRelationKeys<TKey, TSchema>
     ? {}
     : {
-        [K in TableRelationKeys<TTableName, TSchema>]?:
-          | { $exists?: boolean }
+        [R in TableRelationKeys<TKey, TSchema>]?:
+          | { exists?: boolean }
           | {
-              $some?: RelationNestedWhere<
-                RelationTargetName<TTableName, TSchema, K> & string,
+              some?: RelationNestedWhere<
                 TSchema,
-                TEntities
+                TEntities,
+                RelationTargetName<TKey, TSchema, R> & string
               >;
             }
           | {
-              $every?: RelationNestedWhere<
-                RelationTargetName<TTableName, TSchema, K> & string,
+              every?: RelationNestedWhere<
                 TSchema,
-                TEntities
+                TEntities,
+                RelationTargetName<TKey, TSchema, R> & string
               >;
             }
           | {
-              $none?: RelationNestedWhere<
-                RelationTargetName<TTableName, TSchema, K> & string,
+              none?: RelationNestedWhere<
                 TSchema,
-                TEntities
+                TEntities,
+                RelationTargetName<TKey, TSchema, R> & string
               >;
             }
-          | RelationNestedWhere<
-              RelationTargetName<TTableName, TSchema, K> & string,
-              TSchema,
-              TEntities
-            >;
+          | RelationNestedWhere<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string>;
       };
 
-export type EntityWhere<
-  TTable,
-  TEntityConfig = {},
-  TTableName extends string = string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TEntities = {},
-> = ScalarWhereFields<TTable> &
-  CustomFieldsWhere<TEntityConfig> &
-  RelationWhereFields<TTableName, TSchema, TEntities> & {
-    AND?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
-    OR?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
-    NOT?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
+export type ModelWhere<
+  TSchema extends Record<string, unknown>,
+  TEntities extends Record<string, unknown>,
+  TKey extends string,
+> = ScalarWhere<TSchema, TKey> &
+  CustomFieldsWhere<TSchema, TEntities, TKey> &
+  RelationWhereFields<TSchema, TEntities, TKey> & {
+    AND?: ModelWhere<TSchema, TEntities, TKey>[];
+    OR?: ModelWhere<TSchema, TEntities, TKey>[];
+    NOT?: ModelWhere<TSchema, TEntities, TKey>;
     $raw?: (ctx: {
-      table: TTable;
+      table: TKey extends keyof TSchema ? TSchema[TKey] : unknown;
       sql: typeof import('drizzle-orm').sql;
       schema: TSchema;
     }) => unknown;

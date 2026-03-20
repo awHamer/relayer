@@ -8,38 +8,32 @@ Derived fields are subqueries automatically joined to the main query. They are u
 ## Defining derived fields
 
 ```ts
-import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+import { createRelayerEntity } from '@relayerjs/drizzle';
 
-const r = createRelayerDrizzle({
-  db,
-  schema,
-  entities: {
-    users: {
-      fields: {
-        postsCount: {
-          type: FieldType.Derived,
-          valueType: 'number',
-          query: ({ db, schema: s, sql, field }) =>
-            db
-              .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
-              .from(s.posts)
-              .groupBy(s.posts.authorId),
-          on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-        },
-      },
-    },
-  },
-});
+import * as schema from './schema';
+
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class User extends UserEntity {
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  postsCount!: number;
+}
 ```
 
-Each derived field requires:
+The `@UserEntity.derived()` decorator accepts a config with:
 
-| Property    | Description                                                                                         |
-| ----------- | --------------------------------------------------------------------------------------------------- |
-| `type`      | Must be `FieldType.Derived`                                                                         |
-| `valueType` | Scalar (`'number'`, `'string'`, etc.) or object (`{ totalAmount: 'string', orderCount: 'number' }`) |
-| `query`     | A function that builds a Drizzle subquery                                                           |
-| `on`        | A function that defines the JOIN condition                                                          |
+| Property | Description                                                           |
+| -------- | --------------------------------------------------------------------- |
+| `query`  | A function that builds a Drizzle subquery                             |
+| `on`     | A function that defines the JOIN condition                            |
+| `shape`  | Required for object-type derived fields, defines sub-field keys/types |
 
 ## The query function
 
@@ -48,13 +42,13 @@ The `query` function receives `{ db, schema, sql, context, field }` and must ret
 - The **value column(s)** to be exposed as the derived field
 - A **join key** column used in the `on` condition
 
-Use the `field()` helper to name your value columns -- it generates the correct key automatically:
+Use the `field()` helper to name your value columns. It generates the correct key automatically:
 
 ```ts
 query: ({ db, schema: s, sql, field }) =>
   db
     .select({
-      [field()]: sql`count(*)::int`,    // value column — resolves to 'postsCount'
+      [field()]: sql`count(*)::int`,    // value column, resolves to 'postsCount'
       userId: s.posts.authorId,          // join key
     })
     .from(s.posts)
@@ -63,10 +57,8 @@ query: ({ db, schema: s, sql, field }) =>
 
 The `field()` helper:
 
-- **`field()`** -- returns the field name (e.g., `'postsCount'`) for scalar derived fields
-- **`field('subField')`** -- returns `fieldName_subField` (e.g., `'orderSummary_totalAmount'`) for object-type derived fields
-
-This removes the need to manually match column names to the field definition.
+- **`field()`**: returns the field name (e.g., `'postsCount'`) for scalar derived fields
+- **`field('subField')`**: returns `fieldName_subField` (e.g., `'orderSummary_totalAmount'`) for object-type derived fields
 
 ## The on function
 
@@ -76,25 +68,26 @@ The `on` function receives `{ parent, derived, eq }` and returns a join conditio
 on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
 ```
 
-- **`parent`** -- column references for the main table
-- **`derived`** -- column references for the subquery
-- **`eq`** -- the Drizzle `eq` function
+- **`parent`**: column references for the main table
+- **`derived`**: column references for the subquery
+- **`eq`**: the Drizzle `eq` function
 
 ## Scalar derived fields
 
-When `valueType` is a scalar type, the field resolves to a single value:
+When the property type is a scalar, the field resolves to a single value:
 
 ```ts
-postsCount: {
-  type: FieldType.Derived,
-  valueType: 'number',
-  query: ({ db, schema: s, sql, field }) =>
-    db
-      .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
-      .from(s.posts)
-      .groupBy(s.posts.authorId),
-  on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-},
+class User extends UserEntity {
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  postsCount!: number;
+}
 ```
 
 ```ts
@@ -106,23 +99,25 @@ const users = await r.users.findMany({
 
 ## Object-type derived fields
 
-When `valueType` is an object, the field resolves to a nested object. Use `field('subField')` to name each sub-field column:
+For multi-value derived fields, declare the property as an object type and provide a `shape` config describing the sub-field keys and their value types. Use `field('subField')` to name each sub-field column:
 
 ```ts
-orderSummary: {
-  type: FieldType.Derived,
-  valueType: { totalAmount: 'string', orderCount: 'number' },
-  query: ({ db, schema: s, sql, field }) =>
-    db
-      .select({
-        [field('totalAmount')]: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
-        [field('orderCount')]: sql`count(*)::int`,
-        userId: s.orders.userId,
-      })
-      .from(s.orders)
-      .groupBy(s.orders.userId),
-  on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-},
+class User extends UserEntity {
+  @UserEntity.derived({
+    shape: { totalAmount: 'string', orderCount: 'number' },
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({
+          [field('totalAmount')]: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
+          [field('orderCount')]: sql`count(*)::int`,
+          userId: s.orders.userId,
+        })
+        .from(s.orders)
+        .groupBy(s.orders.userId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  orderSummary!: { totalAmount: string; orderCount: number };
+}
 ```
 
 You can select individual sub-fields:
@@ -151,7 +146,7 @@ Object-type derived fields support type-safe dot notation in `where` and `orderB
 const topSpenders = await r.users.findMany({
   select: { id: true, orderSummary: { totalAmount: true, orderCount: true } },
   where: { orderSummary: { orderCount: { gte: 1 } } },
-  orderBy: { field: 'orderSummary.totalAmount', order: 'desc' }, // type-safe dot notation! 🎉
+  orderBy: { field: 'orderSummary.totalAmount', order: 'desc' },
 });
 ```
 
@@ -159,10 +154,10 @@ const topSpenders = await r.users.findMany({
 
 Relayer automatically decides how to load derived fields:
 
-- **Deferred** -- when the derived field is only in `select`, it is loaded via a separate batch query after the main query. One extra query per derived field, but the main query stays simple.
-- **Eager** -- when the derived field is used in `where` or `orderBy`, it is joined via LEFT JOIN in the main query so that filtering and sorting work correctly.
+- **Deferred**: when the derived field is only in `select`, it is loaded via a separate batch query after the main query. One extra query per derived field, but the main query stays simple.
+- **Eager**: when the derived field is used in `where` or `orderBy`, it is joined via LEFT JOIN in the main query so that filtering and sorting work correctly.
 
-This optimization is automatic -- you do not need to configure it.
+This optimization is automatic, you do not need to configure it.
 
 ### Example: deferred (select only)
 
@@ -205,15 +200,16 @@ WHERE derived."orderSummary_orderCount" >= 1
 Like computed fields, derived fields can access per-query context:
 
 ```ts
-recentOrderCount: {
-  type: FieldType.Derived,
-  valueType: 'number',
-  query: ({ db, schema: s, sql, context, field }) =>
-    db
-      .select({ [field()]: sql`count(*)::int`, userId: s.orders.userId })
-      .from(s.orders)
-      .where(sql`${s.orders.createdAt} > ${context.since}`)
-      .groupBy(s.orders.userId),
-  on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-},
+class User extends UserEntity {
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, context, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.orders.userId })
+        .from(s.orders)
+        .where(sql`${s.orders.createdAt} > ${(context as any).since}`)
+        .groupBy(s.orders.userId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  recentOrderCount!: number;
+}
 ```

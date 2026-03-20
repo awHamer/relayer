@@ -1,9 +1,11 @@
 import { and, not, or, sql, SQL } from 'drizzle-orm';
 import type { Column, Table } from 'drizzle-orm';
+import { isObject } from '@relayerjs/core';
 import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
-import type { DialectAdapter } from '../../dialect';
+import type { DialectAdapter, DrizzleDatabase } from '../../dialect';
 import type { TableInfo } from '../../introspect';
+import { derivedSubFieldKey, getTableColumns } from '../../utils';
 import { buildJsonWhere, isOperatorObject } from './json';
 import { applyOperators } from './operators';
 import { buildRelationFilter } from './relations';
@@ -18,7 +20,7 @@ export interface WhereBuilderContext {
   derivedAliasMap: Map<string, { column: Column | SQL }>;
   adapter: DialectAdapter;
   registry?: EntityRegistry;
-  db?: unknown;
+  db?: DrizzleDatabase;
   queryContext?: unknown;
 }
 
@@ -40,7 +42,7 @@ export function buildWhere(
       continue;
     }
 
-    if (key === 'NOT' && typeof value === 'object' && value !== null) {
+    if (key === 'NOT' && isObject(value)) {
       const nested = buildWhere(value as Record<string, unknown>, ctx);
       if (nested) conditions.push(not(nested));
       continue;
@@ -60,9 +62,8 @@ export function buildWhere(
       continue;
     }
 
-    // Scalar field
     if (ctx.metadata.scalarFields.has(key)) {
-      const column = (ctx.table as unknown as Record<string, Column>)[key];
+      const column = getTableColumns(ctx.table)[key];
       if (!column) continue;
 
       const fieldDef = ctx.metadata.scalarFields.get(key)!;
@@ -81,7 +82,6 @@ export function buildWhere(
       continue;
     }
 
-    // Computed field
     if (ctx.metadata.computedFields.has(key)) {
       const sqlExpr = ctx.computedSqlMap.get(key);
       if (sqlExpr) {
@@ -91,17 +91,16 @@ export function buildWhere(
       continue;
     }
 
-    // Derived field
     if (ctx.metadata.derivedFields.has(key)) {
       const fieldDef = ctx.metadata.derivedFields.get(key)!;
       const isObjectType =
         typeof fieldDef.valueType === 'object' && !Array.isArray(fieldDef.valueType);
 
-      if (isObjectType && typeof value === 'object' && value !== null) {
+      if (isObjectType && isObject(value)) {
         const subConditions: SQL[] = [];
         for (const [subField, subValue] of Object.entries(value as Record<string, unknown>)) {
           if (subValue === undefined) continue;
-          const subAlias = ctx.derivedAliasMap.get(`${key}_${subField}`);
+          const subAlias = ctx.derivedAliasMap.get(derivedSubFieldKey(key, subField));
           if (subAlias) {
             const cond = applyOperators(subAlias.column, subValue, ctx.adapter);
             if (cond) subConditions.push(cond);
@@ -120,7 +119,6 @@ export function buildWhere(
       continue;
     }
 
-    // Relation filter
     if (ctx.metadata.relationFields.has(key)) {
       const cond = buildRelationFilter(key, value, ctx);
       if (cond) conditions.push(cond);

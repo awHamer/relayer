@@ -1,5 +1,8 @@
 import type { Column, SQL, Table } from 'drizzle-orm';
+import { isObject } from '@relayerjs/core';
 import type { EntityMetadata } from '@relayerjs/core';
+
+import { getTableColumns } from '../utils';
 
 export interface SelectResult {
   columns: Record<string, Column | SQL>;
@@ -20,7 +23,7 @@ export function buildSelect(
   const relationSelects = new Map<string, Record<string, unknown>>();
   const requestedComputed: string[] = [];
   const requestedDerived: string[] = [];
-  const tableColumns = table as unknown as Record<string, Column>;
+  const tableColumns = getTableColumns(table);
 
   if (!select) {
     for (const [fieldName] of metadata.scalarFields) {
@@ -55,8 +58,8 @@ export function buildSelect(
 
     if (metadata.relationFields.has(fieldName)) {
       requestedRelations.push(fieldName);
-      if (typeof value === 'object' && value !== null) {
-        relationSelects.set(fieldName, value as Record<string, unknown>);
+      if (isObject(value)) {
+        relationSelects.set(fieldName, value);
       }
       continue;
     }

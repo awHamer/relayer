@@ -1,30 +1,36 @@
 import type { ValueType } from '../types';
+import type { SQLExpression } from './computed';
 
-export interface DerivedQueryContext<TDb = any, TSchema = any, TContext = unknown> {
+// Subquery builder - has .as() for aliasing
+export interface SubqueryBuilder {
+  as(name: string): unknown;
+}
+
+export interface DerivedQueryContext<TDb = unknown, TSchema = unknown, TContext = unknown> {
   db: TDb;
   schema: TSchema;
-  sql: any;
+  sql: unknown;
   context: TContext;
   field: (subField?: string) => string;
 }
 
-export interface DerivedJoinContext<TTable = any> {
+export interface DerivedJoinContext<TTable = unknown> {
   parent: TTable;
   derived: Record<string, unknown>;
-  eq: (a: unknown, b: unknown) => unknown;
+  eq: (a: unknown, b: unknown) => SQLExpression;
 }
 
 export interface DerivedFieldDef {
   kind: 'derived';
   valueType: ValueType;
-  query: (ctx: DerivedQueryContext) => unknown;
-  on: (ctx: DerivedJoinContext) => unknown;
+  query: (ctx: DerivedQueryContext) => SubqueryBuilder;
+  on: (ctx: DerivedJoinContext) => SQLExpression;
 }
 
 export function derived(config: {
   valueType: ValueType;
-  query: (ctx: DerivedQueryContext) => unknown;
-  on: (ctx: DerivedJoinContext) => unknown;
+  query: (ctx: DerivedQueryContext) => SubqueryBuilder;
+  on: (ctx: DerivedJoinContext) => SQLExpression;
 }): DerivedFieldDef {
   return {
     kind: 'derived',

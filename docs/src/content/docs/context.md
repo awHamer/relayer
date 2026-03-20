@@ -19,31 +19,26 @@ const r = createRelayerDrizzle({
   db,
   schema,
   context: {} as AppContext,
-  entities: {
-    /* ... */
-  },
+  entities: { users: User },
 });
 ```
 
-The `context: {} as AppContext` parameter defines the shape. The empty object is just a type hint -- context values are provided per-query.
+The `context: {} as AppContext` parameter defines the shape. The empty object is just a type hint, context values are provided per-query.
 
 ## Using context in computed fields
 
 The `resolve` function receives `context` as part of its argument:
 
 ```ts
-entities: {
-  users: {
-    fields: {
-      isMe: {
-        type: FieldType.Computed,
-        valueType: 'boolean',
-        resolve: ({ table, sql, context }) =>
-          sql`CASE WHEN ${table.id} = ${context.currentUserId} THEN true ELSE false END`,
-      },
-    },
-  },
-},
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class User extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql, context }) =>
+      sql`CASE WHEN ${table.id} = ${(context as AppContext).currentUserId} THEN true ELSE false END`,
+  })
+  isMe!: boolean;
+}
 ```
 
 ## Using context in derived fields
@@ -51,26 +46,18 @@ entities: {
 The `query` function also receives `context`:
 
 ```ts
-entities: {
-  users: {
-    fields: {
-      recentOrderCount: {
-        type: FieldType.Derived,
-        valueType: 'number',
-        query: ({ db, schema: s, sql, context }) =>
-          db
-            .select({
-              recentOrderCount: sql`count(*)::int`,
-              userId: s.orders.userId,
-            })
-            .from(s.orders)
-            .where(sql`${s.orders.createdAt} > ${context.since}`)
-            .groupBy(s.orders.userId),
-        on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-      },
-    },
-  },
-},
+class User extends UserEntity {
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, context, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.orders.userId })
+        .from(s.orders)
+        .where(sql`${s.orders.createdAt} > ${(context as AppContext & { since: Date }).since}`)
+        .groupBy(s.orders.userId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  recentOrderCount!: number;
+}
 ```
 
 ## Passing context per-query
@@ -93,43 +80,45 @@ const users = await r.users.findMany({
 ### Current user
 
 ```ts
-isOwner: {
-  type: FieldType.Computed,
-  valueType: 'boolean',
-  resolve: ({ table, sql, context }) =>
-    sql`CASE WHEN ${table.createdBy} = ${context.userId} THEN true ELSE false END`,
-},
+class User extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql, context }) =>
+      sql`CASE WHEN ${table.createdBy} = ${(context as any).userId} THEN true ELSE false END`,
+  })
+  isOwner!: boolean;
+}
 ```
 
 ### Multi-tenancy
 
 ```ts
-// Use context to scope derived field queries to the current tenant
-tenantOrderCount: {
-  type: FieldType.Derived,
-  valueType: 'number',
-  query: ({ db, schema: s, sql, context }) =>
-    db
-      .select({ tenantOrderCount: sql`count(*)::int`, userId: s.orders.userId })
-      .from(s.orders)
-      .where(sql`${s.orders.tenantId} = ${context.tenantId}`)
-      .groupBy(s.orders.userId),
-  on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-},
+class User extends UserEntity {
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, context, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.orders.userId })
+        .from(s.orders)
+        .where(sql`${s.orders.tenantId} = ${(context as any).tenantId}`)
+        .groupBy(s.orders.userId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  tenantOrderCount!: number;
+}
 ```
 
 ### Time-based filtering
 
 ```ts
-recentActivity: {
-  type: FieldType.Derived,
-  valueType: 'number',
-  query: ({ db, schema: s, sql, context }) =>
-    db
-      .select({ recentActivity: sql`count(*)::int`, userId: s.events.userId })
-      .from(s.events)
-      .where(sql`${s.events.createdAt} >= ${context.since}`)
-      .groupBy(s.events.userId),
-  on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-},
+class User extends UserEntity {
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, context, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.events.userId })
+        .from(s.events)
+        .where(sql`${s.events.createdAt} >= ${(context as any).since}`)
+        .groupBy(s.events.userId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  recentActivity!: number;
+}
 ```

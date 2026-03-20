@@ -5,16 +5,18 @@ import {
   normalizeRelation,
 } from 'drizzle-orm';
 import type { Column, SQL, Table } from 'drizzle-orm';
+import { isObject } from '@relayerjs/core';
 import type { EntityMetadata, EntityRegistry, RelationFieldDef } from '@relayerjs/core';
 
-import type { DialectAdapter } from '../dialect';
+import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveComputedFields, resolveDerivedFields } from '../resolvers';
-import type { DerivedFieldResolution } from '../resolvers/derived';
+import type { DerivedFieldResolution } from '../resolvers';
+import { derivedSubFieldKey, getTableColumns } from '../utils';
 import { resolveRelationFields } from './where/relations';
 
 export interface RelationLoadContext {
-  db: unknown;
+  db: DrizzleDatabase;
   allTables: Map<string, TableInfo>;
   schema: Record<string, unknown>;
   parentMetadata: EntityMetadata;
@@ -84,7 +86,6 @@ export async function loadRelations(
     let relatedRows: Record<string, unknown>[];
     const internalKeys = new Set<string>();
 
-    // Get target entity metadata from registry (includes computed/derived)
     const targetMetadata = ctx.registry?.get(relDef.targetEntity);
     const targetRelationFields = resolveRelationFields(relDef.targetEntity, ctx.schema);
 
@@ -94,12 +95,10 @@ export async function loadRelations(
 
       // Always include FK column for grouping
       if (!columns[targetColName]) {
-        columns[targetColName] = (targetInfo.table as unknown as Record<string, Column>)[
-          targetColName
-        ]!;
+        columns[targetColName] = getTableColumns(targetInfo.table)[targetColName]!;
         internalKeys.add(targetColName);
       }
-      // Mark internally-added columns
+
       for (const key of Object.keys(columns)) {
         if (!(key in nestedSelect)) internalKeys.add(key);
       }
@@ -113,44 +112,29 @@ export async function loadRelations(
       for (const [name, res] of derivedResolutions) {
         if (res.isObjectType && res.valueColumns) {
           for (const [subField, col] of res.valueColumns) {
-            selectColumns[`${name}_${subField}`] = col as unknown as Column;
+            selectColumns[derivedSubFieldKey(name, subField)] = col as unknown as Column;
           }
         } else if (res.valueColumn) {
           selectColumns[name] = res.valueColumn as unknown as Column;
         }
       }
 
-      // Build query with LEFT JOINs for derived fields
-      const db = ctx.db as Record<string, (...args: unknown[]) => unknown>;
-      let query = (db.select as (...args: unknown[]) => unknown)(selectColumns) as Record<
-        string,
-        (...args: unknown[]) => unknown
-      >;
-      query = (query.from as (...args: unknown[]) => unknown)(targetInfo.table) as Record<
-        string,
-        (...args: unknown[]) => unknown
-      >;
+      let query = ctx.db.select(selectColumns).from(targetInfo.table);
 
-      // LEFT JOIN derived subqueries
       for (const [, res] of derivedResolutions) {
-        query = (query.leftJoin as (...args: unknown[]) => unknown)(
-          res.subquery,
-          res.joinCondition,
-        ) as Record<string, (...args: unknown[]) => unknown>;
+        query = query.leftJoin(res.subquery, res.joinCondition);
       }
 
-      query = (query.where as (...args: unknown[]) => unknown)(
-        inArray(targetCol, parentValues as unknown[]),
-      ) as Record<string, (...args: unknown[]) => unknown>;
-      relatedRows = (await query) as unknown as Record<string, unknown>[];
+      query = query.where(inArray(targetCol, parentValues as unknown[]));
+      relatedRows = (await query) as Record<string, unknown>[];
 
-      // Recursive: load nested relations BEFORE stripping
+      // load nested relations recursively BEFORE stripping
       if (nestedRelationNames.length > 0 && relatedRows.length > 0) {
         const nestedRelationSelects = new Map<string, Record<string, unknown>>();
         for (const relName of nestedRelationNames) {
           const val = nestedSelect[relName];
-          if (typeof val === 'object' && val !== null) {
-            nestedRelationSelects.set(relName, val as Record<string, unknown>);
+          if (isObject(val)) {
+            nestedRelationSelects.set(relName, val);
           }
         }
 
@@ -169,19 +153,11 @@ export async function loadRelations(
         });
       }
     } else {
-      const db = ctx.db as Record<string, (...args: unknown[]) => unknown>;
-      let query = (db.select as (...args: unknown[]) => unknown)() as Record<
-        string,
-        (...args: unknown[]) => unknown
-      >;
-      query = (query.from as (...args: unknown[]) => unknown)(targetInfo.table) as Record<
-        string,
-        (...args: unknown[]) => unknown
-      >;
-      query = (query.where as (...args: unknown[]) => unknown)(
-        inArray(targetCol, parentValues as unknown[]),
-      ) as Record<string, (...args: unknown[]) => unknown>;
-      relatedRows = (await query) as unknown as Record<string, unknown>[];
+      const query = ctx.db
+        .select()
+        .from(targetInfo.table)
+        .where(inArray(targetCol, parentValues as unknown[]));
+      relatedRows = (await query) as Record<string, unknown>[];
     }
 
     const grouped = new Map<unknown, Record<string, unknown>[]>();
@@ -200,7 +176,7 @@ export async function loadRelations(
           for (const row of relatedRows) {
             const obj: Record<string, unknown> = {};
             for (const subField of Object.keys(def.valueType as Record<string, string>)) {
-              const sqlKey = `${name}_${subField}`;
+              const sqlKey = derivedSubFieldKey(name, subField);
               if (sqlKey in row) {
                 obj[subField] = row[sqlKey];
                 delete row[sqlKey];
@@ -219,7 +195,6 @@ export async function loadRelations(
       }
     }
 
-    // Attach to parent results
     for (const parent of parentResults) {
       const parentValue = parent[sourceColName];
       const related = grouped.get(parentValue) ?? [];
@@ -243,7 +218,7 @@ function buildNestedSelect(
   ctx: RelationLoadContext,
 ): NestedSelectResult {
   const columns: Record<string, Column> = {};
-  const tableColumns = targetInfo.table as unknown as Record<string, Column>;
+  const tableColumns = getTableColumns(targetInfo.table);
   const nestedRelationNames: string[] = [];
   const requestedComputed: string[] = [];
   const requestedDerived: string[] = [];
@@ -251,21 +226,14 @@ function buildNestedSelect(
   for (const [key, val] of Object.entries(nestedSelect)) {
     if (!val) continue;
 
-    // Scalar column
     if (targetInfo.scalarFields.has(key)) {
       const col = tableColumns[key];
       if (col) columns[key] = col;
-    }
-    // Relation
-    else if (targetRelationFields.has(key)) {
+    } else if (targetRelationFields.has(key)) {
       nestedRelationNames.push(key);
-    }
-    // Computed field
-    else if (targetMetadata?.computedFields.has(key)) {
+    } else if (targetMetadata?.computedFields.has(key)) {
       requestedComputed.push(key);
-    }
-    // Derived field
-    else if (targetMetadata?.derivedFields.has(key)) {
+    } else if (targetMetadata?.derivedFields.has(key)) {
       requestedDerived.push(key);
     }
   }
@@ -299,37 +267,32 @@ function buildNestedSelect(
     }
   }
 
-  // Resolve computed fields
   let computedColumns = new Map<string, SQL>();
   if (requestedComputed.length > 0 && targetMetadata) {
-    computedColumns = resolveComputedFields(
-      targetMetadata.computedFields,
-      targetInfo.table,
-      ctx.schema,
-      ctx.queryContext,
-      requestedComputed,
-    );
+    computedColumns = resolveComputedFields(targetMetadata.computedFields, {
+      table: targetInfo.table,
+      schema: ctx.schema,
+      context: ctx.queryContext,
+      requestedFields: requestedComputed,
+    });
   }
 
-  // Resolve derived fields
   let derivedResolutions = new Map<string, DerivedFieldResolution>();
   if (requestedDerived.length > 0 && targetMetadata && ctx.adapter) {
-    derivedResolutions = resolveDerivedFields(
-      targetMetadata.derivedFields,
-      requestedDerived,
-      targetInfo.table,
-      ctx.db,
-      ctx.schema,
-      ctx.queryContext,
-      ctx.adapter.dialect,
-    );
+    derivedResolutions = resolveDerivedFields(targetMetadata.derivedFields, requestedDerived, {
+      table: targetInfo.table,
+      db: ctx.db,
+      schema: ctx.schema,
+      context: ctx.queryContext,
+      dialect: ctx.adapter.dialect,
+    });
   }
 
   return { columns, computedColumns, derivedResolutions, nestedRelationNames };
 }
 
 function findColumnTsName(column: Column): string | undefined {
-  const tableObj = column.table as unknown as Record<string, Column>;
+  const tableObj = getTableColumns(column.table as Table);
   for (const [key, col] of Object.entries(tableObj)) {
     if (col === column) return key;
   }

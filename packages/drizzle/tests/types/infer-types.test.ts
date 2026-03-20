@@ -1,41 +1,27 @@
-// ---------------------------------------------------------------------------
-// Table without relations — scalar where must still work
-// ---------------------------------------------------------------------------
 import { pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { expectTypeOf } from 'vitest';
 
-import { createRelayerDrizzle, FieldType } from '../../src';
-import type { InferEntityOrderBy, InferEntitySelect, InferEntityWhere } from '../../src';
+// ---------------------------------------------------------------------------
+// Builder chain (without decorators)
+// ---------------------------------------------------------------------------
+import { createRelayerDrizzle, createRelayerEntity } from '../../src';
+import type {
+  DotPaths,
+  InferEntityOrderBy,
+  InferEntitySelect,
+  InferEntityWhere,
+  InferModel,
+  OrderByType,
+  SelectType,
+  WhereType,
+} from '../../src';
+import { PgUser } from '../fixtures/entities';
 import * as schema from '../fixtures/pg-schema';
 
 const r = createRelayerDrizzle({
   db: {} as any,
   schema,
-  entities: {
-    users: {
-      fields: {
-        fullName: {
-          type: FieldType.Computed,
-          valueType: 'string' as const,
-          resolve: ({ table, sql }: any) => sql`${table.firstName}`,
-        },
-        postsCount: {
-          type: FieldType.Derived,
-          valueType: 'number' as const,
-          query: ({ db, schema: s, sql }: any) =>
-            db.select({ postsCount: sql`1`, userId: s.posts.authorId }).from(s.posts),
-          on: ({ parent, derived, eq }: any) => eq(parent.id, derived.userId),
-        },
-        orderSummary: {
-          type: FieldType.Derived,
-          valueType: { totalAmount: 'string', orderCount: 'number' },
-          query: ({ db, schema: s, sql }: any) =>
-            db.select({ orderSummary_totalAmount: sql`1`, userId: s.orders.userId }).from(s.orders),
-          on: ({ parent, derived, eq }: any) => eq(parent.id, derived.userId),
-        },
-      },
-    },
-  },
+  entities: { users: PgUser },
 });
 
 type UserWhere = InferEntityWhere<typeof r, 'users'>;
@@ -229,8 +215,8 @@ describe('nested relation: where', () => {
     expect(w).toBeDefined();
   });
 
-  it('relation with $some + computed', () => {
-    const w: PostWhere = { author: { $some: { fullName: { contains: 'test' } } } };
+  it('relation with some + computed', () => {
+    const w: PostWhere = { author: { some: { fullName: { contains: 'test' } } } };
     expect(w).toBeDefined();
   });
 
@@ -312,6 +298,94 @@ describe('nested relation: aggregate', () => {
     const opts: Opts = { _sum: { postsCount: true } };
     expect(opts).toBeDefined();
   });
+
+  it('rejects invalid aggregate field name', () => {
+    type Opts = Parameters<typeof r.posts.aggregate>[0];
+    // @ts-expect-error - 'author.orderSummary.totalAmount222' is not a valid field
+    const opts: Opts = { _max: { 'author.orderSummary.totalAmount222': true } };
+    expect(opts).toBeDefined();
+  });
+});
+
+describe('relation nested select on users', () => {
+  it('relation nested select with scalar columns', () => {
+    const s: UserSelect = { id: true, posts: { id: true, title: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation nested select on one-to-one', () => {
+    const s: UserSelect = { id: true, profile: { bio: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation nested select on one-to-many (orders)', () => {
+    const s: UserSelect = { id: true, orders: { total: true, status: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('relation as boolean (load all)', () => {
+    const s: UserSelect = { id: true, posts: true };
+    expect(s).toBeDefined();
+  });
+
+  it('select with computed + relation combined', () => {
+    const s: UserSelect = { id: true, fullName: true, posts: { title: true } };
+    expect(s).toBeDefined();
+  });
+});
+
+const UserChain = createRelayerEntity(schema, 'users')
+  .computed<string, 'chainedName'>('chainedName', {
+    resolve: ({ table, sql }: any) => sql`${table.firstName}`,
+  })
+  .derived<number, 'chainedCount'>('chainedCount', {
+    query: ({ db, schema: s, sql, field }: any) =>
+      db.select({ [field()]: sql`1`, userId: s.posts.authorId }).from(s.posts),
+    on: ({ parent, derived, eq }: any) => eq(parent.id, derived.userId),
+  });
+
+const rChain = createRelayerDrizzle({
+  db: {} as any,
+  schema,
+  entities: { users: UserChain },
+});
+
+type ChainUserSelect = InferEntitySelect<typeof rChain, 'users'>;
+type ChainUserWhere = InferEntityWhere<typeof rChain, 'users'>;
+
+describe('builder chain: types', () => {
+  it('includes scalar columns', () => {
+    expectTypeOf<ChainUserSelect>().toHaveProperty('firstName');
+    expectTypeOf<ChainUserSelect>().toHaveProperty('id');
+  });
+
+  it('includes chained computed field', () => {
+    expectTypeOf<ChainUserSelect>().toHaveProperty('chainedName');
+  });
+
+  it('includes chained derived field', () => {
+    expectTypeOf<ChainUserSelect>().toHaveProperty('chainedCount');
+  });
+
+  it('includes relations', () => {
+    expectTypeOf<ChainUserSelect>().toHaveProperty('posts');
+    expectTypeOf<ChainUserSelect>().toHaveProperty('profile');
+  });
+
+  it('select is assignable with chained fields', () => {
+    const s: ChainUserSelect = { id: true, chainedName: true, chainedCount: true };
+    expect(s).toBeDefined();
+  });
+
+  it('where is assignable with chained fields', () => {
+    const w: ChainUserWhere = { chainedName: { contains: 'test' } };
+    expect(w).toBeDefined();
+  });
+
+  it('relation nested select works', () => {
+    const s: ChainUserSelect = { id: true, posts: { title: true } };
+    expect(s).toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -356,5 +430,110 @@ describe('table without relations', () => {
     expectTypeOf<TagWhere>().toHaveProperty('AND');
     expectTypeOf<TagWhere>().toHaveProperty('OR');
     expectTypeOf<TagWhere>().toHaveProperty('NOT');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// InferModel + single-generic types
+// ---------------------------------------------------------------------------
+type UserModel = InferModel<typeof r, 'users'>;
+type PostModel = InferModel<typeof r, 'posts'>;
+
+describe('InferModel', () => {
+  it('includes scalar fields', () => {
+    expectTypeOf<UserModel>().toHaveProperty('id');
+    expectTypeOf<UserModel>().toHaveProperty('firstName');
+  });
+
+  it('includes computed fields', () => {
+    expectTypeOf<UserModel>().toHaveProperty('fullName');
+  });
+
+  it('includes derived fields', () => {
+    expectTypeOf<UserModel>().toHaveProperty('postsCount');
+    expectTypeOf<UserModel>().toHaveProperty('orderSummary');
+  });
+});
+
+describe('SelectType<TModel>', () => {
+  it('is assignable with scalar + custom fields', () => {
+    const s: SelectType<UserModel> = { id: true, fullName: true, postsCount: true };
+    expect(s).toBeDefined();
+  });
+
+  it('relation nested select', () => {
+    const s: SelectType<UserModel> = { id: true, posts: { title: true } };
+    expect(s).toBeDefined();
+  });
+
+  it('object derived sub-field select', () => {
+    const s: SelectType<UserModel> = { id: true, orderSummary: { totalAmount: true } };
+    expect(s).toBeDefined();
+  });
+});
+
+describe('WhereType<TModel>', () => {
+  it('is assignable with computed filter', () => {
+    const w: WhereType<UserModel> = { fullName: { contains: 'Ihor' } };
+    expect(w).toBeDefined();
+  });
+
+  it('is assignable with derived filter', () => {
+    const w: WhereType<UserModel> = { postsCount: { gte: 2 } };
+    expect(w).toBeDefined();
+  });
+
+  it('is assignable with relation filter', () => {
+    const w: WhereType<UserModel> = { posts: { some: { title: { contains: 'Hello' } } } };
+    expect(w).toBeDefined();
+  });
+
+  it('cross-relation computed in where', () => {
+    const w: WhereType<PostModel> = { author: { fullName: { contains: 'Ihor' } } };
+    expect(w).toBeDefined();
+  });
+});
+
+describe('DotPaths<TModel>', () => {
+  it('includes scalar fields', () => {
+    const p: DotPaths<UserModel> = 'firstName';
+    expect(p).toBeDefined();
+  });
+
+  it('includes custom fields', () => {
+    const p: DotPaths<UserModel> = 'fullName';
+    expect(p).toBeDefined();
+  });
+
+  it('includes object derived sub-field paths', () => {
+    const p: DotPaths<UserModel> = 'orderSummary.totalAmount';
+    expect(p).toBeDefined();
+  });
+
+  it('includes relation dot paths', () => {
+    const p: DotPaths<PostModel> = 'author.fullName';
+    expect(p).toBeDefined();
+  });
+
+  it('includes relation derived dot paths', () => {
+    const p: DotPaths<PostModel> = 'author.postsCount';
+    expect(p).toBeDefined();
+  });
+
+  it('includes relation object derived sub-field', () => {
+    const p: DotPaths<PostModel> = 'author.orderSummary.totalAmount';
+    expect(p).toBeDefined();
+  });
+});
+
+describe('OrderByType<TModel>', () => {
+  it('is assignable with computed field', () => {
+    const ob: OrderByType<UserModel> = { field: 'fullName', order: 'asc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('is assignable with cross-relation derived', () => {
+    const ob: OrderByType<PostModel> = { field: 'author.postsCount', order: 'desc' };
+    expect(ob).toBeDefined();
   });
 });

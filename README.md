@@ -8,32 +8,35 @@ Type-safe repository layer for ORMs with computed fields, derived fields, and a 
 
 ## Why Relayer?
 
-Over the years, across many projects, we kept reimplementing the same pattern: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model -- with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
+Over the years, across many projects, we kept reimplementing the same pattern: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model, with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
 
 Relayer is that pattern extracted into a library. Built with **API integration in mind** from day one:
 
-- **API-friendly query DSL** -- `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain JSON-serializable object, making it trivial to wire up as REST/GraphQL filters
-- **Computed fields** -- virtual SQL expressions, no raw queries
-- **Derived fields** -- automatic subquery JOINs with full filtering and sorting support
-- **First-class JSON filtering** -- nested path queries with full comparison operators
-- **Typed context** -- pass per-request data (current user, tenant, etc.) to field resolvers
+- **Class-based entity model** with decorator-driven computed and derived fields
+- **API-friendly query DSL**: `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain JSON-serializable object, making it trivial to wire up as REST/GraphQL filters
+- **Computed fields**: virtual SQL expressions, no raw queries
+- **Derived fields**: automatic subquery JOINs with full filtering and sorting support
+- **First-class JSON filtering**: nested path queries with full comparison operators
+- **Typed context**: pass per-request data (current user, tenant, etc.) to field resolvers
 
 ## Features
 
-- **Query DSL** -- select, where, orderBy, limit, offset
-- **Computed fields** -- virtual columns defined as SQL expressions
-- **Derived fields** -- automatic subquery JOINs (scalar and object types)
-- **First-class JSON integration** -- transparent nested filtering with auto type casting
-- **20+ filter operators** -- eq, ne, gt, gte, lt, lte, in, contains, ilike, isNull, and more
-- **Array operators** -- arrayContains, arrayContained, arrayOverlaps (PostgreSQL)
-- **Relation filters** -- $exists, $some, $every, $none
-- **Aggregations** -- \_count, \_sum, \_avg, \_min, \_max with groupBy and dot-notation
-- **Typed context** -- pass per-query context to computed/derived resolvers
-- **Transactions** -- $transaction with automatic client scoping
-- **Multi-dialect** -- PostgreSQL, MySQL, SQLite
-- **Full TypeScript inference** -- select, where, orderBy, and result types
+- **Class-based entities**: define computed and derived fields with decorators on entity classes
+- **Query DSL**: select, where, orderBy, limit, offset
+- **Computed fields**: virtual columns defined as SQL expressions
+- **Derived fields**: automatic subquery JOINs (scalar and object types)
+- **First-class JSON integration**: transparent nested filtering with auto type casting
+- **20+ filter operators**: eq, ne, gt, gte, lt, lte, in, contains, ilike, isNull, and more
+- **Array operators**: arrayContains, arrayContained, arrayOverlaps (PostgreSQL)
+- **Relation filters**: $exists, $some, $every, $none
+- **Nested relation fields**: computed and derived fields on relations with cross-entity type propagation
+- **Aggregations**: \_count, \_sum, \_avg, \_min, \_max with groupBy and dot-notation
+- **Typed context**: pass per-query context to computed/derived resolvers
+- **Transactions**: $transaction with automatic client scoping
+- **Multi-dialect**: PostgreSQL, MySQL, SQLite
+- **Full TypeScript inference**: select, where, orderBy, and result types
 
-Currently only [Drizzle ORM](https://orm.drizzle.team) (`>=0.38.0`) is supported. Drizzle v1 is currently in beta -- Relayer will add support for it once v1 reaches a stable release. Future plans also include adapters for TypeORM, Kysely, MikroORM, and others -- the goal is a single unified query interface regardless of the underlying ORM. Contributions are always welcome.
+Currently only [Drizzle ORM](https://orm.drizzle.team) (`>=0.38.0`) is supported. Future plans include adapters for TypeORM, Kysely, MikroORM, and others. The goal is a single unified query interface regardless of the underlying ORM. Contributions are always welcome.
 
 ## Quick Start
 
@@ -75,58 +78,38 @@ const postsRelations = relations(posts, ({ one }) => ({
 const schema = { users, posts, usersRelations, postsRelations };
 ```
 
+### Define entity models
+
+```ts
+import { createRelayerDrizzle, createRelayerEntity } from '@relayerjs/drizzle';
+
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class User extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql }) => sql`${table.firstName} || ' ' || ${table.lastName}`,
+  })
+  fullName!: string;
+
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
+  })
+  postsCount!: number;
+}
+```
+
 ### Create the Relayer client
 
 ```ts
-import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
-
-interface AppContext {
-  currentUserId: number;
-}
-
 const r = createRelayerDrizzle({
   db, // your drizzle instance
   schema,
-  context: {} as AppContext,
-  entities: {
-    users: {
-      fields: {
-        // Computed: virtual SQL expression with per-request context
-        isMe: {
-          type: FieldType.Computed,
-          valueType: 'boolean',
-          resolve: ({ table, sql, context }) =>
-            sql`CASE WHEN ${table.id} = ${context.currentUserId} THEN true ELSE false END`,
-        },
-        // Derived: scalar subquery
-        postsCount: {
-          type: FieldType.Derived,
-          valueType: 'number',
-          query: ({ db, schema: s, sql, field }) =>
-            db
-              .select({ [field()]: sql`count(*)::int`, userId: s.posts.authorId })
-              .from(s.posts)
-              .groupBy(s.posts.authorId),
-          on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-        },
-        // Derived: object-type subquery (multi-value)
-        orderStats: {
-          type: FieldType.Derived,
-          valueType: { totalAmount: 'string', orderCount: 'number' },
-          query: ({ db, schema: s, sql, field }) =>
-            db
-              .select({
-                [field('totalAmount')]: sql`COALESCE(sum(${s.orders.total}), 0)::text`,
-                [field('orderCount')]: sql`count(*)::int`,
-                userId: s.orders.userId,
-              })
-              .from(s.orders)
-              .groupBy(s.orders.userId),
-          on: ({ parent, derived, eq }) => eq(parent.id, derived.userId),
-        },
-      },
-    },
-  },
+  entities: { users: User },
 });
 ```
 
@@ -135,21 +118,13 @@ const r = createRelayerDrizzle({
 ```ts
 // Select + filter + order
 const results = await r.users.findMany({
-  select: { id: true, firstName: true, isMe: true, postsCount: true },
+  select: { id: true, firstName: true, fullName: true, postsCount: true },
   where: { email: { contains: '@example.com' } },
   orderBy: { field: 'firstName', order: 'asc' },
-  context: { currentUserId: 1 },
   limit: 10,
 });
 
-// Filter and sort by object-type derived fields
-const topSpenders = await r.users.findMany({
-  select: { id: true, firstName: true, orderStats: { totalAmount: true, orderCount: true } },
-  where: { orderStats: { orderCount: { gte: 1 } } },
-  orderBy: { field: 'orderStats.totalAmount', order: 'desc' }, // type-safe dot notation! 🎉
-});
-
-// JSON filtering -- transparent nested queries
+// JSON filtering: transparent nested queries
 const admins = await r.users.findMany({
   where: { metadata: { role: 'admin', level: { gte: 5 } } },
 });
@@ -164,16 +139,13 @@ const activeAuthors = await r.users.findMany({
   where: { posts: { $some: { published: true } } },
 });
 
-// Aggregations -- all functions + groupBy + dot-notation joins
+// Aggregations: all functions + groupBy + dot-notation joins
 const stats = await r.orders.aggregate({
   groupBy: ['status'],
   _count: true,
   _sum: { total: true },
   _avg: { total: true },
-  _min: { total: true },
-  _max: { total: true },
 });
-// [{ status: 'completed', _count: 3, _sum_total: 5000, _avg_total: 1666, _min_total: 500, _max_total: 3000 }, ...]
 
 // Group by relation field (auto LEFT JOIN)
 const ordersByUser = await r.orders.aggregate({
@@ -185,10 +157,11 @@ const ordersByUser = await r.orders.aggregate({
 
 ## Packages
 
-| Package                                  | Description                         |
-| ---------------------------------------- | ----------------------------------- |
-| [@relayerjs/drizzle](./packages/drizzle) | Drizzle ORM adapter -- main package |
-| [@relayerjs/core](./packages/core)       | ORM-agnostic types and contracts    |
+| Package                                  | Description                       |
+| ---------------------------------------- | --------------------------------- |
+| [@relayerjs/drizzle](./packages/drizzle) | Drizzle ORM adapter, main package |
+| [@relayerjs/core](./packages/core)       | ORM-agnostic types and contracts  |
+| [@relayerjs/next](./packages/next)       | Next.js App Router integration    |
 
 ## Documentation
 
@@ -204,11 +177,10 @@ See the [examples/drizzle](./examples/drizzle) directory for runnable examples w
 
 Relayer is in early development. Planned packages:
 
-- **@relayerjs/rest** -- auto-generate REST CRUD endpoints (Express, Fastify, Hono)
-- **@relayerjs/next** -- Next.js API route handlers and server actions
-- **@relayerjs/nest** -- NestJS module with CRUD controllers and GraphQL resolvers
-- **@relayerjs/graphql** -- standalone GraphQL schema generation
-- **@relayerjs/react** -- React client with hooks for querying Relayer endpoints
+- **@relayerjs/rest**: auto-generate REST CRUD endpoints (Express, Fastify, Hono)
+- **@relayerjs/nest**: NestJS module with CRUD controllers and GraphQL resolvers
+- **@relayerjs/graphql**: standalone GraphQL schema generation
+- **@relayerjs/react**: React client with hooks for querying Relayer endpoints
 
 ## Contributing
 

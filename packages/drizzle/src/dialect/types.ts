@@ -2,25 +2,48 @@ import type { Column, SQL, Table } from 'drizzle-orm';
 
 export type Dialect = 'pg' | 'mysql' | 'sqlite';
 
+// Minimal Drizzle database client interface that is cover out needs
+export interface DrizzleDatabase {
+  select(fields?: Record<string, unknown>): DrizzleQueryBuilder;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  insert(table: Table): any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  update(table: Table): any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete(table: Table): any;
+  transaction(fn: (tx: DrizzleDatabase) => Promise<unknown>, config?: unknown): Promise<unknown>;
+}
+
+// Query builder returned by db.select()
+export interface DrizzleQueryBuilder {
+  from(table: Table | unknown): DrizzleQueryBuilder;
+  where(condition: SQL): DrizzleQueryBuilder;
+  leftJoin(table: unknown, on: SQL): DrizzleQueryBuilder;
+  orderBy(...columns: unknown[]): DrizzleQueryBuilder;
+  groupBy(...columns: unknown[]): DrizzleQueryBuilder;
+  limit(n: number): DrizzleQueryBuilder;
+  offset(n: number): DrizzleQueryBuilder;
+  as(name: string): unknown;
+  iterator(): AsyncIterable<Record<string, unknown>>;
+  then: Promise<unknown[]>['then'];
+}
+
 export interface DialectAdapter {
   dialect: Dialect;
 
-  // Case-insensitive LIKE
   ilike(column: Column | SQL, value: string): SQL;
   notIlike(column: Column | SQL, value: string): SQL;
 
-  // Array operators (PG only, others throw)
   arrayContains(column: Column, values: unknown[]): SQL;
   arrayContained(column: Column, values: unknown[]): SQL;
   arrayOverlaps(column: Column, values: unknown[]): SQL;
 
-  // JSON path extraction
   jsonPath(column: Column, path: string[], castType?: string): SQL;
+  quoteIdent(name: string): string;
 
-  // Mutation support
   supportsReturning: boolean;
-  executeInsert(db: any, table: Table, data: any): Promise<any[]>;
-  executeInsertMany(db: any, table: Table, data: any[]): Promise<any[]>;
-  executeUpdate(db: any, table: Table, data: any, where?: SQL): Promise<any[]>;
-  executeDelete(db: any, table: Table, where?: SQL): Promise<any[]>;
+  executeInsert(db: DrizzleDatabase, table: Table, data: unknown): Promise<unknown[]>;
+  executeInsertMany(db: DrizzleDatabase, table: Table, data: unknown[]): Promise<unknown[]>;
+  executeUpdate(db: DrizzleDatabase, table: Table, data: unknown, where?: SQL): Promise<unknown[]>;
+  executeDelete(db: DrizzleDatabase, table: Table, where?: SQL): Promise<unknown[]>;
 }

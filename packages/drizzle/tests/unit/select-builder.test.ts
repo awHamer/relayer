@@ -67,8 +67,8 @@ describe('buildSelect', () => {
           {
             kind: 'derived' as const,
             valueType: 'number' as const,
-            query: () => {},
-            on: () => {},
+            query: (() => {}) as any,
+            on: (() => {}) as any,
           },
         ],
       ]),

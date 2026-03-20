@@ -1,114 +1,117 @@
-import type { EntityAggregateOptions } from './aggregate';
 import type { SchemaTableKeys } from './entity-config';
-import type { InferTableInsert, InferTableSelect } from './helpers';
-import type { EntityOrderBy } from './order-by';
-import type { EntitySelect } from './select';
-import type { EntityWhere } from './where';
+import type {
+  ExtractMeta,
+  InferTableInsert,
+  InferTableSelect,
+  ModelInstance,
+  ModelMeta,
+} from './helpers';
+import type { AggregateType, OrderByType, SelectType, WhereType } from './model';
 
-/** Typed entity client with CRUD, aggregation, and query methods. */
-export interface TypedEntityClient<
-  TTable,
-  TEntityConfig = {},
-  TTableName extends string = string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TContext = unknown,
-  TEntities = {},
-> {
-  /** Query multiple records with optional select, where, orderBy, limit, and offset. */
+type ResolvedModel<
+  TSchema extends Record<string, unknown>,
+  TEntities extends Record<string, unknown>,
+  K extends string,
+> = ModelInstance<TSchema, TEntities, K> & ModelMeta<TSchema, TEntities, K>;
+
+export interface TypedEntityClient<TModel, TContext = unknown> {
   findMany(options?: {
-    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    orderBy?:
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
+    select?: SelectType<TModel>;
+    where?: WhereType<TModel>;
+    orderBy?: OrderByType<TModel> | OrderByType<TModel>[];
     limit?: number;
     offset?: number;
     context?: TContext;
-  }): Promise<Partial<InferTableSelect<TTable>> & Record<string, unknown>[]>;
+  }): Promise<Record<string, unknown>[]>;
 
-  /** Stream records as an async iterator. MySQL only. Does not support relation loading. */
   findManyStream(options?: {
-    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    orderBy?:
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
+    select?: SelectType<TModel>;
+    where?: WhereType<TModel>;
+    orderBy?: OrderByType<TModel> | OrderByType<TModel>[];
     limit?: number;
     offset?: number;
     context?: TContext;
-  }): AsyncGenerator<Partial<InferTableSelect<TTable>> & Record<string, unknown>>;
+  }): AsyncGenerator<Record<string, unknown>>;
 
-  /** Query a single record. Returns `null` if not found. */
   findFirst(options?: {
-    select?: EntitySelect<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    orderBy?:
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>
-      | EntityOrderBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
+    select?: SelectType<TModel>;
+    where?: WhereType<TModel>;
+    orderBy?: OrderByType<TModel> | OrderByType<TModel>[];
     context?: TContext;
-  }): Promise<(Partial<InferTableSelect<TTable>> & Record<string, unknown>) | null>;
+  }): Promise<Record<string, unknown> | null>;
 
-  /** Count records matching an optional where condition. */
-  count(options?: {
-    where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    context?: TContext;
-  }): Promise<number>;
+  count(options?: { where?: WhereType<TModel>; context?: TContext }): Promise<number>;
 
-  /** Run aggregate functions (_count, _sum, _avg, _min, _max) with optional groupBy. */
   aggregate(
-    options: EntityAggregateOptions<TTable, TEntityConfig, TTableName, TSchema, TEntities>,
+    options: AggregateType<TModel>,
   ): Promise<Record<string, unknown>[] | Record<string, unknown>>;
 
-  /** Insert a single record. Returns the created row. */
-  create(options: { data: InferTableInsert<TTable> }): Promise<InferTableSelect<TTable>>;
+  create(options: {
+    data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
+      : Record<string, unknown>;
+  }): Promise<
+    ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
+      : Record<string, unknown>
+  >;
 
-  /** Insert multiple records. Returns all created rows. */
-  createMany(options: { data: InferTableInsert<TTable>[] }): Promise<InferTableSelect<TTable>[]>;
+  createMany(options: {
+    data: (ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
+      : Record<string, unknown>)[];
+  }): Promise<
+    (ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
+      : Record<string, unknown>)[]
+  >;
 
-  /** Update a single record matching where. Returns the updated row. */
   update(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    data: Partial<InferTableInsert<TTable>>;
-  }): Promise<InferTableSelect<TTable>>;
+    where: WhereType<TModel>;
+    data: Partial<
+      ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+        ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
+        : Record<string, unknown>
+    >;
+  }): Promise<
+    ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
+      : Record<string, unknown>
+  >;
 
-  /** Update multiple records matching where. Returns `{ count }`. */
   updateMany(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-    data: Partial<InferTableInsert<TTable>>;
+    where: WhereType<TModel>;
+    data: Partial<
+      ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+        ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
+        : Record<string, unknown>
+    >;
   }): Promise<{ count: number }>;
 
-  /** Delete a single record matching where. Returns the deleted row. */
   delete(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-  }): Promise<InferTableSelect<TTable>>;
+    where: WhereType<TModel>;
+  }): Promise<
+    ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
+      : Record<string, unknown>
+  >;
 
-  /** Delete multiple records matching where. Returns `{ count }`. */
-  deleteMany(options: {
-    where: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-  }): Promise<{ count: number }>;
+  deleteMany(options: { where: WhereType<TModel> }): Promise<{ count: number }>;
 }
 
-/** Proxy-based client mapping each schema table to a {@link TypedEntityClient}. */
 export type RelayerClient<
   TSchema extends Record<string, unknown>,
-  TEntities,
+  TEntities extends Record<string, unknown>,
   TContext = unknown,
   TDb = unknown,
 > = {
   [K in SchemaTableKeys<TSchema>]: TypedEntityClient<
-    TSchema[K],
-    K extends keyof TEntities ? (TEntities[K] extends object ? TEntities[K] : {}) : {},
-    K,
-    TSchema,
-    TContext,
-    TEntities
+    ResolvedModel<TSchema, TEntities, K>,
+    TContext
   >;
 } & {
-  /** Direct access to the underlying Drizzle ORM instance. */
   $orm: TDb;
-  /** Returns the underlying Drizzle ORM instance. */
   getOrm(): TDb;
-  /** Execute a callback within a database transaction. Throw inside to rollback. */
   $transaction<T>(
     callback: (tx: RelayerClient<TSchema, TEntities, TContext, TDb>) => Promise<T>,
     config?: {
