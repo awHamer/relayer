@@ -35,6 +35,8 @@ export const sqliteAdapter: DialectAdapter = {
     return expr;
   },
 
+  quoteIdent: (name) => `"${name}"`,
+
   supportsReturning: true,
   executeInsert: async (db, table, data) => db.insert(table).values(data).returning(),
   executeInsertMany: async (db, table, data) => {

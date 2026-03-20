@@ -3,11 +3,9 @@ import { relations } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import { createRelayerDrizzle, FieldType } from '../../src';
+import { createRelayerDrizzle } from '../../src';
+import { createRelayerEntity } from '../../src/entity';
 
-// ---------------------------------------------------------------------------
-// Schema (inline)
-// ---------------------------------------------------------------------------
 const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   firstName: text('first_name').notNull(),
@@ -36,9 +34,36 @@ const postsRelations = relations(posts, ({ one }) => ({
 
 const schema = { users, posts, usersRelations, postsRelations };
 
-// ---------------------------------------------------------------------------
-// Setup
-// ---------------------------------------------------------------------------
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class SqliteUser extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql }: any) => sql`${table.firstName} || ' ' || ${table.lastName}`,
+  })
+  fullName!: string;
+
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, field }: any) =>
+      db
+        .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
+  })
+  postsCount!: number;
+
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, field, context }: any) =>
+      db
+        .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
+        .from(s.posts)
+        .where(context?.minPostId ? sql`${s.posts.id} >= ${context.minPostId}` : sql`1=1`)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
+  })
+  recentPostsCount!: number;
+}
+
 let sqlite: InstanceType<typeof Database>;
 let db: ReturnType<typeof drizzle>;
 let r: any;
@@ -98,38 +123,7 @@ beforeAll(() => {
   r = createRelayerDrizzle({
     db,
     schema: schema as unknown as Record<string, unknown>,
-    entities: {
-      users: {
-        fields: {
-          fullName: {
-            type: FieldType.Computed,
-            valueType: 'string',
-            resolve: ({ table, sql }: any) => sql`${table.firstName} || ' ' || ${table.lastName}`,
-          },
-          postsCount: {
-            type: FieldType.Derived,
-            valueType: 'number',
-            query: ({ db, schema: s, sql, field }: any) =>
-              db
-                .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
-                .from(s.posts)
-                .groupBy(s.posts.authorId),
-            on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
-          },
-          recentPostsCount: {
-            type: FieldType.Derived,
-            valueType: 'number',
-            query: ({ db, schema: s, sql, field, context }: any) =>
-              db
-                .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
-                .from(s.posts)
-                .where(context?.minPostId ? sql`${s.posts.id} >= ${context.minPostId}` : sql`1=1`)
-                .groupBy(s.posts.authorId),
-            on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
-          },
-        },
-      },
-    },
+    entities: { users: SqliteUser },
   });
 });
 
@@ -476,22 +470,7 @@ describe('where: relation derived field', () => {
     const rLimited: any = createRelayerDrizzle({
       db,
       schema: schema as unknown as Record<string, unknown>,
-      entities: {
-        users: {
-          fields: {
-            postsCount: {
-              type: FieldType.Derived,
-              valueType: 'number',
-              query: ({ db, schema: s, sql, field }: any) =>
-                db
-                  .select({ [field()]: sql`count(*)`, authorId: s.posts.authorId })
-                  .from(s.posts)
-                  .groupBy(s.posts.authorId),
-              on: ({ parent, derived, eq }: any) => eq(parent.id, derived.authorId),
-            },
-          },
-        },
-      },
+      entities: { users: SqliteUser },
       maxRelationDepth: 0,
     });
     // With depth 0, relation derived fields in orderBy should be silently ignored

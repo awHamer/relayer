@@ -17,17 +17,25 @@ export type {
   RelationTargetTable,
   JsonWhereOps,
   OpsForTSType,
-  OpsForValueType,
-  EntityFields,
-  ExtractValueType,
-  RelationColumnDotPaths,
   JsonColumnDotPaths,
-  EntityConfigFor,
   NumericColumnKeys,
+  ModelInstance,
+  CustomFieldKeys,
+  ModelDotPaths,
+  OwnDotPaths,
+  RelationDotPaths,
 } from './helpers';
-export type { EntitySelect } from './select';
-export type { EntityWhere } from './where';
-export type { EntityOrderByField, EntityOrderBy } from './order-by';
-export type { EntityAggregateOptions, EntityAggregateGroupBy } from './aggregate';
+export type { ModelSelect } from './select';
+export type { ModelWhere } from './where';
+export type { ModelOrderBy, ModelOrderByField } from './order-by';
+export type { ModelAggregateOptions } from './aggregate';
 export type { TypedEntityClient, RelayerClient } from './client';
 export type { InferEntityWhere, InferEntitySelect, InferEntityOrderBy } from './infer';
+export type {
+  InferModel,
+  SelectType,
+  WhereType,
+  DotPaths,
+  OrderByType,
+  AggregateType,
+} from './model';

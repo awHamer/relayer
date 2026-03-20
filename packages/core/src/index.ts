@@ -10,8 +10,17 @@ export type { RelationFieldDef } from './fields/relation';
 export type { EntityFieldsConfig, EntityDefinition, EntitiesConfig } from './entity/definition';
 export { EntityRegistry } from './entity/registry';
 export type { EntityMetadata } from './entity/registry';
+export { isRelayerEntityClass } from './entity/base';
+export type { RelayerEntityClass, RelayerEntityStatics } from './entity/base';
+
+export { Computed } from './decorators/computed';
+export type { ComputedConfig, ComputedFieldType, DerivedFieldType } from './decorators/computed';
+export { Derived } from './decorators/derived';
+export type { DerivedConfig } from './decorators/derived';
 
 export type { RelayerAdapter } from './adapter/adapter';
+
+export { isObject } from './utils';
 
 export { RelayerError, RelayerDialectError } from './errors';
 

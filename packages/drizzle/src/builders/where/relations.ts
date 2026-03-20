@@ -29,27 +29,27 @@ export function buildRelationFilter(
   if (typeof value !== 'object' || value === null) return undefined;
   const filter = value as Record<string, unknown>;
 
-  if (filter.$exists !== undefined) {
+  if (filter.exists !== undefined) {
     const targetInfo = ctx.allTables.get(relDef.targetEntity);
     if (!targetInfo) return undefined;
     const joinCond = buildJoinCondition(ctx.table, relationName, ctx.schema);
     if (!joinCond) return undefined;
     const subquery = sql`(SELECT 1 FROM ${targetInfo.table} WHERE ${joinCond})`;
-    return filter.$exists ? exists(subquery) : not(exists(subquery));
+    return filter.exists ? exists(subquery) : not(exists(subquery));
   }
 
   let nestedWhere: Record<string, unknown> | undefined;
   // eslint-disable-next-line no-useless-assignment
   let mode: 'some' | 'every' | 'none' = 'some';
 
-  if (filter.$some) {
-    nestedWhere = filter.$some as Record<string, unknown>;
+  if (filter.some) {
+    nestedWhere = filter.some as Record<string, unknown>;
     mode = 'some';
-  } else if (filter.$every) {
-    nestedWhere = filter.$every as Record<string, unknown>;
+  } else if (filter.every) {
+    nestedWhere = filter.every as Record<string, unknown>;
     mode = 'every';
-  } else if (filter.$none) {
-    nestedWhere = filter.$none as Record<string, unknown>;
+  } else if (filter.none) {
+    nestedWhere = filter.none as Record<string, unknown>;
     mode = 'none';
   } else {
     nestedWhere = filter;
@@ -123,15 +123,13 @@ export function buildRelationFilter(
   const derivedConditions: SQL[] = [];
   if (Object.keys(derivedWhere).length > 0 && registryMetadata && ctx.db) {
     const derivedKeys = Object.keys(derivedWhere);
-    const resolutions = resolveDerivedFields(
-      registryMetadata.derivedFields,
-      derivedKeys,
-      targetInfo.table,
-      ctx.db,
-      ctx.schema,
-      ctx.queryContext,
-      ctx.adapter.dialect,
-    );
+    const resolutions = resolveDerivedFields(registryMetadata.derivedFields, derivedKeys, {
+      table: targetInfo.table,
+      db: ctx.db!,
+      schema: ctx.schema,
+      context: ctx.queryContext,
+      dialect: ctx.adapter.dialect,
+    });
 
     for (const [name, derivedValue] of Object.entries(derivedWhere)) {
       const res = resolutions.get(name);

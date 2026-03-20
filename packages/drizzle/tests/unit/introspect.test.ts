@@ -1,6 +1,7 @@
 import { buildRegistry } from '../../src/introspect/registry-builder';
 import { readRelations } from '../../src/introspect/relation-reader';
 import { readSchema } from '../../src/introspect/schema-reader';
+import { PgUser } from '../fixtures/entities';
 import * as pgSchema from '../fixtures/pg-schema';
 
 const schema = pgSchema as unknown as Record<string, unknown>;
@@ -113,41 +114,19 @@ describe('buildRegistry', () => {
     expect(usersMetadata.relationFields.has('profile')).toBe(true);
   });
 
-  it('with entities config: computed fields added to metadata', () => {
-    const { registry } = buildRegistry(schema, {
-      users: {
-        fields: {
-          fullName: {
-            kind: 'computed',
-            valueType: 'string',
-            resolve: () => null,
-          },
-        },
-      },
-    });
+  it('with class entity: computed fields added to metadata', () => {
+    const { registry } = buildRegistry(schema, { users: PgUser });
     const usersMetadata = registry.get('users')!;
     expect(usersMetadata.computedFields.has('fullName')).toBe(true);
     expect(usersMetadata.computedFields.get('fullName')!.kind).toBe('computed');
-    expect(usersMetadata.computedFields.get('fullName')!.valueType).toBe('string');
   });
 
-  it('with entities config: derived fields added to metadata', () => {
-    const { registry } = buildRegistry(schema, {
-      users: {
-        fields: {
-          postsCount: {
-            kind: 'derived',
-            valueType: 'number',
-            query: () => null,
-            on: () => null,
-          },
-        },
-      },
-    });
+  it('with class entity: derived fields added to metadata', () => {
+    const { registry } = buildRegistry(schema, { users: PgUser });
     const usersMetadata = registry.get('users')!;
     expect(usersMetadata.derivedFields.has('postsCount')).toBe(true);
     expect(usersMetadata.derivedFields.get('postsCount')!.kind).toBe('derived');
-    expect(usersMetadata.derivedFields.get('postsCount')!.valueType).toBe('number');
+    expect(usersMetadata.derivedFields.has('orderSummary')).toBe(true);
   });
 
   it('without entities config: no computed or derived fields', () => {

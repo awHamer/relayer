@@ -36,10 +36,12 @@ export const mysqlAdapter: DialectAdapter = {
     return expr;
   },
 
+  quoteIdent: (name) => `\`${name}\``,
+
   supportsReturning: false,
-  executeInsert: async (db: any, table, data) => {
-    const result = await db.insert(table).values(data);
-    // MySQL: no .returning(), insertId + SELECT instead
+  executeInsert: async (db, table, data) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MySQL insert returns insertId not in DrizzleDatabase interface
+    const result = (await (db as any).insert(table).values(data)) as { insertId?: number };
     if (result.insertId) {
       return db
         .select()
@@ -48,20 +50,20 @@ export const mysqlAdapter: DialectAdapter = {
     }
     return [data];
   },
-  executeInsertMany: async (db: any, table, data) => {
+  executeInsertMany: async (db, table, data) => {
     if (data.length === 0) return [];
     await db.insert(table).values(data);
     // MySQL: can't easily return all inserted rows, return input data
     return data;
   },
-  executeUpdate: async (db: any, table, data, where) => {
+  executeUpdate: async (db, table, data, where) => {
     let q = db.update(table).set(data);
     if (where) q = q.where(where);
     await q;
     // MySQL: return an empty arr (the caller has to requery if needed)
     return [];
   },
-  executeDelete: async (db: any, table, where) => {
+  executeDelete: async (db, table, where) => {
     let q = db.delete(table);
     if (where) q = q.where(where);
     await q;

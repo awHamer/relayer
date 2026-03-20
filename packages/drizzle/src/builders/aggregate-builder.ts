@@ -2,10 +2,10 @@ import { sql, SQL } from 'drizzle-orm';
 import type { Column, Table } from 'drizzle-orm';
 import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
-import type { DialectAdapter } from '../dialect';
+import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveDerivedFields } from '../resolvers';
-import { getPrimaryKeyField } from '../utils';
+import { aggDerivedKey, derivedJoinKey, getPrimaryKeyField, getTableColumns } from '../utils';
 import { resolveRelationJoin } from './relation-join';
 
 export interface AggregateOptions {
@@ -30,13 +30,13 @@ export interface BuildAggregateParams {
   allTables: Map<string, TableInfo>;
   schema: Record<string, unknown>;
   registry?: EntityRegistry;
-  db?: unknown;
+  db?: DrizzleDatabase;
   adapter?: DialectAdapter;
   queryContext?: unknown;
 }
 
 export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
-  const { options, table, metadata, allTables, schema, registry, db, adapter, queryContext } = ctx;
+  const { options } = ctx;
   const selectColumns: Record<string, Column | SQL> = {};
   const groupByColumns: (Column | SQL)[] = [];
   const joins: Array<{ subquery: unknown; on: SQL }> = [];
@@ -58,19 +58,8 @@ export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
     for (const [fieldName, enabled] of Object.entries(fields)) {
       if (!enabled) continue;
       const alias = `${key}_${fieldName.replace(/\./g, '_')}`;
-      const resolved = resolveFieldColumn(
-        fieldName,
-        table,
-        metadata,
-        allTables,
-        schema,
-        registry,
-        db,
-        adapter,
-        queryContext,
-        joins,
-        joinedRelations,
-      );
+      const resolveCtx: ResolveFieldCtx = { ...ctx, joins, joinedRelations };
+      const resolved = resolveFieldColumn(fieldName, resolveCtx);
       if (resolved) {
         selectColumns[alias] = sql`${sql.raw(fn)}(${resolved})`.as(alias) as unknown as SQL;
       }
@@ -78,20 +67,9 @@ export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
   }
 
   if (options.groupBy) {
+    const resolveCtx: ResolveFieldCtx = { ...ctx, joins, joinedRelations };
     for (const field of options.groupBy) {
-      const resolved = resolveFieldColumn(
-        field,
-        table,
-        metadata,
-        allTables,
-        schema,
-        registry,
-        db,
-        adapter,
-        queryContext,
-        joins,
-        joinedRelations,
-      );
+      const resolved = resolveFieldColumn(field, resolveCtx);
       if (resolved) {
         const alias = field.includes('.') ? field.replace(/\./g, '_') : field;
         selectColumns[alias] = field.includes('.') ? resolved : (resolved as Column);
@@ -106,30 +84,21 @@ export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
 // Resolve a field path to a SQL column/expression, adding joins as needed.
 // Handles: scalar, computed, derived, relation.scalar, relation.computed,
 // relation.derived, relation.objectDerived.subField
-function resolveFieldColumn(
-  fieldPath: string,
-  table: Table,
-  metadata: EntityMetadata,
-  allTables: Map<string, TableInfo>,
-  schema: Record<string, unknown>,
-  registry?: EntityRegistry,
-  db?: unknown,
-  adapter?: DialectAdapter,
-  queryContext?: unknown,
-  joins?: Array<{ subquery: unknown; on: SQL }>,
-  joinedRelations?: Set<string>,
-): Column | SQL | undefined {
-  const tableColumns = table as unknown as Record<string, Column>;
-  const joined = joinedRelations ?? new Set<string>();
-  const jns = joins ?? [];
+interface ResolveFieldCtx extends BuildAggregateParams {
+  joins: Array<{ subquery: unknown; on: SQL }>;
+  joinedRelations: Set<string>;
+}
 
-  // Simple field on current entity
+function resolveFieldColumn(fieldPath: string, ctx: ResolveFieldCtx): Column | SQL | undefined {
+  const { table, metadata, allTables, schema, registry, db, adapter, queryContext } = ctx;
+  const tableColumns = getTableColumns(table);
+  const joined = ctx.joinedRelations;
+  const jns = ctx.joins;
+
   if (!fieldPath.includes('.')) {
-    // Scalar
     const col = tableColumns[fieldPath];
     if (col) return col;
 
-    // Computed
     if (metadata.computedFields.has(fieldPath)) {
       const fieldDef = metadata.computedFields.get(fieldPath)!;
       const sqlExpr = fieldDef.resolve({
@@ -141,20 +110,17 @@ function resolveFieldColumn(
       if (sqlExpr instanceof SQL) return sqlExpr;
     }
 
-    // Derived
     if (metadata.derivedFields.has(fieldPath) && db && adapter) {
-      const resolutions = resolveDerivedFields(
-        metadata.derivedFields,
-        [fieldPath],
+      const resolutions = resolveDerivedFields(metadata.derivedFields, [fieldPath], {
         table,
         db,
         schema,
-        queryContext,
-        adapter.dialect,
-      );
+        context: queryContext,
+        dialect: adapter.dialect,
+      });
       const res = resolutions.get(fieldPath);
       if (res) {
-        const derivedKey = `__agg_derived_${fieldPath}`;
+        const derivedKey = aggDerivedKey(fieldPath);
         if (!joined.has(derivedKey)) {
           joined.add(derivedKey);
           jns.push({ subquery: res.subquery, on: res.joinCondition });
@@ -166,7 +132,6 @@ function resolveFieldColumn(
     return undefined;
   }
 
-  // Dot path — relation fields
   const segments = fieldPath.split('.');
   const relationName = segments[0]!;
   const relDef = metadata.relationFields.get(relationName);
@@ -179,7 +144,7 @@ function resolveFieldColumn(
   if (!joined.has(relationName)) {
     const pkField = getPrimaryKeyField(targetInfo);
     if (pkField) {
-      const fkResolved = resolveRelationJoin(relationName, pkField, metadata, allTables, schema);
+      const fkResolved = resolveRelationJoin(relationName, pkField, ctx);
       if (fkResolved) {
         joined.add(relationName);
         jns.push({ subquery: fkResolved.targetTable, on: fkResolved.joinCondition });
@@ -193,13 +158,11 @@ function resolveFieldColumn(
   // relation.field (1 remaining segment)
   if (remaining.length === 1) {
     const targetField = remaining[0]!;
-    const targetColumns = targetInfo.table as unknown as Record<string, Column>;
+    const targetColumns = getTableColumns(targetInfo.table);
 
-    // Scalar column on target
     const col = targetColumns[targetField];
     if (col) return col;
 
-    // Computed on target
     if (targetMetadata?.computedFields.has(targetField)) {
       const fieldDef = targetMetadata.computedFields.get(targetField)!;
       const sqlExpr = fieldDef.resolve({
@@ -211,20 +174,17 @@ function resolveFieldColumn(
       if (sqlExpr instanceof SQL) return sqlExpr;
     }
 
-    // Derived on target
     if (targetMetadata?.derivedFields.has(targetField) && db && adapter) {
-      const resolutions = resolveDerivedFields(
-        targetMetadata.derivedFields,
-        [targetField],
-        targetInfo.table,
+      const resolutions = resolveDerivedFields(targetMetadata.derivedFields, [targetField], {
+        table: targetInfo.table,
         db,
         schema,
-        queryContext,
-        adapter.dialect,
-      );
+        context: queryContext,
+        dialect: adapter.dialect,
+      });
       const res = resolutions.get(targetField);
       if (res) {
-        const derivedKey = `${relationName}__derived_${targetField}`;
+        const derivedKey = derivedJoinKey(relationName, targetField);
         if (!joined.has(derivedKey)) {
           joined.add(derivedKey);
           jns.push({ subquery: res.subquery, on: res.joinCondition });
@@ -244,20 +204,18 @@ function resolveFieldColumn(
       db &&
       adapter
     ) {
-      const resolutions = resolveDerivedFields(
-        targetMetadata.derivedFields,
-        [derivedName],
-        targetInfo.table,
+      const resolutions = resolveDerivedFields(targetMetadata.derivedFields, [derivedName], {
+        table: targetInfo.table,
         db,
         schema,
-        queryContext,
-        adapter.dialect,
-      );
+        context: queryContext,
+        dialect: adapter.dialect,
+      });
       const res = resolutions.get(derivedName);
       if (res?.isObjectType && res.valueColumns) {
         const subCol = res.valueColumns.get(subField);
         if (subCol) {
-          const derivedKey = `${relationName}__derived_${derivedName}`;
+          const derivedKey = derivedJoinKey(relationName, derivedName);
           if (!joined.has(derivedKey)) {
             joined.add(derivedKey);
             jns.push({ subquery: res.subquery, on: res.joinCondition });

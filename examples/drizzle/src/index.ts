@@ -1,142 +1,102 @@
-import { createRelayerDrizzle, FieldType } from '@relayerjs/drizzle';
+import { createRelayerDrizzle, createRelayerEntity } from '@relayerjs/drizzle';
 
 import { client, db } from './db';
 import * as schema from './schema';
 import { seed } from './seed';
 
-export interface RelayerContext {
-  userId: number;
-}
-
 const log = (label: string, data: unknown) =>
   console.log(`\n=== ${label} ===\n`, JSON.stringify(data, null, 2));
+
+const UserEntity = createRelayerEntity(schema, 'users');
+
+class User extends UserEntity {
+  @UserEntity.computed({
+    resolve: ({ table, sql }) => sql`${table.firstName} || ' ' || ${table.lastName}`,
+  })
+  fullName!: string;
+
+  @UserEntity.derived({
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({ [field()]: sql<number>`count(*)::int`, userId: s.posts.authorId })
+        .from(s.posts)
+        .groupBy(s.posts.authorId),
+    on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
+  })
+  postsCount!: number;
+
+  @UserEntity.derived({
+    shape: { totalAmount: 'string', orderCount: 'number' },
+    query: ({ db, schema: s, sql, field }) =>
+      db
+        .select({
+          [field('totalAmount')]: sql<string>`COALESCE(sum(${s.orders.total}), 0)::text`,
+          [field('orderCount')]: sql<number>`count(*)::int`,
+          userId: s.orders.userId,
+        })
+        .from(s.orders)
+        .groupBy(s.orders.userId),
+    on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
+  })
+  orderSummary!: { totalAmount: string; orderCount: number };
+}
 
 async function main() {
   await seed();
 
-  const r = createRelayerDrizzle({
-    db,
-    schema,
-    context: {} as RelayerContext,
-    entities: {
-      users: {
-        fields: {
-          fullName: {
-            type: FieldType.Computed,
-            valueType: 'string',
-            resolve: ({ table, sql }) => sql`${table.firstName} || ' ' || ${table.lastName}`,
-          },
-          isCurrentUser: {
-            type: FieldType.Computed,
-            valueType: 'boolean',
-            resolve: ({ table, sql, context }) => sql`${table.id} = ${context.userId}`,
-          },
-          postsCount: {
-            type: FieldType.Derived,
-            valueType: 'number',
-            query: ({ db, schema: s, sql, field }) =>
-              db
-                .select({
-                  [field()]: sql<number>`count(*)::int`,
-                  userId: s.posts.authorId,
-                })
-                .from(s.posts)
-                .groupBy(s.posts.authorId),
-            on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
-          },
-          // Derived with direct Column reference (no sql`` wrapper) — tests auto-aliasing fix
-          latestEmail: {
-            type: FieldType.Derived,
-            valueType: 'string',
-            query: ({ db, schema: s, field }) =>
-              db
-                .select({
-                  [field()]: s.users.email,
-                  userId: s.users.id,
-                })
-                .from(s.users),
-            on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
-          },
-          orderSummary: {
-            type: FieldType.Derived,
-            valueType: {
-              totalAmount: 'string',
-              orderCount: 'number',
-            },
-            query: ({ db, schema: s, sql, field }) =>
-              db
-                .select({
-                  [field('totalAmount')]: sql<string>`COALESCE(sum(${s.orders.total}), 0)::text`,
-                  [field('orderCount')]: sql<number>`count(*)::int`,
-                  userId: s.orders.userId,
-                })
-                .from(s.orders)
-                .groupBy(s.orders.userId),
-            on: ({ parent, derived: d, eq }) => eq(parent.id, d.userId),
-          },
-        },
+  const r = createRelayerDrizzle({ db, schema, entities: { users: User } });
+
+  // 1. Kitchen sink: nested relations, computed, derived, JSON filter, relation filter, derived orderBy
+  log(
+    'findMany: power users',
+    await r.users.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        postsCount: true,
+        orderSummary: true,
+        metadata: true,
+        posts: { title: true, author: { fullName: true, postsCount: true } },
       },
-    },
-  });
-
-  // ─── Derived with Column ref (no sql`` wrapper) ──
-
-  log(
-    'derived with Column ref: latestEmail',
-    await r.users.findMany({
-      select: { id: true, firstName: true, latestEmail: true },
+      where: {
+        metadata: { role: 'admin', level: { gte: 5 } },
+        postsCount: { gte: 1 },
+        posts: { some: { published: true } },
+      },
+      orderBy: { field: 'orderSummary.totalAmount', order: 'desc' },
+      limit: 10,
     }),
   );
 
-  // ─── Eager: orderSummary in where (LEFT JOIN in main query) ──
-
+  // 2. OR + every + JSON orderBy + derived object in where
   log(
-    'eager: where orderSummary.orderCount lte 2',
+    'findMany: OR + every + JSON sort',
     await r.users.findMany({
-      select: { id: true, firstName: true, orderSummary: true },
-      where: { orderSummary: { orderCount: { lte: 2 } } },
+      select: { id: true, fullName: true, orderSummary: { orderCount: true } },
+      where: {
+        OR: [{ metadata: { role: 'admin' } }, { orderSummary: { orderCount: { gte: 3 } } }],
+        posts: { every: { published: true } },
+      },
+      orderBy: { field: 'metadata.level', order: 'desc' },
     }),
   );
 
-  // ─── Deferred: orderSummary select only (batch after main) ───
-
+  // 3. findFirst: top author
   log(
-    'deferred: select orderSummary { totalAmount }',
-    await r.users.findMany({
-      select: { id: true, firstName: true, orderSummary: { totalAmount: true } },
+    'findFirst: top author',
+    await r.users.findFirst({
+      select: { id: true, fullName: true, postsCount: true, orderSummary: true },
+      where: { postsCount: { gte: 1 } },
+      orderBy: { field: 'postsCount', order: 'desc' },
     }),
   );
 
-  // ─── Eager: orderBy dot notation (LEFT JOIN in main query) ───
-
+  // 4. Aggregation: orders by author + status, all functions
   log(
-    'eager: orderBy orderSummary.orderCount desc',
-    await r.users.findMany({
-      select: { id: true, firstName: true, orderSummary: true },
-      orderBy: { field: 'orderSummary.orderCount', order: 'desc' },
-    }),
-  );
-
-  log(
-    'eager: orderBy orderSummary.totalAmount asc',
-    await r.users.findMany({
-      select: { id: true, firstName: true, orderSummary: { totalAmount: true } },
-      orderBy: { field: 'orderSummary.totalAmount', order: 'asc' },
-    }),
-  );
-
-  // ─── Aggregations ───────────────────────────────────────
-
-  log(
-    'aggregate: total user count (no groupBy -> single object)',
-    await r.users.aggregate({ _count: true }),
-  );
-  // expect: { _count: 3 }
-
-  log(
-    'aggregate: orders by status',
+    'aggregate: orders by author + status',
     await r.orders.aggregate({
-      groupBy: ['status'],
+      groupBy: ['user.fullName', 'status'],
+      where: { status: 'completed' },
       _count: true,
       _sum: { total: true },
       _avg: { total: true },
@@ -144,326 +104,27 @@ async function main() {
       _max: { total: true },
     }),
   );
-  // expect: [{ status: 'completed', _count: 3, _sum_total, _avg_total, ... }, { status: 'pending', ... }]
 
   log(
-    'aggregate: orders by user (dot notation groupBy)',
-    await r.orders.aggregate({
-      groupBy: ['user.firstName'],
-      _count: true,
-      _sum: { total: true },
-    }),
-  );
-  // expect: [{ user_firstName: 'Ihor', _count: 2, _sum_total: 2000 }, ...]
-
-  log(
-    'aggregate: orders with where filter',
-    await r.orders.aggregate({
-      where: { status: 'completed' },
-      groupBy: ['status'],
-      _count: true,
-      _sum: { total: true },
-    }),
-  );
-  // expect: single group { status: 'completed', _count: 3, _sum_total: 5500 }
-
-  // ─── Array operators ────────────────────────────────────
-
-  log(
-    'posts: arrayContains ["typescript"]',
-    await r.posts.findMany({
-      select: { id: true, title: true, tags: true },
-      where: { tags: { arrayContains: ['typescript'] } },
-    }),
-  );
-  // expect: posts 2 (TS Tips) and 4 (Hello Relayer) - both have 'typescript' tag
-
-  log(
-    'posts: arrayOverlaps ["intro", "draft"]',
-    await r.posts.findMany({
-      select: { id: true, title: true, tags: true },
-      where: { tags: { arrayOverlaps: ['intro', 'draft'] } },
-    }),
-  );
-  // expect: posts 1 (intro), 3 (draft), 4 (intro) - any overlap
-
-  log(
-    'posts: arrayContained ["typescript", "tips"]',
-    await r.posts.findMany({
-      select: { id: true, title: true, tags: true },
-      where: {
-        tags: { arrayContained: ['typescript', 'tips', 'intro', 'general', 'draft', 'relayer'] },
-      },
-    }),
-  );
-  // expect: all posts - all their tags are contained in the provided array
-
-  // ─── $raw where ────────────────────────────────────────
-
-  log(
-    '$raw: custom SQL in where',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: {
-        $raw: ({ table, sql }) =>
-          sql`${table.firstName} ILIKE ${'%oh%'} OR ${table.lastName} ILIKE ${'%smith%'}`,
-      },
-    }),
-  );
-  // expect: Ihor (firstName has 'oh'... no), John (has 'oh'), Jane Smith (lastName has 'smith')
-
-  // ─── JSON property filtering ────────────────────────────
-
-  log(
-    'json: metadata.role = admin',
-    await r.users.findMany({
-      select: { id: true, firstName: true, metadata: true },
-      where: { metadata: { role: 'admin' } },
-    }),
-  );
-  // expect: Ihor + Jane (both admin)
-
-  log(
-    'json: metadata.level >= 5',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { metadata: { level: { gte: 5 } } },
-    }),
-  );
-  // expect: Ihor (10) + Jane (7)
-
-  log(
-    'json: nested settings.theme contains "dark"',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { metadata: { settings: { theme: { contains: 'dark' } } } },
-    }),
-  );
-  // expect: Ihor + Jane (both dark theme)
-
-  log(
-    'json: combined role=admin AND level >= 8',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { metadata: { role: 'admin', level: { gte: 8 } } },
-    }),
-  );
-  // expect: only Ihor (admin + level 10)
-
-  log(
-    'json: role contains adm',
-    await r.users.findFirst({
-      select: { id: true, firstName: true, metadata: true },
-      where: { metadata: { role: { contains: 'user' } } },
-    }),
-  );
-
-  // ─── isNull tests ──────────────────────────────────────
-
-  log(
-    'isNull: scalar field (email isNull)',
-    await r.users.findMany({
-      select: { id: true, firstName: true, email: true },
-      where: { email: { isNull: true } },
-    }),
-  );
-  // expect: empty (all users have email)
-
-  log(
-    'isNotNull: scalar field (email isNotNull)',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { email: { isNotNull: true } },
-    }),
-  );
-  // expect: all 3 users
-
-  log(
-    'isNull: metadata (full column null)',
-    await r.users.findMany({
-      select: { id: true, firstName: true, metadata: true },
-      where: { metadata: { isNull: true } },
-    }),
-  );
-  // expect: empty (all users have metadata)
-
-  log(
-    'isNotNull: metadata',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { metadata: { isNotNull: true } },
-    }),
-  );
-
-  // JSON null key tests - NullRole user has metadata.role = null
-  log(
-    'json: metadata.role isNull (JSON null key)',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { metadata: { role: { isNull: true } } },
-    }),
-  );
-  // expect: NullRole user (role = null inside JSON)
-
-  log(
-    'json: metadata.role isNotNull',
-    await r.users.findMany({
-      select: { id: true, firstName: true },
-      where: { metadata: { role: { isNotNull: true } } },
-    }),
-  );
-  // expect: Ihor, John, Jane (all have non-null role)
-
-  // ─── Many-to-Many via pivot table ────────────────────────
-
-  log(
-    'm2m: posts with categories via pivot',
-    await r.posts.findMany({
-      select: {
-        id: true,
-        title: true,
-        postCategories: { isPrimary: true, category: { name: true } },
-      },
-      orderBy: { field: 'id', order: 'asc' },
-    }),
-  );
-  // expect: post 1 -> [General(primary)], post 2 -> [TypeScript(primary), General], post 3 -> [], post 4 -> [TypeScript(primary)]
-
-  log(
-    'm2m: filter by pivot column ($some isPrimary)',
-    await r.posts.findMany({
-      select: { id: true, title: true },
-      where: { postCategories: { $some: { isPrimary: true } } },
-      orderBy: { field: 'id', order: 'asc' },
-    }),
-  );
-  // expect: posts 1, 2, 4 (have primary category)
-
-  log(
-    'm2m: $exists on pivot (posts with any categories)',
-    await r.posts.findMany({
-      select: { id: true, title: true },
-      where: { postCategories: { $exists: true } },
-      orderBy: { field: 'id', order: 'asc' },
-    }),
-  );
-  // expect: posts 1, 2, 4 (post 3 has no categories)
-
-  // ─── OrderBy: relation dot notation ────────────────────────
-
-  log(
-    'orderBy: posts by author.firstName asc',
-    await r.posts.findMany({
-      select: { id: true, title: true },
-      orderBy: { field: 'author.firstName', order: 'asc' },
-    }),
-  );
-  // expect: Ihor's posts first (firstName asc), then John's
-
-  log(
-    'orderBy: posts by author.firstName desc',
-    await r.posts.findMany({
-      select: { id: true, title: true },
-      orderBy: { field: 'author.firstName', order: 'desc' },
-    }),
-  );
-  // expect: John's posts first (firstName desc), then Ihor's
-
-  log(
-    'orderBy: multi — author.firstName asc + title desc',
-    await r.posts.findMany({
-      select: { id: true, title: true },
-      orderBy: [
-        { field: 'author.firstName', order: 'asc' },
-        { field: 'title', order: 'desc' },
-      ],
-    }),
-  );
-  // expect: Ihor's posts sorted by title desc, then John's
-
-  // ─── OrderBy: JSON path ────────────────────────────────────
-
-  log(
-    'orderBy: users by metadata.role asc',
-    await r.users.findMany({
-      select: { id: true, firstName: true, metadata: true },
-      orderBy: { field: 'metadata.role', order: 'asc' },
-    }),
-  );
-  // expect: admins first (admin < user alphabetically)
-
-  log(
-    'orderBy: users by metadata.level desc',
-    await r.users.findMany({
-      select: { id: true, firstName: true, metadata: true },
-      orderBy: { field: 'metadata.level', order: 'desc' },
-    }),
-  );
-  // expect: highest level first
-
-  // ─── OrderBy: relation derived field ────────────────────
-
-  // orderBy by relation derived field — types need TEntities propagation
-  log(
-    'orderBy: posts by author.postsCount desc (relation derived field)',
-    await r.posts.findMany({
-      select: {
-        id: true,
-        title: true,
-        author: {
-          postsCount: true,
-          posts: {
-            title: true,
-            author: { id: true, fullName: true, orderSummary: true, postsCount: true },
-          },
-        },
-      },
-      where: {
-        author: {
-          fullName: { contains: 'Ihor' },
-          postsCount: { gte: 2 },
-          posts: {
-            $some: {
-              title: { contains: 'TypeScript' },
-            },
-          },
-        },
-      },
-      orderBy: { field: 'author.postsCount', order: 'desc' },
-    }),
-  );
-  // expect: posts by authors with most posts first (Ihor has 2)
-
-  // ─── Aggregate: relation derived/computed fields ─────────
-
-  log(
-    'aggregate: posts grouped by author.fullName with _sum on author.postsCount',
+    'aggregate: posts by author derived fields',
     await r.posts.aggregate({
       groupBy: ['author.fullName'],
       _count: true,
       _sum: { 'author.postsCount': true },
     }),
   );
-  // expect: Ihor Ivanov -> count 2, sum postsCount 4
 
+  // 5. Count: admins with published posts and orders
   log(
-    'aggregate: orders grouped by user.metadata.role with _sum total',
-    await r.orders.aggregate({
-      groupBy: ['user.firstName'],
-      _count: true,
-      _sum: { total: true },
-      _avg: { total: true },
+    'count: active admin authors with orders',
+    await r.users.count({
+      where: {
+        metadata: { role: 'admin' },
+        posts: { some: { published: true } },
+        orderSummary: { orderCount: { gte: 1 } },
+      },
     }),
   );
-
-  log(
-    'aggregate: posts _max on author.orderSummary.totalAmount',
-    await r.posts.aggregate({
-      _max: { 'author.orderSummary.totalAmount': true },
-      _count: true,
-    }),
-  );
-  // expect: max totalAmount = 3000 (Jane)
 
   await client.end();
 }

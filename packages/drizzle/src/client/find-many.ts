@@ -1,17 +1,27 @@
 import { sql } from 'drizzle-orm';
-import type { Column, SQL } from 'drizzle-orm';
+import type { Column, SQL, Table } from 'drizzle-orm';
+import { isObject } from '@relayerjs/core';
 import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
 import { buildOrderBy, buildSelect, buildWhere, loadRelations } from '../builders';
-import type { SelectResult, WhereBuilderContext } from '../builders';
-import type { DialectAdapter } from '../dialect';
+import type { OrderByEntry, SelectResult, WhereBuilderContext } from '../builders';
+import type { DialectAdapter, DrizzleDatabase, DrizzleQueryBuilder } from '../dialect';
 import type { TableInfo } from '../introspect';
 import type { DerivedFieldResolution } from '../resolvers';
-import { getPrimaryKeyField } from '../utils';
+import { derivedSubFieldKey, getPrimaryKeyField, getTableColumns } from '../utils';
+
+export interface FindManyOptions {
+  select?: Record<string, unknown>;
+  where?: Record<string, unknown>;
+  orderBy?: OrderByEntry | OrderByEntry[];
+  limit?: number;
+  offset?: number;
+  context?: unknown;
+}
 
 export interface FindManyDeps {
-  db: any;
-  table: any;
+  db: DrizzleDatabase;
+  table: Table;
   tableInfo: TableInfo;
   schema: Record<string, unknown>;
   allTables: Map<string, TableInfo>;
@@ -35,7 +45,7 @@ export interface FindManyDeps {
 }
 
 export interface BuiltQuery {
-  query: any;
+  query: DrizzleQueryBuilder;
   selectResult: SelectResult;
   eagerResolutions: Map<string, DerivedFieldResolution>;
   deferredDerived: string[];
@@ -43,7 +53,7 @@ export interface BuiltQuery {
 
 export function buildFindManyQuery(
   deps: FindManyDeps,
-  options: any = {},
+  options: FindManyOptions = {},
   forceAllDerivedEager = false,
 ): BuiltQuery {
   const { db, table, metadata } = deps;
@@ -59,7 +69,7 @@ export function buildFindManyQuery(
   const orderByFields = new Set(
     options.orderBy
       ? (Array.isArray(options.orderBy) ? options.orderBy : [options.orderBy]).map(
-          (e: any) => e.field.split('.')[0],
+          (e) => e.field.split('.')[0],
         )
       : [],
   );
@@ -91,13 +101,12 @@ export function buildFindManyQuery(
   for (const [name, res] of eagerResolutions) {
     if (res.isObjectType && res.valueColumns) {
       const userSelect = options.select?.[name];
-      const requestedSubs =
-        typeof userSelect === 'object' && userSelect !== null
-          ? new Set(Object.keys(userSelect).filter((k) => (userSelect as any)[k]))
-          : null;
+      const requestedSubs = isObject(userSelect)
+        ? new Set(Object.keys(userSelect).filter((k) => (userSelect as Record<string, unknown>)[k]))
+        : null;
       for (const [subField, col] of res.valueColumns) {
         if (!requestedSubs || requestedSubs.has(subField)) {
-          selectResult.columns[`${name}_${subField}`] = col;
+          selectResult.columns[derivedSubFieldKey(name, subField)] = col;
         }
       }
     } else {
@@ -107,22 +116,21 @@ export function buildFindManyQuery(
 
   const whereCtx = deps.makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
   const whereCondition = options.where ? buildWhere(options.where, whereCtx) : undefined;
-  const orderByResult = buildOrderBy(
-    options.orderBy,
+  const orderByResult = buildOrderBy(options.orderBy, {
     table,
     metadata,
     computedSqlMap,
     derivedAliasMap,
-    deps.allTables,
-    deps.schema,
-    deps.adapter,
-    deps.registry,
+    allTables: deps.allTables,
+    schema: deps.schema,
+    adapter: deps.adapter,
+    registry: deps.registry,
     db,
-    context,
-    deps.maxRelationDepth,
-  );
+    queryContext: context,
+    maxRelationDepth: deps.maxRelationDepth,
+  });
 
-  let query = db.select(selectResult.columns as any).from(table) as any;
+  let query = db.select(selectResult.columns).from(table);
 
   for (const [, res] of eagerResolutions) {
     query = query.leftJoin(res.subquery, res.joinCondition);
@@ -146,7 +154,7 @@ export function hydrateRow(
   for (const [name, subFields] of objectDerivedFields) {
     const obj: Record<string, unknown> = {};
     for (const subField of subFields) {
-      const sqlKey = `${name}_${subField}`;
+      const sqlKey = derivedSubFieldKey(name, subField);
       if (sqlKey in row) {
         obj[subField] = row[sqlKey];
         delete row[sqlKey];
@@ -169,7 +177,7 @@ export function stripUnrequestedFields(
 
 export async function executeFindMany(
   deps: FindManyDeps,
-  options: any = {},
+  options: FindManyOptions = {},
 ): Promise<Record<string, unknown>[]> {
   const { db, table, metadata } = deps;
   const context = options.context;
@@ -186,7 +194,7 @@ export async function executeFindMany(
     const pkName = getPrimaryKeyField(deps.tableInfo);
     if (pkName) {
       const pks = results.map((r) => r[pkName!]).filter(Boolean);
-      const pkCol = (table as unknown as Record<string, Column>)[pkName];
+      const pkCol = getTableColumns(table as Table)[pkName];
 
       const { resolutions: deferredResolutions } = deps.getDerivedResolutions(
         deferredDerived,
@@ -194,23 +202,24 @@ export async function executeFindMany(
       );
 
       for (const [name, res] of deferredResolutions) {
-        const batchSelect: Record<string, any> = { [pkName]: pkCol };
+        const batchSelect: Record<string, Column | SQL> = { [pkName]: pkCol! };
         if (res.isObjectType && res.valueColumns) {
           const userSelect = options.select?.[name];
-          const requestedSubs =
-            typeof userSelect === 'object' && userSelect !== null
-              ? new Set(Object.keys(userSelect).filter((k) => (userSelect as any)[k]))
-              : null;
+          const requestedSubs = isObject(userSelect)
+            ? new Set(
+                Object.keys(userSelect).filter((k) => (userSelect as Record<string, unknown>)[k]),
+              )
+            : null;
           for (const [subField, col] of res.valueColumns) {
             if (!requestedSubs || requestedSubs.has(subField)) {
-              batchSelect[`${name}_${subField}`] = col;
+              batchSelect[derivedSubFieldKey(name, subField)] = col;
             }
           }
         } else {
           batchSelect[name] = res.valueColumn;
         }
 
-        let batchQuery = db.select(batchSelect as any).from(table) as any;
+        let batchQuery = db.select(batchSelect).from(table);
         batchQuery = batchQuery.leftJoin(res.subquery, res.joinCondition);
         batchQuery = batchQuery.where(
           sql`${pkCol} IN (${sql.join(

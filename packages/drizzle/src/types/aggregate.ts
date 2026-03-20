@@ -1,35 +1,16 @@
-import type { EntityOrderByField } from './order-by';
-import type { EntityWhere } from './where';
+import type { ModelDotPaths } from './helpers';
+import type { ModelWhere } from './where';
 
-export type EntityAggregateGroupBy<
-  TTable,
-  TEntityConfig = {},
-  TTableName extends string = string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TEntities = {},
-> = EntityOrderByField<TTable, TEntityConfig, TTableName, TSchema, TEntities>[];
-
-// All fields reachable through dot paths — for aggregate functions that accept any field
-type AggField<
-  TTable,
-  TEntityConfig = {},
-  TTableName extends string = string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TEntities = {},
-> = EntityOrderByField<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-
-export interface EntityAggregateOptions<
-  TTable,
-  TEntityConfig = {},
-  TTableName extends string = string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TEntities = {},
+export interface ModelAggregateOptions<
+  TSchema extends Record<string, unknown>,
+  TEntities extends Record<string, unknown>,
+  TKey extends string,
 > {
-  where?: EntityWhere<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
-  groupBy?: EntityAggregateGroupBy<TTable, TEntityConfig, TTableName, TSchema, TEntities>;
+  where?: ModelWhere<TSchema, TEntities, TKey>;
+  groupBy?: ModelDotPaths<TSchema, TEntities, TKey>[];
   _count?: boolean;
-  _sum?: Partial<Record<AggField<TTable, TEntityConfig, TTableName, TSchema, TEntities>, boolean>>;
-  _avg?: Partial<Record<AggField<TTable, TEntityConfig, TTableName, TSchema, TEntities>, boolean>>;
-  _min?: Partial<Record<AggField<TTable, TEntityConfig, TTableName, TSchema, TEntities>, boolean>>;
-  _max?: Partial<Record<AggField<TTable, TEntityConfig, TTableName, TSchema, TEntities>, boolean>>;
+  _sum?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
+  _avg?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
+  _min?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
+  _max?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
 }

@@ -1,34 +1,35 @@
 import type {
-  EntityConfigFor,
-  EntityFields,
+  CustomFieldKeys,
+  ModelInstance,
   RelationTargetName,
-  RelationTargetTable,
   TableColumnKeys,
   TableRelationKeys,
 } from './helpers';
 
-export type EntitySelect<
-  TTable,
-  TEntityConfig = {},
-  TTableName extends string = string,
-  TSchema extends Record<string, unknown> = Record<string, unknown>,
-  TEntities = {},
-> = {
-  [K in TableColumnKeys<TTable>]?: boolean;
-} & {
-  [K in keyof EntityFields<TEntityConfig>]?: EntityFields<TEntityConfig>[K] extends {
-    valueType: Record<string, string>;
-  }
-    ? boolean | { [Sub in keyof EntityFields<TEntityConfig>[K]['valueType']]?: boolean }
-    : boolean;
-} & {
-  [K in TableRelationKeys<TTableName, TSchema>]?:
-    | boolean
-    | EntitySelect<
-        RelationTargetTable<TTableName, TSchema, K>,
-        EntityConfigFor<TEntities, RelationTargetName<TTableName, TSchema, K> & string>,
-        RelationTargetName<TTableName, TSchema, K> & string,
-        TSchema,
-        TEntities
-      >;
-};
+export type ModelSelect<
+  TSchema extends Record<string, unknown>,
+  TEntities extends Record<string, unknown>,
+  TKey extends string,
+> =
+  // Scalar columns
+  (TKey extends keyof TSchema ? { [K in TableColumnKeys<TSchema[TKey]>]?: boolean } : {}) &
+    // Custom fields (computed/derived)
+    {
+      [K in CustomFieldKeys<TSchema, TEntities, TKey>]?: NonNullable<
+        ModelInstance<TSchema, TEntities, TKey>[K]
+      > extends Record<string, unknown>
+        ? NonNullable<ModelInstance<TSchema, TEntities, TKey>[K]> extends Date | unknown[]
+          ? boolean
+          :
+              | boolean
+              | {
+                  [Sub in keyof NonNullable<ModelInstance<TSchema, TEntities, TKey>[K]> &
+                    string]?: boolean;
+                }
+        : boolean;
+    } & {
+    // Relations
+    [R in TableRelationKeys<TKey, TSchema>]?:
+      | boolean
+      | ModelSelect<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string>;
+  };

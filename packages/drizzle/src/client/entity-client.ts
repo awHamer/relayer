@@ -14,40 +14,58 @@ import {
   executeUpdateMany,
 } from '../builders';
 import type { WhereBuilderContext } from '../builders';
-import type { DialectAdapter } from '../dialect';
+import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveComputedFields, resolveDerivedFields } from '../resolvers';
 import { buildDerivedAliasMap } from '../utils';
 import { executeFindMany } from './find-many';
+import type { FindManyOptions } from './find-many';
 import { executeFindManyStream } from './find-many-stream';
 
-export function createEntityClient(
-  db: any,
-  schema: Record<string, unknown>,
-  allTables: Map<string, TableInfo>,
-  tableInfo: TableInfo,
-  metadata: EntityMetadata,
-  adapter: DialectAdapter,
-  registry: EntityRegistry = new EntityRegistry(),
-  maxRelationDepth?: number,
-): Record<string, (...args: any[]) => any> {
+export interface EntityClientConfig {
+  db: DrizzleDatabase;
+  schema: Record<string, unknown>;
+  allTables: Map<string, TableInfo>;
+  tableInfo: TableInfo;
+  metadata: EntityMetadata;
+  adapter: DialectAdapter;
+  registry: EntityRegistry;
+  maxRelationDepth?: number;
+}
+
+interface AggregateOptions {
+  where?: Record<string, unknown>;
+  groupBy?: string[];
+  _count?: boolean;
+  _sum?: Record<string, boolean>;
+  _avg?: Record<string, boolean>;
+  _min?: Record<string, boolean>;
+  _max?: Record<string, boolean>;
+}
+
+export function createEntityClient(config: EntityClientConfig) {
+  const { db, schema, allTables, tableInfo, metadata, adapter, registry, maxRelationDepth } =
+    config;
   const table = tableInfo.table;
 
   function getComputedSqlMap(context?: unknown, requestedFields?: string[]): Map<string, SQL> {
-    return resolveComputedFields(metadata.computedFields, table, schema, context, requestedFields);
+    return resolveComputedFields(metadata.computedFields, {
+      table,
+      schema,
+      context,
+      requestedFields,
+    });
   }
 
   function getDerivedResolutions(requestedDerived: string[], context?: unknown) {
     if (requestedDerived.length === 0) return { resolutions: new Map(), aliasMap: new Map() };
-    const filtered = resolveDerivedFields(
-      metadata.derivedFields,
-      requestedDerived,
+    const filtered = resolveDerivedFields(metadata.derivedFields, requestedDerived, {
       table,
       db,
       schema,
       context,
-      adapter.dialect,
-    );
+      dialect: adapter.dialect,
+    });
     return { resolutions: filtered, aliasMap: buildDerivedAliasMap(filtered) };
   }
 
@@ -87,20 +105,20 @@ export function createEntityClient(
   };
 
   return {
-    async findMany(options: any = {}) {
+    async findMany(options: FindManyOptions = {}) {
       return executeFindMany(findManyDeps, options);
     },
 
-    findManyStream(options: any = {}) {
+    findManyStream(options: FindManyOptions = {}) {
       return executeFindManyStream(findManyDeps, options);
     },
 
-    async findFirst(options: any = {}) {
+    async findFirst(options: FindManyOptions = {}) {
       const results = await executeFindMany(findManyDeps, { ...options, limit: 1 });
       return results[0] ?? null;
     },
 
-    async count(options: any = {}) {
+    async count(options: Pick<FindManyOptions, 'where' | 'context'> = {}) {
       const whereComputed = options.where
         ? Object.keys(options.where).filter((k: string) => metadata.computedFields.has(k))
         : [];
@@ -109,13 +127,13 @@ export function createEntityClient(
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
       const whereCondition = options.where ? buildWhere(options.where, whereCtx) : undefined;
 
-      let query = db.select({ count: sql<number>`count(*)` }).from(table) as any;
+      let query = db.select({ count: sql<number>`count(*)` }).from(table);
       if (whereCondition) query = query.where(whereCondition);
       const rows = (await query) as { count: number }[];
       return rows[0]?.count ?? 0;
     },
 
-    async aggregate(options: any = {}) {
+    async aggregate(options: AggregateOptions = {}) {
       const aggResult = buildAggregate({
         options,
         table,
@@ -127,7 +145,7 @@ export function createEntityClient(
         adapter,
       });
 
-      let query = db.select(aggResult.selectColumns as any).from(table) as any;
+      let query = db.select(aggResult.selectColumns).from(table);
 
       for (const join of aggResult.joins) {
         query = query.leftJoin(join.subquery, join.on);
@@ -149,18 +167,18 @@ export function createEntityClient(
       return aggResult.groupByColumns.length > 0 ? rows : (rows[0] ?? null);
     },
 
-    async create(options: any) {
+    async create(options: { data: Record<string, unknown> }) {
       return (await executeCreate(db, table, options.data, adapter)) as Record<string, unknown>;
     },
 
-    async createMany(options: any) {
+    async createMany(options: { data: Record<string, unknown>[] }) {
       return (await executeCreateMany(db, table, options.data, adapter)) as Record<
         string,
         unknown
       >[];
     },
 
-    async update(options: any) {
+    async update(options: { where: Record<string, unknown>; data: Record<string, unknown> }) {
       const computedSqlMap = getComputedSqlMap(undefined, []);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
@@ -174,14 +192,14 @@ export function createEntityClient(
       )) as Record<string, unknown>;
     },
 
-    async updateMany(options: any) {
+    async updateMany(options: { where: Record<string, unknown>; data: Record<string, unknown> }) {
       const computedSqlMap = getComputedSqlMap(undefined, []);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
       return executeUpdateMany(db, table, options.where, options.data, whereCtx, adapter);
     },
 
-    async delete(options: any) {
+    async delete(options: { where: Record<string, unknown> }) {
       const computedSqlMap = getComputedSqlMap(undefined, []);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
@@ -191,7 +209,7 @@ export function createEntityClient(
       >;
     },
 
-    async deleteMany(options: any) {
+    async deleteMany(options: { where: Record<string, unknown> }) {
       const computedSqlMap = getComputedSqlMap(undefined, []);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);

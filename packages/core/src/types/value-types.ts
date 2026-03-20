@@ -6,7 +6,8 @@ export type ScalarValueType =
   | 'json'
   | 'array'
   | 'enum'
-  | 'object';
+  | 'object'
+  | 'unknown';
 
 export type ObjectValueType = Record<string, ScalarValueType>;
 

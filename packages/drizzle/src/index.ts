@@ -1,20 +1,32 @@
 export { createRelayerDrizzle } from './factory';
-export { FieldType } from '@relayerjs/core';
+export { createRelayerEntity, createDrizzleEntities } from './entity';
+export type {
+  EntityClassStatics,
+  EntityClassMethods,
+  EntityChainResult,
+  DrizzleEntities,
+} from './entity';
 
 export type {
-  TypedEntitiesConfig,
-  TypedComputedDef,
-  TypedDerivedDef,
   SchemaTableKeys,
-  DrizzleComputedContext,
-  DrizzleDerivedQueryContext,
-  EntitySelect,
-  EntityWhere,
-  EntityOrderBy,
-  EntityAggregateOptions,
+  ModelSelect,
+  ModelWhere,
+  ModelOrderBy,
+  ModelOrderByField,
+  ModelAggregateOptions,
+  ModelInstance,
+  ModelDotPaths,
+  CustomFieldKeys,
+  OpsForTSType,
   TypedEntityClient,
   RelayerClient,
   InferEntityWhere,
   InferEntitySelect,
   InferEntityOrderBy,
+  InferModel,
+  SelectType,
+  WhereType,
+  DotPaths,
+  OrderByType,
+  AggregateType,
 } from './types';

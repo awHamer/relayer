@@ -7,5 +7,5 @@
     "noUnusedParameters": false
   },
   "include": ["src"],
-  "exclude": ["src/test-dialects.ts", "src/test-mysql.ts", "src/test-sqlite.ts"]
+  "exclude": ["src/test-dialects.ts"]
 }

@@ -2,10 +2,10 @@ import { asc, desc, sql, SQL } from 'drizzle-orm';
 import type { Column, Table } from 'drizzle-orm';
 import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
-import type { DialectAdapter } from '../dialect';
+import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveDerivedFields } from '../resolvers';
-import { getPrimaryKeyField } from '../utils';
+import { derivedJoinKey, derivedSubFieldKey, getPrimaryKeyField, getTableColumns } from '../utils';
 import { resolveRelationJoin } from './relation-join';
 
 export interface OrderByEntry {
@@ -18,19 +18,23 @@ export interface OrderByResult {
   joins: Array<{ table: unknown; on: SQL; relationName: string }>;
 }
 
+export interface OrderByContext {
+  table: Table;
+  metadata: EntityMetadata;
+  computedSqlMap: Map<string, SQL>;
+  derivedAliasMap: Map<string, { column: Column | SQL }>;
+  allTables: Map<string, TableInfo>;
+  schema: Record<string, unknown>;
+  adapter: DialectAdapter;
+  registry?: EntityRegistry;
+  db?: DrizzleDatabase;
+  queryContext?: unknown;
+  maxRelationDepth?: number;
+}
+
 export function buildOrderBy(
   orderBy: OrderByEntry | OrderByEntry[] | undefined,
-  table: Table,
-  metadata: EntityMetadata,
-  computedSqlMap: Map<string, SQL>,
-  derivedAliasMap: Map<string, { column: Column | SQL }>,
-  allTables: Map<string, TableInfo>,
-  schema: Record<string, unknown>,
-  adapter: DialectAdapter,
-  registry?: EntityRegistry,
-  db?: unknown,
-  queryContext?: unknown,
-  maxRelationDepth?: number,
+  ctx: OrderByContext,
 ): OrderByResult {
   if (!orderBy) return { clauses: [], joins: [] };
 
@@ -38,46 +42,34 @@ export function buildOrderBy(
   const clauses: SQL[] = [];
   const joins: Array<{ table: unknown; on: SQL; relationName: string }> = [];
   const joinedRelations = new Set<string>();
-  const tableColumns = table as unknown as Record<string, Column>;
+  const tableColumns = getTableColumns(ctx.table);
 
   for (const entry of entries) {
     const direction = entry.order === 'desc' ? desc : asc;
     let column: Column | SQL | undefined;
 
-    // Direct field on current entity
-    if (metadata.scalarFields.has(entry.field)) {
+    if (ctx.metadata.scalarFields.has(entry.field)) {
       column = tableColumns[entry.field];
-    } else if (metadata.computedFields.has(entry.field)) {
-      column = computedSqlMap.get(entry.field);
-    } else if (metadata.derivedFields.has(entry.field)) {
-      column = derivedAliasMap.get(entry.field)?.column;
+    } else if (ctx.metadata.computedFields.has(entry.field)) {
+      column = ctx.computedSqlMap.get(entry.field);
+    } else if (ctx.metadata.derivedFields.has(entry.field)) {
+      column = ctx.derivedAliasMap.get(entry.field)?.column;
     } else if (entry.field.includes('.')) {
       const segments = entry.field.split('.');
       const firstSegment = segments[0]!;
 
-      // Derived object dot notation: 'orderSummary.totalAmount'
-      if (metadata.derivedFields.has(firstSegment) && segments.length === 2) {
-        column = derivedAliasMap.get(`${firstSegment}_${segments[1]}`)?.column;
-      }
-      // JSON path dot notation: 'metadata.role' or 'metadata.settings.theme'
-      else if (metadata.scalarFields.has(firstSegment)) {
-        const fieldDef = metadata.scalarFields.get(firstSegment)!;
+      if (ctx.metadata.derivedFields.has(firstSegment) && segments.length === 2) {
+        column = ctx.derivedAliasMap.get(derivedSubFieldKey(firstSegment, segments[1]!))?.column;
+      } else if (ctx.metadata.scalarFields.has(firstSegment)) {
+        const fieldDef = ctx.metadata.scalarFields.get(firstSegment)!;
         if (fieldDef.valueType === 'json') {
           const col = tableColumns[firstSegment];
           if (col) {
-            column = adapter.jsonPath(col, segments.slice(1));
+            column = ctx.adapter.jsonPath(col, segments.slice(1));
           }
         }
-      }
-      // Relation path: try simple 1-level scalar column first (no registry needed)
-      else if (metadata.relationFields.has(firstSegment) && segments.length === 2) {
-        const resolved = resolveRelationJoin(
-          firstSegment,
-          segments[1]!,
-          metadata,
-          allTables,
-          schema,
-        );
+      } else if (ctx.metadata.relationFields.has(firstSegment) && segments.length === 2) {
+        const resolved = resolveRelationJoin(firstSegment, segments[1]!, ctx);
         if (resolved) {
           column = resolved.column;
           if (!joinedRelations.has(firstSegment)) {
@@ -88,38 +80,11 @@ export function buildOrderBy(
               relationName: firstSegment,
             });
           }
+        } else if (ctx.registry && ctx.db) {
+          column = resolveRelationPath(segments, ctx, joins, joinedRelations);
         }
-        // Not a scalar column — try recursive resolver for computed/derived
-        else if (registry && db) {
-          column = resolveRelationPath(
-            segments,
-            metadata,
-            allTables,
-            schema,
-            adapter,
-            registry,
-            db,
-            queryContext,
-            joins,
-            joinedRelations,
-            maxRelationDepth,
-          );
-        }
-      }
-      // Deep relation path (3+ segments): requires registry
-      else if (metadata.relationFields.has(firstSegment) && registry && db) {
-        column = resolveRelationPath(
-          segments,
-          metadata,
-          allTables,
-          schema,
-          adapter,
-          registry,
-          db,
-          queryContext,
-          joins,
-          joinedRelations,
-        );
+      } else if (ctx.metadata.relationFields.has(firstSegment) && ctx.registry && ctx.db) {
+        column = resolveRelationPath(segments, ctx, joins, joinedRelations);
       }
     }
 
@@ -131,47 +96,44 @@ export function buildOrderBy(
   return { clauses, joins };
 }
 
-// Walk a dot-separated path through relations to resolve the final column.
-// e.g. 'author.department.employeeCount' ->
-//   step 0: 'author' is relation on current entity -> FK join to users
-//   step 1: 'department' is relation on users -> FK join to departments
-//   step 2: 'employeeCount' is derived on departments -> derived subquery join
+/**
+ * Walk a dot-separated path through relations to resolve the final column.
+ * e.g. 'author.department.employeeCount' ->
+ *   step 0: 'author' is relation on current entity -> FK join to users
+ *   step 1: 'department' is relation on users -> FK join to departments
+ *   step 2: 'employeeCount' is derived on departments -> derived subquery join
+ */
 function resolveRelationPath(
   segments: string[],
-  rootMetadata: EntityMetadata,
-  allTables: Map<string, TableInfo>,
-  schema: Record<string, unknown>,
-  adapter: DialectAdapter,
-  registry: EntityRegistry,
-  db: unknown,
-  queryContext: unknown,
+  ctx: OrderByContext,
   joins: Array<{ table: unknown; on: SQL; relationName: string }>,
   joinedRelations: Set<string>,
-  maxRelationDepth?: number,
 ): Column | SQL | undefined {
-  const depthLimit = maxRelationDepth ?? 3;
-  let currentMetadata = rootMetadata;
+  const depthLimit = ctx.maxRelationDepth ?? 3;
+  let currentMetadata = ctx.metadata;
   let joinPrefix = '';
 
-  // Walk segments as long as they are relations
   for (let i = 0; i < segments.length - 1; i++) {
     if (i >= depthLimit) return undefined;
 
     const segment = segments[i]!;
     const relDef = currentMetadata.relationFields.get(segment);
-    if (!relDef) break; // the remaining segment is not a relation
+    if (!relDef) break;
 
-    const targetMetadata = registry.get(relDef.targetEntity);
-    const targetInfo = allTables.get(relDef.targetEntity);
+    const targetMetadata = ctx.registry!.get(relDef.targetEntity);
+    const targetInfo = ctx.allTables.get(relDef.targetEntity);
     if (!targetMetadata || !targetInfo) return undefined;
 
     joinPrefix = joinPrefix ? `${joinPrefix}.${segment}` : segment;
 
-    // FK join to target table (if not already joined at this path)
     if (!joinedRelations.has(joinPrefix)) {
       const pkField = getPrimaryKeyField(targetInfo);
       if (!pkField) return undefined;
-      const fkResolved = resolveRelationJoin(segment, pkField, currentMetadata, allTables, schema);
+      const fkResolved = resolveRelationJoin(segment, pkField, {
+        metadata: currentMetadata,
+        allTables: ctx.allTables,
+        schema: ctx.schema,
+      });
       if (!fkResolved) return undefined;
       joinedRelations.add(joinPrefix);
       joins.push({
@@ -184,37 +146,34 @@ function resolveRelationPath(
     currentMetadata = targetMetadata;
   }
 
-  const finalInfo = allTables.get(currentMetadata.name);
+  const finalInfo = ctx.allTables.get(currentMetadata.name);
   if (!finalInfo) return undefined;
-  const finalColumns = finalInfo.table as unknown as Record<string, Column>;
+  const finalColumns = getTableColumns(finalInfo.table);
 
-  // dot paths 'path.prop'
   const relHops = joinPrefix ? joinPrefix.split('.').length : 0;
   const remainingSegments = segments.slice(relHops);
 
   if (remainingSegments.length === 2) {
     const [derivedName, subField] = remainingSegments;
     if (derivedName && subField && currentMetadata.derivedFields.has(derivedName)) {
-      const resolutions = resolveDerivedFields(
-        currentMetadata.derivedFields,
-        [derivedName],
-        finalInfo.table,
-        db,
-        schema,
-        queryContext,
-        adapter.dialect,
-      );
+      const resolutions = resolveDerivedFields(currentMetadata.derivedFields, [derivedName], {
+        table: finalInfo.table,
+        db: ctx.db!,
+        schema: ctx.schema,
+        context: ctx.queryContext,
+        dialect: ctx.adapter.dialect,
+      });
       const res = resolutions.get(derivedName);
       if (res?.isObjectType && res.valueColumns) {
         const subCol = res.valueColumns.get(subField);
         if (subCol) {
-          const derivedJoinKey = `${joinPrefix}__derived_${derivedName}`;
-          if (!joinedRelations.has(derivedJoinKey)) {
-            joinedRelations.add(derivedJoinKey);
+          const djKey = derivedJoinKey(joinPrefix, derivedName);
+          if (!joinedRelations.has(djKey)) {
+            joinedRelations.add(djKey);
             joins.push({
               table: res.subquery,
               on: res.joinCondition,
-              relationName: derivedJoinKey,
+              relationName: djKey,
             });
           }
           return subCol;
@@ -225,42 +184,37 @@ function resolveRelationPath(
 
   const fieldName = remainingSegments[remainingSegments.length - 1]!;
 
-  // Scalar column
   if (currentMetadata.scalarFields.has(fieldName)) {
     return finalColumns[fieldName];
   }
 
-  // Computed field — resolve raw SQL expression (not aliased, for use in ORDER BY)
   if (currentMetadata.computedFields.has(fieldName)) {
     const fieldDef = currentMetadata.computedFields.get(fieldName)!;
     const sqlExpr = fieldDef.resolve({
       table: finalInfo.table as unknown as Record<string, unknown>,
-      schema,
+      schema: ctx.schema,
       sql,
-      context: queryContext,
+      context: ctx.queryContext,
     });
     if (sqlExpr instanceof SQL) return sqlExpr;
     return undefined;
   }
 
-  // Derived field
   if (currentMetadata.derivedFields.has(fieldName)) {
-    const resolutions = resolveDerivedFields(
-      currentMetadata.derivedFields,
-      [fieldName],
-      finalInfo.table,
-      db,
-      schema,
-      queryContext,
-      adapter.dialect,
-    );
+    const resolutions = resolveDerivedFields(currentMetadata.derivedFields, [fieldName], {
+      table: finalInfo.table,
+      db: ctx.db!,
+      schema: ctx.schema,
+      context: ctx.queryContext,
+      dialect: ctx.adapter.dialect,
+    });
     const res = resolutions.get(fieldName);
     if (!res) return undefined;
 
-    const derivedJoinKey = `${joinPrefix}__derived_${fieldName}`;
-    if (!joinedRelations.has(derivedJoinKey)) {
-      joinedRelations.add(derivedJoinKey);
-      joins.push({ table: res.subquery, on: res.joinCondition, relationName: derivedJoinKey });
+    const djKey = derivedJoinKey(joinPrefix, fieldName);
+    if (!joinedRelations.has(djKey)) {
+      joinedRelations.add(djKey);
+      joins.push({ table: res.subquery, on: res.joinCondition, relationName: djKey });
     }
     return res.valueColumn;
   }
