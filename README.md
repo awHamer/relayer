@@ -28,7 +28,7 @@ Relayer is that pattern extracted into a library. Built with **API integration i
 - **First-class JSON integration**: transparent nested filtering with auto type casting
 - **20+ filter operators**: eq, ne, gt, gte, lt, lte, in, contains, ilike, isNull, and more
 - **Array operators**: arrayContains, arrayContained, arrayOverlaps (PostgreSQL)
-- **Relation filters**: $exists, $some, $every, $none
+- **Relation filters**: exists, some, every, none
 - **Nested relation fields**: computed and derived fields on relations with cross-entity type propagation
 - **Aggregations**: \_count, \_sum, \_avg, \_min, \_max with groupBy and dot-notation
 - **Typed context**: pass per-query context to computed/derived resolvers
@@ -136,7 +136,7 @@ const usersWithPosts = await r.users.findMany({
 
 // Relation filters
 const activeAuthors = await r.users.findMany({
-  where: { posts: { $some: { published: true } } },
+  where: { posts: { some: { published: true } } },
 });
 
 // Aggregations: all functions + groupBy + dot-notation joins
