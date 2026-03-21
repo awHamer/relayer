@@ -1,5 +1,11 @@
 # @relayerjs/drizzle
 
+## 0.4.1
+
+### Patch Changes
+
+- 56670db: SelectType, WhereType, DotPaths, OrderByType now work directly from entity class without InferModel. Relation operators renamed from $some/$every/$none/$exists to some/every/none/exists. Updated docs and type utilities.
+
 ## 0.4.0
 
 ### Minor Changes
