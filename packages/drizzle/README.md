@@ -255,6 +255,38 @@ await r.$transaction(async (tx) => {
 
 ## Type Utilities
 
+### From entity class (simplest)
+
+```ts
+import type { DotPaths, OrderByType, SelectType, WhereType } from '@relayerjs/drizzle';
+
+// Works directly with your entity class
+type UserSelect = SelectType<User>;
+type UserWhere = WhereType<User>;
+type UserPaths = DotPaths<User>;
+type UserOrderBy = OrderByType<User>;
+
+function findActiveUsers(where: WhereType<User>) {
+  return r.users.findMany({ where: { ...where, active: true } });
+}
+```
+
+### From client (full cross-entity resolution)
+
+For relation dot paths and cross-entity computed/derived fields, use `InferModel`:
+
+```ts
+import type { DotPaths, InferModel, SelectType, WhereType } from '@relayerjs/drizzle';
+
+type Post = InferModel<typeof r, 'posts'>;
+
+type PostWhere = WhereType<Post>; // includes author.fullName, author.postsCount
+type PostPaths = DotPaths<Post>; // "id" | "title" | "author.fullName" | "author.postsCount" | ...
+type PostSelect = SelectType<Post>; // { author?: boolean | { fullName?: boolean; ... }; ... }
+```
+
+### From client (alternative)
+
 ```ts
 import type { InferEntityOrderBy, InferEntitySelect, InferEntityWhere } from '@relayerjs/drizzle';
 

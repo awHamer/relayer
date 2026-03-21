@@ -1,94 +1,86 @@
 ---
 title: Type Utilities
-description: Extract Where, Select, and OrderBy types from your Relayer client for custom methods and API handlers.
+description: Extract Where, Select, OrderBy, and DotPaths types for custom methods and API handlers.
 ---
 
-Relayer exports utility types that let you extract `Where`, `Select`, and `OrderBy` types for any entity directly from your client instance. This is useful for building custom methods, API handlers, or reusable query helpers.
+Relayer exports utility types for building type-safe custom methods and API handlers. Three ways to use them, from simplest to most powerful.
 
-## InferEntityWhere
+## From entity class (simplest)
 
-Extract the full where type for an entity, including scalar columns, computed/derived fields, relation filters, AND/OR/NOT, and $raw.
+Works directly with your entity class. No client instance needed.
 
 ```ts
-import type { InferEntityWhere } from '@relayerjs/drizzle';
+import type { DotPaths, OrderByType, SelectType, WhereType } from '@relayerjs/drizzle';
+
+type UserSelect = SelectType<User>;
+type UserWhere = WhereType<User>;
+type UserPaths = DotPaths<User>; // "id" | "firstName" | "fullName" | "postsCount" | ...
+type UserOrderBy = OrderByType<User>;
+```
+
+Includes all scalar columns, computed fields, derived fields, AND/OR/NOT. Does not include relation resolution (use `InferModel` for that).
+
+```ts
+function findActiveUsers(where: WhereType<User>) {
+  return r.users.findMany({ where: { ...where, active: true } });
+}
+```
+
+## From client with InferModel (full power)
+
+For relation dot paths and cross-entity computed/derived fields, extract a resolved model from the client:
+
+```ts
+import type { DotPaths, InferModel, OrderByType, SelectType, WhereType } from '@relayerjs/drizzle';
+
+type Post = InferModel<typeof r, 'posts'>;
+
+type PostWhere = WhereType<Post>; // includes author.fullName, author.postsCount
+type PostPaths = DotPaths<Post>; // "id" | "title" | "author.fullName" | "author.orderSummary.totalAmount" | ...
+type PostSelect = SelectType<Post>; // { author?: boolean | { fullName?: boolean; postsCount?: boolean; ... }; ... }
+type PostOrderBy = OrderByType<Post>;
+```
+
+```ts
+function findPublished(where: WhereType<Post>): Promise<Post[]> {
+  return r.posts.findMany({ where: { ...where, published: true } });
+}
+```
+
+### DotPaths
+
+All valid dot-notation paths for orderBy and aggregate groupBy:
+
+```ts
+type UserPaths = DotPaths<InferModel<typeof r, 'users'>>;
+// "id" | "firstName" | "fullName" | "postsCount"
+// | "orderSummary.totalAmount" | "orderSummary.orderCount"
+// | "posts.title" | "posts.author.fullName" | ...
+```
+
+## From client (alternative)
+
+Extract types directly from client method signatures:
+
+```ts
+import type { InferEntityOrderBy, InferEntitySelect, InferEntityWhere } from '@relayerjs/drizzle';
 
 type UserWhere = InferEntityWhere<typeof r, 'users'>;
-
-function findActiveUsers(where: UserWhere) {
-  return r.users.findMany({
-    where: { ...where, active: true },
-  });
-}
-```
-
-## InferEntitySelect
-
-Extract the select type with all scalar columns, computed fields, derived fields, and relation nested selects.
-
-```ts
-import type { InferEntitySelect } from '@relayerjs/drizzle';
-
 type UserSelect = InferEntitySelect<typeof r, 'users'>;
-
-function getUsers(select: UserSelect) {
-  return r.users.findMany({ select });
-}
-```
-
-## InferEntityOrderBy
-
-Extract the order-by type including dot-notation paths for object-type derived fields.
-
-```ts
-import type { InferEntityOrderBy } from '@relayerjs/drizzle';
-
 type UserOrderBy = InferEntityOrderBy<typeof r, 'users'>;
-
-function getSortedUsers(orderBy: UserOrderBy) {
-  return r.users.findMany({ orderBy });
-}
 ```
+
+Equivalent to `InferModel` + `WhereType`/`SelectType`/`OrderByType` but with two generic parameters.
 
 ## API handler example
 
-These types make it trivial to build type-safe API endpoints:
-
 ```ts
-import type { InferEntityOrderBy, InferEntityWhere } from '@relayerjs/drizzle';
-
-type UserWhere = InferEntityWhere<typeof r, 'users'>;
-type UserOrderBy = InferEntityOrderBy<typeof r, 'users'>;
+type User = InferModel<typeof r, 'users'>;
 
 app.get('/users', async (req, res) => {
-  const where: UserWhere = req.query.filter;
-  const orderBy: UserOrderBy = req.query.sort;
+  const where: WhereType<User> = req.query.filter;
+  const orderBy: OrderByType<User> = req.query.sort;
   const users = await r.users.findMany({ where, orderBy });
   res.json(users);
 });
 ```
-
-## WhereType (standalone)
-
-If you need a where type from a plain TypeScript interface (without a Relayer client), use `WhereType` from `@relayerjs/core`:
-
-```ts
-import type { WhereType } from '@relayerjs/core';
-
-interface User {
-  id: number;
-  name: string;
-  age?: number;
-  metadata?: { role: string; level: number };
-}
-
-function filterUsers(where: WhereType<User>) { ... }
-
-filterUsers({
-  name: { contains: 'John' },
-  age: { gte: 18 },
-  metadata: { role: 'admin' },
-  AND: [{ name: 'X' }],
-});
-```
-
-`WhereType<T>` maps each field to the correct operators based on its TypeScript type (string fields get `contains`/`startsWith`/`ilike`, number fields get `gt`/`gte`/`lt`/`lte`, etc.).

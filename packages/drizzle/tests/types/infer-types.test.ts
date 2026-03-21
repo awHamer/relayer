@@ -537,3 +537,59 @@ describe('OrderByType<TModel>', () => {
     expect(ob).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Types directly from entity class (no InferModel needed)
+// ---------------------------------------------------------------------------
+describe('SelectType<EntityClass> (direct, no InferModel)', () => {
+  it('scalar + custom fields', () => {
+    const s: SelectType<PgUser> = { id: true, fullName: true, postsCount: true };
+    expect(s).toBeDefined();
+  });
+
+  it('object derived as boolean', () => {
+    const s: SelectType<PgUser> = { id: true, orderSummary: true };
+    expect(s).toBeDefined();
+  });
+});
+
+describe('WhereType<EntityClass> (direct, no InferModel)', () => {
+  it('computed filter', () => {
+    const w: WhereType<PgUser> = { fullName: { contains: 'Ihor' } };
+    expect(w).toBeDefined();
+  });
+
+  it('derived filter', () => {
+    const w: WhereType<PgUser> = { postsCount: { gte: 2 } };
+    expect(w).toBeDefined();
+  });
+
+  it('AND/OR', () => {
+    const w: WhereType<PgUser> = { OR: [{ fullName: 'a' }, { postsCount: 1 }] };
+    expect(w).toBeDefined();
+  });
+});
+
+describe('DotPaths<EntityClass> (direct, no InferModel)', () => {
+  it('own fields', () => {
+    const p: DotPaths<PgUser> = 'fullName';
+    expect(p).toBeDefined();
+  });
+
+  it('scalar fields', () => {
+    const p: DotPaths<PgUser> = 'firstName';
+    expect(p).toBeDefined();
+  });
+});
+
+describe('OrderByType<EntityClass> (direct, no InferModel)', () => {
+  it('computed field', () => {
+    const ob: OrderByType<PgUser> = { field: 'fullName', order: 'asc' };
+    expect(ob).toBeDefined();
+  });
+
+  it('derived field', () => {
+    const ob: OrderByType<PgUser> = { field: 'postsCount', order: 'desc' };
+    expect(ob).toBeDefined();
+  });
+});
