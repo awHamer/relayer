@@ -363,9 +363,9 @@ describe('aggregate: relation derived/computed groupBy', () => {
     const arr = results as Record<string, unknown>[];
     // Ihor has 2 posts (postsCount=2), John has 1, Jane has 1
     expect(arr.length).toBeGreaterThan(0);
-    const group2 = arr.find((r) => Number(r.author_postsCount) === 2);
+    const group2 = arr.find((r) => Number((r as any).author?.postsCount) === 2);
     expect(group2).toBeDefined();
-    expect(Number(group2!._count)).toBe(2); // Ihor's 2 posts
+    expect(group2!._count).toBe(2); // Ihor's 2 posts
   });
 
   it('groupBy author.fullName (computed on relation)', async () => {
@@ -375,9 +375,9 @@ describe('aggregate: relation derived/computed groupBy', () => {
     });
     expect(Array.isArray(results)).toBe(true);
     const arr = results as Record<string, unknown>[];
-    const ihor = arr.find((r) => String(r.author_fullName).includes('Ihor'));
+    const ihor = arr.find((r) => String((r as any).author?.fullName).includes('Ihor'));
     expect(ihor).toBeDefined();
-    expect(Number(ihor!._count)).toBe(2);
+    expect(ihor!._count).toBe(2);
   });
 });
 
@@ -390,14 +390,14 @@ describe('aggregate: _sum/_avg with relation fields', () => {
       _sum: { postsCount: true },
     });
     // Ihor: 2, John: 1, Jane/NullRole: NULL -> SUM = 3
-    expect(Number((result as Record<string, unknown>)._sum_postsCount)).toBe(3);
+    expect((result as any)._sum.postsCount).toBe(3);
   });
 
   it('_avg on derived field (postsCount)', async () => {
     const result = await r.users.aggregate({
       _avg: { postsCount: true },
     });
-    expect(Number((result as Record<string, unknown>)._avg_postsCount)).toBeGreaterThan(0);
+    expect((result as any)._avg.postsCount).toBeGreaterThan(0);
   });
 
   it('_sum on relation.derived (author.postsCount)', async () => {
@@ -405,7 +405,39 @@ describe('aggregate: _sum/_avg with relation fields', () => {
       _sum: { 'author.postsCount': true },
     });
     // Each post carries its author's postsCount: Ihor(2)+Ihor(2)+John(1) = 5
-    expect(Number((result as Record<string, unknown>)._sum_author_postsCount)).toBe(5);
+    expect((result as any)._sum.author.postsCount).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregate: nested format + having
+// ---------------------------------------------------------------------------
+describe('aggregate: nested format + having', () => {
+  it('_count is number', async () => {
+    const result = await r.users.aggregate({ _count: true });
+    expect(typeof (result as any)._count).toBe('number');
+  });
+
+  it('groupBy returns nested groupBy keys', async () => {
+    const results = await r.posts.aggregate({
+      groupBy: ['author.fullName'],
+      _count: true,
+    });
+    const first = (results as any[])[0];
+    expect(first.author).toBeDefined();
+    expect(first.author.fullName).toBeDefined();
+  });
+
+  it('having filters groups by _count', async () => {
+    const results = await r.posts.aggregate({
+      groupBy: ['author.fullName'],
+      _count: true,
+      having: { _count: { gte: 2 } },
+    });
+    expect(Array.isArray(results)).toBe(true);
+    for (const row of results as any[]) {
+      expect(row._count).toBeGreaterThanOrEqual(2);
+    }
   });
 });
 

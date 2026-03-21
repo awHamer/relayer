@@ -2,29 +2,14 @@ import { sql, SQL } from 'drizzle-orm';
 import type { Column, Table } from 'drizzle-orm';
 import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
-import type { DialectAdapter, DrizzleDatabase } from '../dialect';
-import type { TableInfo } from '../introspect';
-import { resolveDerivedFields } from '../resolvers';
-import { aggDerivedKey, derivedJoinKey, getPrimaryKeyField, getTableColumns } from '../utils';
-import { resolveRelationJoin } from './relation-join';
+import type { DialectAdapter, DrizzleDatabase } from '../../dialect';
+import type { TableInfo } from '../../introspect';
+import { resolveDerivedFields } from '../../resolvers';
+import { aggDerivedKey, derivedJoinKey, getPrimaryKeyField, getTableColumns } from '../../utils';
+import { resolveRelationJoin } from '../relation-join';
 
-export interface AggregateOptions {
-  groupBy?: string[];
-  _count?: boolean;
-  _sum?: Record<string, boolean>;
-  _avg?: Record<string, boolean>;
-  _min?: Record<string, boolean>;
-  _max?: Record<string, boolean>;
-}
-
-export interface AggregateResult {
-  selectColumns: Record<string, Column | SQL>;
-  groupByColumns: (Column | SQL)[];
-  joins: Array<{ subquery: unknown; on: SQL }>;
-}
-
-export interface BuildAggregateParams {
-  options: AggregateOptions;
+export interface ResolveFieldCtx {
+  options: unknown;
   table: Table;
   metadata: EntityMetadata;
   allTables: Map<string, TableInfo>;
@@ -33,63 +18,14 @@ export interface BuildAggregateParams {
   db?: DrizzleDatabase;
   adapter?: DialectAdapter;
   queryContext?: unknown;
-}
-
-export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
-  const { options } = ctx;
-  const selectColumns: Record<string, Column | SQL> = {};
-  const groupByColumns: (Column | SQL)[] = [];
-  const joins: Array<{ subquery: unknown; on: SQL }> = [];
-  const joinedRelations = new Set<string>();
-
-  if (options._count) {
-    selectColumns._count = sql<number>`count(*)`.as('_count') as unknown as SQL;
-  }
-
-  const aggFns: Array<{ key: string; fn: string; fields?: Record<string, boolean> }> = [
-    { key: '_sum', fn: 'sum', fields: options._sum },
-    { key: '_avg', fn: 'avg', fields: options._avg },
-    { key: '_min', fn: 'min', fields: options._min },
-    { key: '_max', fn: 'max', fields: options._max },
-  ];
-
-  for (const { key, fn, fields } of aggFns) {
-    if (!fields) continue;
-    for (const [fieldName, enabled] of Object.entries(fields)) {
-      if (!enabled) continue;
-      const alias = `${key}_${fieldName.replace(/\./g, '_')}`;
-      const resolveCtx: ResolveFieldCtx = { ...ctx, joins, joinedRelations };
-      const resolved = resolveFieldColumn(fieldName, resolveCtx);
-      if (resolved) {
-        selectColumns[alias] = sql`${sql.raw(fn)}(${resolved})`.as(alias) as unknown as SQL;
-      }
-    }
-  }
-
-  if (options.groupBy) {
-    const resolveCtx: ResolveFieldCtx = { ...ctx, joins, joinedRelations };
-    for (const field of options.groupBy) {
-      const resolved = resolveFieldColumn(field, resolveCtx);
-      if (resolved) {
-        const alias = field.includes('.') ? field.replace(/\./g, '_') : field;
-        selectColumns[alias] = field.includes('.') ? resolved : (resolved as Column);
-        groupByColumns.push(resolved as Column);
-      }
-    }
-  }
-
-  return { selectColumns, groupByColumns, joins };
-}
-
-// Resolve a field path to a SQL column/expression, adding joins as needed.
-// Handles: scalar, computed, derived, relation.scalar, relation.computed,
-// relation.derived, relation.objectDerived.subField
-interface ResolveFieldCtx extends BuildAggregateParams {
   joins: Array<{ subquery: unknown; on: SQL }>;
   joinedRelations: Set<string>;
 }
 
-function resolveFieldColumn(fieldPath: string, ctx: ResolveFieldCtx): Column | SQL | undefined {
+export function resolveFieldColumn(
+  fieldPath: string,
+  ctx: ResolveFieldCtx,
+): Column | SQL | undefined {
   const { table, metadata, allTables, schema, registry, db, adapter, queryContext } = ctx;
   const tableColumns = getTableColumns(table);
   const joined = ctx.joinedRelations;
@@ -140,7 +76,6 @@ function resolveFieldColumn(fieldPath: string, ctx: ResolveFieldCtx): Column | S
   const targetInfo = allTables.get(relDef.targetEntity);
   if (!targetInfo) return undefined;
 
-  // Ensure FK join to target table
   if (!joined.has(relationName)) {
     const pkField = getPrimaryKeyField(targetInfo);
     if (pkField) {
@@ -155,7 +90,6 @@ function resolveFieldColumn(fieldPath: string, ctx: ResolveFieldCtx): Column | S
   const targetMetadata = registry?.get(relDef.targetEntity);
   const remaining = segments.slice(1);
 
-  // relation.field (1 remaining segment)
   if (remaining.length === 1) {
     const targetField = remaining[0]!;
     const targetColumns = getTableColumns(targetInfo.table);
@@ -194,7 +128,6 @@ function resolveFieldColumn(fieldPath: string, ctx: ResolveFieldCtx): Column | S
     }
   }
 
-  // relation.objectDerived.subField (2 remaining segments)
   if (remaining.length === 2) {
     const [derivedName, subField] = remaining;
     if (

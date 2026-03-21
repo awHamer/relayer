@@ -12,6 +12,7 @@ import {
   executeDeleteMany,
   executeUpdate,
   executeUpdateMany,
+  hydrateAggregateResult,
 } from '../builders';
 import type { WhereBuilderContext } from '../builders';
 import type { DialectAdapter, DrizzleDatabase } from '../dialect';
@@ -41,6 +42,7 @@ interface AggregateOptions {
   _avg?: Record<string, boolean>;
   _min?: Record<string, boolean>;
   _max?: Record<string, boolean>;
+  having?: Record<string, unknown>;
 }
 
 export function createEntityClient(config: EntityClientConfig) {
@@ -163,8 +165,13 @@ export function createEntityClient(config: EntityClientConfig) {
         query = query.groupBy(...aggResult.groupByColumns);
       }
 
-      const rows = (await query) as Record<string, unknown>[];
-      return aggResult.groupByColumns.length > 0 ? rows : (rows[0] ?? null);
+      if (aggResult.havingCondition) {
+        query = query.having(aggResult.havingCondition);
+      }
+
+      const rawRows = (await query) as Record<string, unknown>[];
+      const hydrated = hydrateAggregateResult(rawRows, aggResult.meta);
+      return aggResult.groupByColumns.length > 0 ? hydrated : (hydrated[0] ?? null);
     },
 
     async create(options: { data: Record<string, unknown> }) {

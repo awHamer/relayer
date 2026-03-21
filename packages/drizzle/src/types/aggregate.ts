@@ -1,3 +1,5 @@
+import type { NumberOperators } from '@relayerjs/core';
+
 import type { ModelDotPaths } from './helpers';
 import type { ModelWhere } from './where';
 
@@ -13,4 +15,10 @@ export interface ModelAggregateOptions<
   _avg?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
   _min?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
   _max?: Partial<Record<ModelDotPaths<TSchema, TEntities, TKey>, boolean>>;
+  having?: AggregateHaving;
+}
+
+export interface AggregateHaving {
+  _count?: number | NumberOperators;
+  [key: string]: number | NumberOperators | undefined;
 }

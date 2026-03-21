@@ -21,6 +21,7 @@ export interface DrizzleQueryBuilder {
   leftJoin(table: unknown, on: SQL): DrizzleQueryBuilder;
   orderBy(...columns: unknown[]): DrizzleQueryBuilder;
   groupBy(...columns: unknown[]): DrizzleQueryBuilder;
+  having(condition: SQL): DrizzleQueryBuilder;
   limit(n: number): DrizzleQueryBuilder;
   offset(n: number): DrizzleQueryBuilder;
   as(name: string): unknown;

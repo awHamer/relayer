@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { RelayerDialectError } from '@relayerjs/core';
 
+import { assertSafeIdentifier } from '../utils';
 import type { DialectAdapter } from './types';
 
 export const sqliteAdapter: DialectAdapter = {
@@ -29,7 +30,7 @@ export const sqliteAdapter: DialectAdapter = {
   },
 
   jsonPath: (col, path, castType) => {
-    const jsonPathStr = '$.' + path.join('.');
+    const jsonPathStr = '$.' + path.map((s) => assertSafeIdentifier(s)).join('.');
     const expr = sql`json_extract(${col}, ${sql.raw(`'${jsonPathStr}'`)})`;
     if (castType === 'numeric') return sql`CAST(${expr} AS REAL)`;
     return expr;

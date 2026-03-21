@@ -1,6 +1,6 @@
 ---
 title: Aggregations
-description: count, aggregate with _sum, _avg, _min, _max, groupBy, and dot-notation cross-table grouping.
+description: count, aggregate with _sum, _avg, _min, _max, groupBy, having, and dot-notation cross-table grouping.
 ---
 
 ## count
@@ -8,11 +8,9 @@ description: count, aggregate with _sum, _avg, _min, _max, groupBy, and dot-nota
 Count records with an optional filter:
 
 ```ts
-// Count all users
 const total = await r.users.count();
 // 42
 
-// Count with filter
 const admins = await r.users.count({
   where: { metadata: { role: 'admin' } },
 });
@@ -21,7 +19,7 @@ const admins = await r.users.count({
 
 ## aggregate
 
-Run aggregation functions with optional grouping:
+Run aggregation functions with optional grouping. Results are nested objects:
 
 ```ts
 const stats = await r.orders.aggregate({
@@ -33,29 +31,43 @@ const stats = await r.orders.aggregate({
   _max: { total: true },
 });
 // [
-//   { status: 'completed', _count: 3, _sum_total: 5000, _avg_total: 1666, _min_total: 500, _max_total: 3000 },
-//   { status: 'pending', _count: 2, _sum_total: 1500, _avg_total: 750, _min_total: 500, _max_total: 1000 },
+//   {
+//     status: 'completed',
+//     _count: 3,
+//     _sum: { total: 5000 },
+//     _avg: { total: 1666 },
+//     _min: { total: 500 },
+//     _max: { total: 3000 },
+//   },
+//   {
+//     status: 'pending',
+//     _count: 2,
+//     _sum: { total: 1500 },
+//     _avg: { total: 750 },
+//     _min: { total: 500 },
+//     _max: { total: 1000 },
+//   },
 // ]
 ```
 
 ### Available functions
 
-| Function                | Description             | Result key   |
-| ----------------------- | ----------------------- | ------------ |
-| `_count: true`          | Count of rows           | `_count`     |
-| `_sum: { field: true }` | Sum of field values     | `_sum_field` |
-| `_avg: { field: true }` | Average of field values | `_avg_field` |
-| `_min: { field: true }` | Minimum value           | `_min_field` |
-| `_max: { field: true }` | Maximum value           | `_max_field` |
+| Function                | Description             | Result format             |
+| ----------------------- | ----------------------- | ------------------------- |
+| `_count: true`          | Count of rows           | `_count: number`          |
+| `_sum: { field: true }` | Sum of field values     | `_sum: { field: number }` |
+| `_avg: { field: true }` | Average of field values | `_avg: { field: number }` |
+| `_min: { field: true }` | Minimum value           | `_min: { field: number }` |
+| `_max: { field: true }` | Maximum value           | `_max: { field: number }` |
 
-Multiple fields can be aggregated at once:
+All aggregate values are coerced to `number`. Multiple fields can be aggregated at once:
 
 ```ts
 const stats = await r.orders.aggregate({
   _sum: { total: true, quantity: true },
   _avg: { total: true },
 });
-// { _count: undefined, _sum_total: 10000, _sum_quantity: 50, _avg_total: 500 }
+// { _sum: { total: 10000, quantity: 50 }, _avg: { total: 500 } }
 ```
 
 ### Without groupBy
@@ -78,8 +90,8 @@ const byStatus = await r.orders.aggregate({
   _sum: { total: true },
 });
 // [
-//   { status: 'completed', _count: 3, _sum_total: 5500 },
-//   { status: 'pending', _count: 2, _sum_total: 1500 },
+//   { status: 'completed', _count: 3, _sum: { total: 5500 } },
+//   { status: 'pending', _count: 2, _sum: { total: 1500 } },
 // ]
 ```
 
@@ -94,8 +106,8 @@ const ordersByUser = await r.orders.aggregate({
   _sum: { total: true },
 });
 // [
-//   { user_firstName: 'Ihor', _count: 2, _sum_total: 2000 },
-//   { user_firstName: 'John', _count: 3, _sum_total: 3500 },
+//   { user: { firstName: 'Ihor' }, _count: 2, _sum: { total: 2000 } },
+//   { user: { firstName: 'John' }, _count: 3, _sum: { total: 3500 } },
 // ]
 ```
 
@@ -104,11 +116,11 @@ The dot notation `'user.firstName'` tells Relayer to:
 1. Follow the `user` relation from `orders`
 2. LEFT JOIN the `users` table
 3. Group by `users.first_name`
-4. Return the result as `user_firstName`
+4. Return the result nested as `user: { firstName: '...' }`
 
-## Filtering aggregations
+## Filtering with where
 
-Use `where` to filter before aggregating:
+Use `where` to filter rows **before** grouping:
 
 ```ts
 const completedStats = await r.orders.aggregate({
@@ -117,7 +129,21 @@ const completedStats = await r.orders.aggregate({
   _count: true,
   _sum: { total: true },
 });
-// [{ status: 'completed', _count: 3, _sum_total: 5500 }]
+// [{ status: 'completed', _count: 3, _sum: { total: 5500 } }]
 ```
 
-The `where` clause supports all the same operators as `findMany`.
+## Filtering with having
+
+Use `having` to filter groups **after** aggregation:
+
+```ts
+const bigGroups = await r.orders.aggregate({
+  groupBy: ['status'],
+  _count: true,
+  _sum: { total: true },
+  having: { _count: { gte: 3 } },
+});
+// Only groups with 3+ orders
+```
+
+`having` supports the same numeric operators: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`.

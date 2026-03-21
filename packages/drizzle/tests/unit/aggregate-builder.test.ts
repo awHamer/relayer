@@ -1,4 +1,4 @@
-import { buildAggregate } from '../../src/builders/aggregate-builder';
+import { buildAggregate } from '../../src/builders';
 import { buildRegistry } from '../../src/introspect';
 import * as pgSchema from '../fixtures/pg-schema';
 import { orders } from '../fixtures/pg-schema';

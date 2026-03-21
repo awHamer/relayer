@@ -16,5 +16,5 @@ export {
   executeDelete,
   executeDeleteMany,
 } from './mutate-builder';
-export { buildAggregate } from './aggregate-builder';
-export type { AggregateOptions, AggregateResult } from './aggregate-builder';
+export { buildAggregate, hydrateAggregateResult } from './aggregate';
+export type { AggregateOptions, AggregateResult, AggregateMeta } from './aggregate';
