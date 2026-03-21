@@ -852,7 +852,7 @@ describe('count', () => {
 describe('aggregate', () => {
   it('_count all', async () => {
     const result = await r.users.aggregate({ _count: true });
-    expect(Number(result._count)).toBe(4);
+    expect(result._count).toBe(4);
   });
 
   it('_sum, _avg, _min, _max on orders', async () => {
@@ -863,10 +863,10 @@ describe('aggregate', () => {
       _max: { total: true },
     });
     // total: 500 + 1500 + 200 + 3000 = 5200
-    expect(Number(result._sum_total)).toBe(5200);
-    expect(Number(result._avg_total)).toBe(1300);
-    expect(Number(result._min_total)).toBe(200);
-    expect(Number(result._max_total)).toBe(3000);
+    expect(result._sum.total).toBe(5200);
+    expect(result._avg.total).toBe(1300);
+    expect(result._min.total).toBe(200);
+    expect(result._max.total).toBe(3000);
   });
 
   it('groupBy with _count and _sum', async () => {
@@ -882,12 +882,12 @@ describe('aggregate', () => {
     const pending = results.find((r: any) => r.status === 'pending');
 
     expect(completed).toBeDefined();
-    expect(Number(completed._count)).toBe(3);
-    expect(Number(completed._sum_total)).toBe(5000);
+    expect(completed._count).toBe(3);
+    expect(completed._sum.total).toBe(5000);
 
     expect(pending).toBeDefined();
-    expect(Number(pending._count)).toBe(1);
-    expect(Number(pending._sum_total)).toBe(200);
+    expect(pending._count).toBe(1);
+    expect(pending._sum.total).toBe(200);
   });
 
   it('dot notation groupBy: orders grouped by user.firstName', async () => {
@@ -897,17 +897,72 @@ describe('aggregate', () => {
     });
     expect(Array.isArray(results)).toBe(true);
 
-    const ihor = results.find((r: any) => r.user_firstName === 'Ihor');
+    const ihor = results.find((r: any) => r.user?.firstName === 'Ihor');
     expect(ihor).toBeDefined();
-    expect(Number(ihor._count)).toBe(2);
+    expect(ihor._count).toBe(2);
 
-    const john = results.find((r: any) => r.user_firstName === 'John');
+    const john = results.find((r: any) => r.user?.firstName === 'John');
     expect(john).toBeDefined();
-    expect(Number(john._count)).toBe(1);
+    expect(john._count).toBe(1);
 
-    const jane = results.find((r: any) => r.user_firstName === 'Jane');
+    const jane = results.find((r: any) => r.user?.firstName === 'Jane');
     expect(jane).toBeDefined();
-    expect(Number(jane._count)).toBe(1);
+    expect(jane._count).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregate: having
+// ---------------------------------------------------------------------------
+describe('aggregate: having', () => {
+  it('having filters groups by _count', async () => {
+    const results = await r.orders.aggregate({
+      groupBy: ['status'],
+      _count: true,
+      _sum: { total: true },
+      having: { _count: { gte: 2 } },
+    });
+    expect(Array.isArray(results)).toBe(true);
+    expect((results as any[]).length).toBe(1);
+    expect((results as any[])[0].status).toBe('completed');
+    expect((results as any[])[0]._count).toBeGreaterThanOrEqual(2);
+  });
+
+  it('having with exact count', async () => {
+    const results = await r.orders.aggregate({
+      groupBy: ['status'],
+      _count: true,
+      having: { _count: 1 },
+    });
+    expect(Array.isArray(results)).toBe(true);
+    expect((results as any[]).every((r: any) => r._count === 1)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregate: nested result format
+// ---------------------------------------------------------------------------
+describe('aggregate: nested result format', () => {
+  it('_count is number not string', async () => {
+    const result = await r.users.aggregate({ _count: true });
+    expect(typeof (result as any)._count).toBe('number');
+  });
+
+  it('_sum returns nested object', async () => {
+    const result = await r.orders.aggregate({ _sum: { total: true } });
+    expect((result as any)._sum).toBeDefined();
+    expect(typeof (result as any)._sum.total).toBe('number');
+  });
+
+  it('groupBy dot path returns nested object', async () => {
+    const results = await r.orders.aggregate({
+      groupBy: ['user.firstName'],
+      _count: true,
+    });
+    expect(Array.isArray(results)).toBe(true);
+    const first = (results as any[])[0];
+    expect(first.user).toBeDefined();
+    expect(first.user.firstName).toBeDefined();
   });
 });
 

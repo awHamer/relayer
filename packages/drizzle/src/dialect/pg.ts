@@ -7,6 +7,7 @@ import {
 } from 'drizzle-orm';
 import type { Column, SQL } from 'drizzle-orm';
 
+import { assertSafeIdentifier } from '../utils';
 import type { DialectAdapter } from './types';
 
 export const pgAdapter: DialectAdapter = {
@@ -23,7 +24,8 @@ export const pgAdapter: DialectAdapter = {
     let expr: SQL = sql`${col}`;
     for (let i = 0; i < path.length; i++) {
       const op = i === path.length - 1 ? '->>' : '->';
-      expr = sql`${expr}${sql.raw(op)}'${sql.raw(path[i]!)}'`;
+      const segment = assertSafeIdentifier(path[i]!);
+      expr = sql`${expr}${sql.raw(op)}'${sql.raw(segment)}'`;
     }
     if (castType) {
       expr = sql`(${expr})::${sql.raw(castType)}`;

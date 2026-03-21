@@ -385,12 +385,50 @@ describe('core: aggregate', () => {
     const pending = results.find((row: any) => row.status === 'pending');
 
     expect(completed).toBeDefined();
-    expect(Number(completed._count)).toBe(3);
-    expect(Number(completed._sum_total)).toBe(5000);
+    expect(completed._count).toBe(3);
+    expect(completed._sum.total).toBe(5000);
 
     expect(pending).toBeDefined();
-    expect(Number(pending._count)).toBe(1);
-    expect(Number(pending._sum_total)).toBe(200);
+    expect(pending._count).toBe(1);
+    expect(pending._sum.total).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// aggregate: nested result format + having
+// ---------------------------------------------------------------------------
+describe('aggregate: nested format', () => {
+  it('_count is number', async () => {
+    const result = await r.users.aggregate({ _count: true });
+    expect(typeof (result as any)._count).toBe('number');
+  });
+
+  it('_sum returns nested object', async () => {
+    const result = await r.orders.aggregate({ _sum: { total: true } });
+    expect((result as any)._sum).toBeDefined();
+    expect(typeof (result as any)._sum.total).toBe('number');
+  });
+
+  it('groupBy dot path returns nested object', async () => {
+    const results = await r.orders.aggregate({
+      groupBy: ['user.firstName'],
+      _count: true,
+    });
+    const first = (results as any[])[0];
+    expect(first.user).toBeDefined();
+    expect(first.user.firstName).toBeDefined();
+  });
+
+  it('having filters groups', async () => {
+    const results = await r.orders.aggregate({
+      groupBy: ['status'],
+      _count: true,
+      having: { _count: { gte: 2 } },
+    });
+    expect(Array.isArray(results)).toBe(true);
+    for (const row of results as any[]) {
+      expect(row._count).toBeGreaterThanOrEqual(2);
+    }
   });
 });
 
