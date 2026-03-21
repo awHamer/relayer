@@ -1,0 +1,62 @@
+{
+  "name": "@relayerjs/next",
+  "version": "0.1.0",
+  "description": "Next.js App Router integration for Relayer - type-safe CRUD route handlers with validation and hooks",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/awHamer/relayer",
+    "directory": "packages/next"
+  },
+  "keywords": [
+    "next",
+    "nextjs",
+    "relayer",
+    "crud",
+    "api",
+    "route-handler",
+    "typescript"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  },
+  "peerDependencies": {
+    "@relayerjs/core": "workspace:^",
+    "@relayerjs/drizzle": "workspace:^",
+    "next": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
