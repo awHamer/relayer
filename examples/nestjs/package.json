@@ -1,0 +1,30 @@
+{
+  "name": "@relayerjs/example-nestjs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "nest start --watch",
+    "start": "nest start",
+    "seed": "tsc && node dist/seed.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.3",
+    "@nestjs/core": "^11.1.3",
+    "@nestjs/platform-express": "^11.1.3",
+    "@relayerjs/core": "workspace:*",
+    "@relayerjs/drizzle": "workspace:*",
+    "@relayerjs/nestjs": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.7",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.16",
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  }
+}
