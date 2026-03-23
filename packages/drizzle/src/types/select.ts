@@ -31,5 +31,7 @@ export type ModelSelect<
     // Relations
     [R in TableRelationKeys<TKey, TSchema>]?:
       | boolean
-      | ModelSelect<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string>;
+      | (ModelSelect<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string> & {
+          $limit?: number;
+        });
   };

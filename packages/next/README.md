@@ -80,6 +80,7 @@ export const r = createRelayerDrizzle({
   db,
   schema,
   entities: { users: User, posts: Post },
+  defaultRelationLimit: 20, // cap many-type relations at 20 rows
 });
 ```
 
@@ -92,7 +93,7 @@ import { createRelayerRoute } from '@relayerjs/next';
 import { r } from './relayer';
 
 export const userRoutes = createRelayerRoute(r, 'users', {
-  allowSelect: { posts: { title: true } },
+  allowSelect: { posts: { $limit: 10, title: true } }, // $limit caps relation rows
   allowWhere: { email: { operators: ['eq', 'contains'] } },
   allowOrderBy: ['name', 'createdAt', 'postsCount'],
   maxLimit: 100,
