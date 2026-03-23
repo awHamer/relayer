@@ -1,5 +1,11 @@
 # @relayerjs/drizzle
 
+## 0.4.4
+
+### Patch Changes
+
+- 3479a6b: Add `$limit` to relation select types for autocomplete support
+
 ## 0.4.3
 
 ### Patch Changes
