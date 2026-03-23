@@ -8,6 +8,7 @@ import {
 import type { Column, SQL } from 'drizzle-orm';
 
 import { assertSafeIdentifier } from '../utils';
+import { buildRowNumberQuery } from './relation-limit';
 import type { DialectAdapter } from './types';
 
 export const pgAdapter: DialectAdapter = {
@@ -34,6 +35,10 @@ export const pgAdapter: DialectAdapter = {
   },
 
   quoteIdent: (name) => `"${name}"`,
+
+  buildLimitedRelationQuery: async (db, table, fkColumn, parentValues, limit) => {
+    return buildRowNumberQuery(db, table, fkColumn, parentValues, limit);
+  },
 
   supportsReturning: true,
   executeInsert: async (db, table, data) => db.insert(table).values(data).returning(),

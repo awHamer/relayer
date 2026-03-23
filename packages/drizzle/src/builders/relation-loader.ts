@@ -84,61 +84,81 @@ export async function loadRelations(
     if (!targetColName) continue;
 
     const nestedSelect = relationSelects.get(relationName);
-    let relatedRows: Record<string, unknown>[];
+    let relatedRows: Record<string, unknown>[] = [];
     const internalKeys = new Set<string>();
 
     const targetMetadata = ctx.registry?.get(relDef.targetEntity);
     const targetRelationFields = resolveRelationFields(relDef.targetEntity, ctx.schema);
 
+    const manyLimit = nestedSelect
+      ? typeof nestedSelect.$limit === 'number'
+        ? nestedSelect.$limit
+        : ctx.defaultRelationLimit
+      : ctx.defaultRelationLimit;
+    let usedSqlLimit = false;
+
     if (nestedSelect) {
-      const perRelationLimit =
-        typeof nestedSelect.$limit === 'number' ? nestedSelect.$limit : undefined;
-      const effectiveSelect =
-        perRelationLimit != null
-          ? Object.fromEntries(Object.entries(nestedSelect).filter(([k]) => k !== '$limit'))
-          : nestedSelect;
+      const hasLimit = typeof nestedSelect.$limit === 'number';
+      const effectiveSelect = hasLimit
+        ? Object.fromEntries(Object.entries(nestedSelect).filter(([k]) => k !== '$limit'))
+        : nestedSelect;
 
       const { columns, computedColumns, derivedResolutions, nestedRelationNames } =
         buildNestedSelect(effectiveSelect, targetInfo, targetRelationFields, targetMetadata, ctx);
 
-      // Always include FK column for grouping
-      if (!columns[targetColName]) {
-        columns[targetColName] = getTableColumns(targetInfo.table)[targetColName]!;
-        internalKeys.add(targetColName);
-      }
+      const hasComplexFields =
+        computedColumns.size > 0 || derivedResolutions.size > 0 || nestedRelationNames.length > 0;
+      const canUseSqlLimit =
+        relDef.relationType === 'many' && manyLimit && !hasComplexFields && ctx.adapter;
 
-      for (const key of Object.keys(columns)) {
-        if (!(key in effectiveSelect)) internalKeys.add(key);
-      }
-
-      // Merge computed SQL expressions into select
-      const selectColumns: Record<string, Column | SQL> = { ...columns };
-      for (const [name, sqlExpr] of computedColumns) {
-        // resolveComputedFields already returns sql`expr`.as(name)
-        selectColumns[name] = sqlExpr as unknown as Column;
-      }
-      for (const [name, res] of derivedResolutions) {
-        if (res.isObjectType && res.valueColumns) {
-          for (const [subField, col] of res.valueColumns) {
-            selectColumns[derivedSubFieldKey(name, subField)] = col as unknown as Column;
-          }
-        } else if (res.valueColumn) {
-          selectColumns[name] = res.valueColumn as unknown as Column;
+      if (canUseSqlLimit) {
+        const sqlResult = await ctx.adapter!.buildLimitedRelationQuery(
+          ctx.db,
+          targetInfo.table,
+          targetCol,
+          parentValues as unknown[],
+          manyLimit,
+        );
+        if (sqlResult) {
+          usedSqlLimit = true;
+          relatedRows = sqlResult;
         }
       }
+      if (!usedSqlLimit) {
+        // Always include FK column for grouping
+        if (!columns[targetColName]) {
+          columns[targetColName] = getTableColumns(targetInfo.table)[targetColName]!;
+          internalKeys.add(targetColName);
+        }
 
-      let query = ctx.db.select(selectColumns).from(targetInfo.table);
+        for (const key of Object.keys(columns)) {
+          if (!(key in effectiveSelect)) internalKeys.add(key);
+        }
 
-      for (const [, res] of derivedResolutions) {
-        query = query.leftJoin(res.subquery, res.joinCondition);
+        // Merge computed SQL expressions into select
+        const selectColumns: Record<string, Column | SQL> = { ...columns };
+        for (const [name, sqlExpr] of computedColumns) {
+          selectColumns[name] = sqlExpr as unknown as Column;
+        }
+        for (const [name, res] of derivedResolutions) {
+          if (res.isObjectType && res.valueColumns) {
+            for (const [subField, col] of res.valueColumns) {
+              selectColumns[derivedSubFieldKey(name, subField)] = col as unknown as Column;
+            }
+          } else if (res.valueColumn) {
+            selectColumns[name] = res.valueColumn as unknown as Column;
+          }
+        }
+
+        let query = ctx.db.select(selectColumns).from(targetInfo.table);
+
+        for (const [, res] of derivedResolutions) {
+          query = query.leftJoin(res.subquery, res.joinCondition);
+        }
+
+        query = query.where(inArray(targetCol, parentValues as unknown[]));
+        relatedRows = (await query) as Record<string, unknown>[];
       }
-
-      query = query.where(inArray(targetCol, parentValues as unknown[]));
-      const manyLimit = perRelationLimit ?? ctx.defaultRelationLimit;
-      if (relDef.relationType === 'many' && manyLimit) {
-        query = query.limit(manyLimit);
-      }
-      relatedRows = (await query) as Record<string, unknown>[];
 
       // load nested relations recursively BEFORE stripping
       if (nestedRelationNames.length > 0 && relatedRows.length > 0) {
@@ -165,14 +185,26 @@ export async function loadRelations(
         });
       }
     } else {
-      let defaultQuery = ctx.db
-        .select()
-        .from(targetInfo.table)
-        .where(inArray(targetCol, parentValues as unknown[]));
-      if (relDef.relationType === 'many' && ctx.defaultRelationLimit) {
-        defaultQuery = defaultQuery.limit(ctx.defaultRelationLimit);
+      if (relDef.relationType === 'many' && manyLimit && ctx.adapter) {
+        const sqlResult = await ctx.adapter.buildLimitedRelationQuery(
+          ctx.db,
+          targetInfo.table,
+          targetCol,
+          parentValues as unknown[],
+          manyLimit,
+        );
+        if (sqlResult) {
+          usedSqlLimit = true;
+          relatedRows = sqlResult;
+        }
       }
-      relatedRows = (await defaultQuery) as Record<string, unknown>[];
+      if (!usedSqlLimit) {
+        const defaultQuery = ctx.db
+          .select()
+          .from(targetInfo.table)
+          .where(inArray(targetCol, parentValues as unknown[]));
+        relatedRows = (await defaultQuery) as Record<string, unknown>[];
+      }
     }
 
     const grouped = new Map<unknown, Record<string, unknown>[]>();
@@ -213,7 +245,11 @@ export async function loadRelations(
     for (const parent of parentResults) {
       const parentValue = parent[sourceColName];
       const related = grouped.get(parentValue) ?? [];
-      parent[relationName] = relDef.relationType === 'many' ? related : (related[0] ?? null);
+      if (relDef.relationType === 'many') {
+        parent[relationName] = manyLimit && !usedSqlLimit ? related.slice(0, manyLimit) : related;
+      } else {
+        parent[relationName] = related[0] ?? null;
+      }
     }
   }
 }

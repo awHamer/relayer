@@ -873,6 +873,21 @@ describe('$limit in select', () => {
     }
   });
 
+  it('$limit applies per parent, not globally', async () => {
+    // Post 1 has 2 comments, Post 2 has 1 comment
+    const results = await r.posts.findMany({
+      select: { id: true, comments: { $limit: 1, id: true, content: true } },
+      where: { id: { in: [1, 2] } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    const post1 = results.find((p: any) => p.id === 1);
+    const post2 = results.find((p: any) => p.id === 2);
+    // Post 1: 2 comments -> limited to 1
+    expect(post1.comments).toHaveLength(1);
+    // Post 2: 1 comment -> still gets its own comment (not stolen by post 1)
+    expect(post2.comments).toHaveLength(1);
+  });
+
   it('works on nested relations', async () => {
     const results = await r.users.findMany({
       select: {

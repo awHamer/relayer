@@ -5,6 +5,7 @@ export type Dialect = 'pg' | 'mysql' | 'sqlite';
 // Minimal Drizzle database client interface that is cover out needs
 export interface DrizzleDatabase {
   select(fields?: Record<string, unknown>): DrizzleQueryBuilder;
+  execute(query: SQL): Promise<unknown>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   insert(table: Table): any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,6 +42,14 @@ export interface DialectAdapter {
 
   jsonPath(column: Column, path: string[], castType?: string): SQL;
   quoteIdent(name: string): string;
+
+  buildLimitedRelationQuery(
+    db: DrizzleDatabase,
+    table: Table,
+    fkColumn: Column,
+    parentValues: unknown[],
+    limit: number,
+  ): Promise<Record<string, unknown>[] | null>;
 
   supportsReturning: boolean;
   executeInsert(db: DrizzleDatabase, table: Table, data: unknown): Promise<unknown[]>;
