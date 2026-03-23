@@ -776,9 +776,122 @@ describe('select: relations', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// many-to-many through pivot table
-// ---------------------------------------------------------------------------
+describe('defaultRelationLimit', () => {
+  it('limits many-type relations to specified count', async () => {
+    const limited: any = createRelayerDrizzle({
+      db: pg.db,
+      schema: pgSchema,
+      entities: { users: PgUser },
+      defaultRelationLimit: 1,
+    });
+    const results = await limited.users.findMany({
+      select: { id: true, posts: { id: true, title: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // Ihor has 2 posts but limit is 1
+    expect(results[0].posts.length).toBeLessThanOrEqual(1);
+  });
+
+  it('does not limit one-type relations', async () => {
+    const limited: any = createRelayerDrizzle({
+      db: pg.db,
+      schema: pgSchema,
+      entities: { users: PgUser },
+      defaultRelationLimit: 1,
+    });
+    const results = await limited.posts.findMany({
+      select: { id: true, author: { firstName: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // one-to-one relation should still resolve
+    expect(results[0].author).toBeDefined();
+    expect(results[0].author.firstName).toBe('Ihor');
+  });
+
+  it('applies limit to nested many-type relations', async () => {
+    const limited: any = createRelayerDrizzle({
+      db: pg.db,
+      schema: pgSchema,
+      entities: { users: PgUser },
+      defaultRelationLimit: 1,
+    });
+    const results = await limited.users.findMany({
+      select: { id: true, posts: { id: true, comments: { content: true } } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // posts limited to 1
+    expect(results[0].posts.length).toBeLessThanOrEqual(1);
+    // comments on that post also limited to 1
+    if (results[0].posts.length > 0 && results[0].posts[0].comments.length > 0) {
+      expect(results[0].posts[0].comments.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('no limit when defaultRelationLimit is not set', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, posts: { id: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // Ihor has 2 posts, no limit applied
+    expect(results[0].posts).toHaveLength(2);
+  });
+});
+
+describe('$limit in select', () => {
+  it('limits relation with $limit', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, posts: { $limit: 1, id: true, title: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // Ihor has 2 posts but $limit: 1
+    expect(results[0].posts.length).toBeLessThanOrEqual(1);
+    expect(results[0].posts[0]).toHaveProperty('title');
+  });
+
+  it('$limit overrides defaultRelationLimit', async () => {
+    const limited: any = createRelayerDrizzle({
+      db: pg.db,
+      schema: pgSchema,
+      entities: { users: PgUser },
+      defaultRelationLimit: 1,
+    });
+    const results = await limited.users.findMany({
+      select: { id: true, posts: { $limit: 10, id: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // $limit: 10 overrides defaultRelationLimit: 1, Ihor has 2 posts
+    expect(results[0].posts).toHaveLength(2);
+  });
+
+  it('$limit does not appear in result fields', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, posts: { $limit: 1, id: true, title: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    if (results[0].posts.length > 0) {
+      expect(results[0].posts[0]).not.toHaveProperty('$limit');
+    }
+  });
+
+  it('works on nested relations', async () => {
+    const results = await r.users.findMany({
+      select: {
+        id: true,
+        posts: { id: true, comments: { $limit: 1, content: true } },
+      },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    for (const user of results) {
+      for (const post of user.posts as any[]) {
+        expect(post.comments.length).toBeLessThanOrEqual(1);
+        if (post.comments.length > 0) {
+          expect(post.comments[0]).toHaveProperty('content');
+        }
+      }
+    }
+  });
+});
+
 describe('many-to-many via pivot', () => {
   it('load pivot + nested relation (post -> postCategories -> category)', async () => {
     const results = await r.posts.findMany({

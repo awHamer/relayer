@@ -32,6 +32,7 @@ export interface EntityClientConfig {
   adapter: DialectAdapter;
   registry: EntityRegistry;
   maxRelationDepth?: number;
+  defaultRelationLimit?: number;
 }
 
 interface AggregateOptions {
@@ -46,8 +47,17 @@ interface AggregateOptions {
 }
 
 export function createEntityClient(config: EntityClientConfig) {
-  const { db, schema, allTables, tableInfo, metadata, adapter, registry, maxRelationDepth } =
-    config;
+  const {
+    db,
+    schema,
+    allTables,
+    tableInfo,
+    metadata,
+    adapter,
+    registry,
+    maxRelationDepth,
+    defaultRelationLimit,
+  } = config;
   const table = tableInfo.table;
 
   function getComputedSqlMap(context?: unknown, requestedFields?: string[]): Map<string, SQL> {
@@ -101,6 +111,7 @@ export function createEntityClient(config: EntityClientConfig) {
     adapter,
     registry,
     maxRelationDepth,
+    defaultRelationLimit,
     getComputedSqlMap,
     getDerivedResolutions,
     makeWhereCtx,

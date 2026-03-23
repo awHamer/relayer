@@ -96,6 +96,8 @@ const r = createRelayerDrizzle({
   db, // your drizzle instance
   schema,
   entities: { users: User },
+  maxRelationDepth: 3, // max nesting depth for relations (default: 3)
+  defaultRelationLimit: 20, // max rows per many-type relation (default: unlimited)
 });
 ```
 

@@ -29,6 +29,7 @@ export interface FindManyDeps {
   adapter: DialectAdapter;
   registry: EntityRegistry;
   maxRelationDepth?: number;
+  defaultRelationLimit?: number;
   getComputedSqlMap(context?: unknown, requestedFields?: string[]): Map<string, SQL>;
   getDerivedResolutions(
     requestedDerived: string[],
@@ -263,6 +264,7 @@ export async function executeFindMany(
       adapter: deps.adapter,
       queryContext: context,
       maxRelationDepth: deps.maxRelationDepth,
+      defaultRelationLimit: deps.defaultRelationLimit,
     });
   }
 
