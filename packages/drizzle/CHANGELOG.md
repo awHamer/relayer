@@ -1,5 +1,11 @@
 # @relayerjs/drizzle
 
+## 0.4.5
+
+### Patch Changes
+
+- c35d5d1: Fix per-parent $limit: use ROW_NUMBER() in SQL for scalar relations, JS slice fallback for computed/derived
+
 ## 0.4.4
 
 ### Patch Changes
