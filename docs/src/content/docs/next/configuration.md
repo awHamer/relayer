@@ -29,10 +29,10 @@ Controls which fields clients can request. **Scalars are allowed by default, rel
 
 ```ts
 allowSelect: {
-  password: false,              // deny this scalar field
-  posts: { title: true },       // allow relation, restrict to title only
-  orders: true,                 // allow relation, all fields
-  secretNotes: false,           // deny relation
+  password: false,                          // deny this scalar field
+  posts: { $limit: 10, title: true },       // allow relation, cap at 10, restrict to title
+  orders: true,                             // allow relation, all fields
+  secretNotes: false,                       // deny relation
 }
 ```
 
@@ -40,6 +40,7 @@ Rules:
 
 - **Scalar/computed/derived** — allowed by default. Set `false` to deny.
 - **Relations** — denied by default. Set `true` or an object to allow.
+- **`$limit`** — cap many-type relations to N rows. Also configurable globally via `defaultRelationLimit` in `createRelayerDrizzle`.
 
 Without `allowSelect` config, all scalar fields are returned but no relations.
 
