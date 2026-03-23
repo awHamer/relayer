@@ -1,5 +1,13 @@
 # @relayerjs/drizzle
 
+## 0.4.3
+
+### Patch Changes
+
+- 3d9c690: Allow limit "many" relations:
+  `defaultRelationLimit` in client config
+  `$limit` in select for per-relation control (overrides default limit)
+
 ## 0.4.2
 
 ### Patch Changes
