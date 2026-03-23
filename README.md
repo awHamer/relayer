@@ -110,6 +110,8 @@ const r = createRelayerDrizzle({
   db, // your drizzle instance
   schema,
   entities: { users: User },
+  maxRelationDepth: 3, // max nesting depth for relations (default: 3)
+  defaultRelationLimit: 20, // max rows per many-type relation (default: unlimited)
 });
 ```
 
@@ -129,9 +131,9 @@ const admins = await r.users.findMany({
   where: { metadata: { role: 'admin', level: { gte: 5 } } },
 });
 
-// Load relations
+// Load relations (with per-relation row limit)
 const usersWithPosts = await r.users.findMany({
-  select: { id: true, firstName: true, posts: { title: true } },
+  select: { id: true, firstName: true, posts: { $limit: 5, title: true } },
 });
 
 // Relation filters

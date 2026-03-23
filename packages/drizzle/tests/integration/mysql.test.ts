@@ -435,6 +435,47 @@ describe('aggregate: nested format', () => {
 // ---------------------------------------------------------------------------
 // dialect-specific: mutations without RETURNING (must be LAST — mutates data)
 // ---------------------------------------------------------------------------
+describe('relation limits', () => {
+  it('defaultRelationLimit caps many-type relations', async () => {
+    const limited: any = createRelayerDrizzle({
+      db,
+      schema: schema as unknown as Record<string, unknown>,
+      entities: { users: MysqlUser },
+      defaultRelationLimit: 1,
+    });
+    const results = await limited.users.findMany({
+      select: { id: true, posts: { id: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    expect(results[0].posts.length).toBeLessThanOrEqual(1);
+  });
+
+  it('$limit in select caps relation rows', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, posts: { $limit: 1, id: true, title: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    for (const user of results) {
+      expect(user.posts.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('$limit overrides defaultRelationLimit', async () => {
+    const limited: any = createRelayerDrizzle({
+      db,
+      schema: schema as unknown as Record<string, unknown>,
+      entities: { users: MysqlUser },
+      defaultRelationLimit: 1,
+    });
+    const results = await limited.users.findMany({
+      select: { id: true, posts: { $limit: 10, id: true } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    // Ihor has 2 posts, $limit: 10 overrides defaultRelationLimit: 1
+    expect(results[0].posts).toHaveLength(2);
+  });
+});
+
 describe('dialect-specific: mutations without RETURNING', () => {
   it('create inserts record successfully', async () => {
     const countBefore = await r.users.count();

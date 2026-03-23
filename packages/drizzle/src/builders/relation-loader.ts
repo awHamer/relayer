@@ -24,6 +24,7 @@ export interface RelationLoadContext {
   adapter?: DialectAdapter;
   queryContext?: unknown;
   maxRelationDepth?: number;
+  defaultRelationLimit?: number;
   _currentDepth?: number;
 }
 
@@ -90,8 +91,15 @@ export async function loadRelations(
     const targetRelationFields = resolveRelationFields(relDef.targetEntity, ctx.schema);
 
     if (nestedSelect) {
+      const perRelationLimit =
+        typeof nestedSelect.$limit === 'number' ? nestedSelect.$limit : undefined;
+      const effectiveSelect =
+        perRelationLimit != null
+          ? Object.fromEntries(Object.entries(nestedSelect).filter(([k]) => k !== '$limit'))
+          : nestedSelect;
+
       const { columns, computedColumns, derivedResolutions, nestedRelationNames } =
-        buildNestedSelect(nestedSelect, targetInfo, targetRelationFields, targetMetadata, ctx);
+        buildNestedSelect(effectiveSelect, targetInfo, targetRelationFields, targetMetadata, ctx);
 
       // Always include FK column for grouping
       if (!columns[targetColName]) {
@@ -100,7 +108,7 @@ export async function loadRelations(
       }
 
       for (const key of Object.keys(columns)) {
-        if (!(key in nestedSelect)) internalKeys.add(key);
+        if (!(key in effectiveSelect)) internalKeys.add(key);
       }
 
       // Merge computed SQL expressions into select
@@ -126,13 +134,17 @@ export async function loadRelations(
       }
 
       query = query.where(inArray(targetCol, parentValues as unknown[]));
+      const manyLimit = perRelationLimit ?? ctx.defaultRelationLimit;
+      if (relDef.relationType === 'many' && manyLimit) {
+        query = query.limit(manyLimit);
+      }
       relatedRows = (await query) as Record<string, unknown>[];
 
       // load nested relations recursively BEFORE stripping
       if (nestedRelationNames.length > 0 && relatedRows.length > 0) {
         const nestedRelationSelects = new Map<string, Record<string, unknown>>();
         for (const relName of nestedRelationNames) {
-          const val = nestedSelect[relName];
+          const val = effectiveSelect[relName];
           if (isObject(val)) {
             nestedRelationSelects.set(relName, val);
           }
@@ -153,11 +165,14 @@ export async function loadRelations(
         });
       }
     } else {
-      const query = ctx.db
+      let defaultQuery = ctx.db
         .select()
         .from(targetInfo.table)
         .where(inArray(targetCol, parentValues as unknown[]));
-      relatedRows = (await query) as Record<string, unknown>[];
+      if (relDef.relationType === 'many' && ctx.defaultRelationLimit) {
+        defaultQuery = defaultQuery.limit(ctx.defaultRelationLimit);
+      }
+      relatedRows = (await defaultQuery) as Record<string, unknown>[];
     }
 
     const grouped = new Map<unknown, Record<string, unknown>[]>();
@@ -171,7 +186,7 @@ export async function loadRelations(
     // Hydrate object-type derived fields (convert flat keys to nested objects)
     if (nestedSelect && targetMetadata) {
       for (const [name, def] of targetMetadata.derivedFields) {
-        if (!(name in (nestedSelect ?? {}))) continue;
+        if (!(name in nestedSelect)) continue;
         if (def.valueType && typeof def.valueType === 'object') {
           for (const row of relatedRows) {
             const obj: Record<string, unknown> = {};

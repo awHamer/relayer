@@ -62,6 +62,8 @@ const r = createRelayerDrizzle({
   db,
   schema,
   entities: { users: User },
+  maxRelationDepth: 3, // max nesting depth for relations (default: 3)
+  defaultRelationLimit: 20, // max rows per many-type relation (default: unlimited)
 });
 ```
 
@@ -195,7 +197,7 @@ await r.users.findMany({
 
 ## Relations
 
-Relations are loaded via batch queries (`WHERE IN`), no N+1.
+Relations are loaded via batch queries (`WHERE IN`), no N+1. Nesting depth is limited by `maxRelationDepth` (default: 3). Row count for many-type relations can be capped with `defaultRelationLimit`.
 
 ```ts
 const usersWithPosts = await r.users.findMany({
@@ -204,6 +206,29 @@ const usersWithPosts = await r.users.findMany({
 
 const postsWithAuthor = await r.posts.findMany({
   select: { id: true, title: true, author: { firstName: true } },
+});
+```
+
+Use `$limit` to cap rows per relation:
+
+```ts
+const users = await r.users.findMany({
+  select: {
+    id: true,
+    posts: { $limit: 5, id: true, title: true },
+    comments: { $limit: 10, content: true },
+  },
+});
+```
+
+`$limit` overrides `defaultRelationLimit` for that specific relation. Only applies to many-type relations.
+
+Per-query relation limit via `relationLimits`:
+
+```ts
+const users = await r.users.findMany({
+  select: { id: true, posts: { id: true, title: true } },
+  relationLimits: { posts: 5 },
 });
 ```
 

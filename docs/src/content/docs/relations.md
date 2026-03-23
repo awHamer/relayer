@@ -83,9 +83,36 @@ const usersWithProfile = await r.users.findMany({
 // [{ id: 1, firstName: 'John', profile: { bio: 'Developer' } }, ...]
 ```
 
+## Limiting relation rows
+
+Use `$limit` in the select to cap rows for many-type relations:
+
+```ts
+const users = await r.users.findMany({
+  select: {
+    id: true,
+    posts: { $limit: 5, id: true, title: true },
+  },
+});
+// Each user gets at most 5 posts
+```
+
+You can also set a global default when creating the client:
+
+```ts
+const r = createRelayerDrizzle({
+  db,
+  schema,
+  entities: { users: User },
+  defaultRelationLimit: 20, // all many-type relations capped at 20
+});
+```
+
+`$limit` on a specific relation overrides `defaultRelationLimit`. Neither applies to one-type relations (many-to-one, one-to-one).
+
 ## Deep nesting
 
-Relations can be nested to any depth:
+Relations can be nested to any depth (controlled by `maxRelationDepth`, default: 3):
 
 ```ts
 const data = await r.users.findMany({

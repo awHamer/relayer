@@ -36,6 +36,7 @@ export function createRelayerDrizzle<
   entities?: TEntities;
   context?: TContext;
   maxRelationDepth?: number;
+  defaultRelationLimit?: number;
 }): RelayerClient<TSchema, TEntities, TContext, TDb> {
   return _createRelayerDrizzle(config) as RelayerClient<TSchema, TEntities, TContext, TDb>;
 }
@@ -45,6 +46,7 @@ function _createRelayerDrizzle(config: {
   schema: Record<string, unknown>;
   entities?: Record<string, unknown>;
   maxRelationDepth?: number;
+  defaultRelationLimit?: number;
 }): unknown {
   const db = config.db as DrizzleDatabase;
   const schema = config.schema as Record<string, unknown>;
@@ -98,6 +100,7 @@ function _createRelayerDrizzle(config: {
         adapter,
         registry,
         maxRelationDepth: config.maxRelationDepth ?? 3,
+        defaultRelationLimit: config.defaultRelationLimit,
       });
       relayerClientCache.set(prop, client);
       return client;
