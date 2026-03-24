@@ -34,7 +34,7 @@ Relayer is that pattern extracted into a library. Built with **API integration i
 - **Typed context**: pass per-query context to computed/derived resolvers
 - **Transactions**: $transaction with automatic client scoping
 - **Multi-dialect**: PostgreSQL, MySQL, SQLite
-- **Full TypeScript inference**: select, where, orderBy, and result types
+- **Full TypeScript inference**: select, where, orderBy, aggregate result, and return type narrowing
 
 Currently only [Drizzle ORM](https://orm.drizzle.team) (`>=0.38.0`) is supported. Future plans include adapters for TypeORM, Kysely, MikroORM, and others. The goal is a single unified query interface regardless of the underlying ORM. Contributions are always welcome.
 
@@ -141,20 +141,21 @@ const activeAuthors = await r.users.findMany({
   where: { posts: { some: { published: true } } },
 });
 
-// Aggregations: all functions + groupBy + dot-notation joins
+// Aggregations: typed result inferred from options
 const stats = await r.orders.aggregate({
   groupBy: ['status'],
   _count: true,
   _sum: { total: true },
   _avg: { total: true },
 });
+// stats: { status: string; _count: number; _sum: { total: number | null }; _avg: { total: number | null } }[]
 
 // Group by relation field (auto LEFT JOIN)
 const ordersByUser = await r.orders.aggregate({
   groupBy: ['user.firstName'],
   _count: true,
-  _sum: { total: true },
 });
+// ordersByUser: { user: { firstName: string }; _count: number }[]
 ```
 
 ## Packages
