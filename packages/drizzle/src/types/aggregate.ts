@@ -8,16 +8,17 @@ type SummableDotPaths<
   TSchema extends Record<string, unknown>,
   TEntities extends Record<string, unknown>,
   TKey extends string,
-> = ModelDotPaths<TSchema, TEntities, TKey> extends infer P extends string
-  ? P extends unknown
-    ? NonNullable<TypeAtPath<EntityWithRelations<TSchema, TEntities, TKey>, P>> extends
-        | string
-        | number
-        | bigint
-      ? P
+> =
+  ModelDotPaths<TSchema, TEntities, TKey> extends infer P extends string
+    ? P extends unknown
+      ? NonNullable<TypeAtPath<EntityWithRelations<TSchema, TEntities, TKey>, P>> extends
+          | string
+          | number
+          | bigint
+        ? P
+        : never
       : never
-    : never
-  : never;
+    : never;
 
 export interface ModelAggregateOptions<
   TSchema extends Record<string, unknown>,
