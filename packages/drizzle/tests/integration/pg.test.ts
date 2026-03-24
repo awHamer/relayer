@@ -1092,6 +1092,40 @@ describe('aggregate: nested result format', () => {
     expect(first.user).toBeDefined();
     expect(first.user.firstName).toBeDefined();
   });
+
+  it('own derived sub-field in aggregate (_sum orderSummary.orderCount)', async () => {
+    const result = await r.users.aggregate({
+      _sum: { 'orderSummary.orderCount': true },
+    });
+    expect((result as any)._sum).toBeDefined();
+    expect((result as any)._sum.orderSummary).toBeDefined();
+    expect(typeof (result as any)._sum.orderSummary.orderCount).toBe('number');
+  });
+
+  it('own derived sub-field in aggregate with groupBy', async () => {
+    const results = await r.users.aggregate({
+      groupBy: ['firstName'],
+      _avg: { 'orderSummary.orderCount': true },
+    });
+    expect(Array.isArray(results)).toBe(true);
+    const first = (results as any[])[0];
+    expect(first.firstName).toBeDefined();
+    expect(first._avg).toBeDefined();
+    expect(first._avg.orderSummary).toBeDefined();
+    expect(typeof first._avg.orderSummary.orderCount).toBe('number');
+  });
+
+  it('JSON sub-path in aggregate (_min metadata.role)', async () => {
+    const results = await r.users.aggregate({
+      groupBy: ['metadata.role'],
+      _count: true,
+    });
+    expect(Array.isArray(results)).toBe(true);
+    const first = (results as any[])[0];
+    expect(first.metadata).toBeDefined();
+    expect(first.metadata.role).toBeDefined();
+    expect(first._count).toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------

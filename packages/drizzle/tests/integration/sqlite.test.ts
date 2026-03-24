@@ -439,6 +439,14 @@ describe('aggregate: nested format + having', () => {
       expect(row._count).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it('own derived sub-field in aggregate (_sum postsCount)', async () => {
+    const result = await r.users.aggregate({
+      _sum: { postsCount: true },
+    });
+    expect((result as any)._sum).toBeDefined();
+    expect(typeof (result as any)._sum.postsCount).toBe('number');
+  });
 });
 
 // ---------------------------------------------------------------------------

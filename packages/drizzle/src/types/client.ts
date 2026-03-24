@@ -1,5 +1,8 @@
+import type { AggregateResult, SelectResult } from '@relayerjs/core';
+
 import type { SchemaTableKeys } from './entity-config';
 import type {
+  EntityWithRelations,
   ExtractMeta,
   InferTableInsert,
   InferTableSelect,
@@ -14,15 +17,33 @@ type ResolvedModel<
   K extends string,
 > = ModelInstance<TSchema, TEntities, K> & ModelMeta<TSchema, TEntities, K>;
 
+type InstanceOf<TModel> =
+  ExtractMeta<TModel> extends {
+    schema: infer S extends Record<string, unknown>;
+    entities: infer E extends Record<string, unknown>;
+    key: infer K extends string;
+  }
+    ? ModelInstance<S, E, K>
+    : Record<string, unknown>;
+
+type EntityOf<TModel> =
+  ExtractMeta<TModel> extends {
+    schema: infer S extends Record<string, unknown>;
+    entities: infer E extends Record<string, unknown>;
+    key: infer K extends string;
+  }
+    ? EntityWithRelations<S, E, K>
+    : Record<string, unknown>;
+
 export interface TypedEntityClient<TModel, TContext = unknown> {
-  findMany(options?: {
-    select?: SelectType<TModel>;
+  findMany<TSelect extends SelectType<TModel> | undefined = undefined>(options?: {
+    select?: TSelect;
     where?: WhereType<TModel>;
     orderBy?: OrderByType<TModel> | OrderByType<TModel>[];
     limit?: number;
     offset?: number;
     context?: TContext;
-  }): Promise<Record<string, unknown>[]>;
+  }): Promise<SelectResult<InstanceOf<TModel>, TSelect>[]>;
 
   findManyStream(options?: {
     select?: SelectType<TModel>;
@@ -33,18 +54,22 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
     context?: TContext;
   }): AsyncGenerator<Record<string, unknown>>;
 
-  findFirst(options?: {
-    select?: SelectType<TModel>;
+  findFirst<TSelect extends SelectType<TModel> | undefined = undefined>(options?: {
+    select?: TSelect;
     where?: WhereType<TModel>;
     orderBy?: OrderByType<TModel> | OrderByType<TModel>[];
     context?: TContext;
-  }): Promise<Record<string, unknown> | null>;
+  }): Promise<SelectResult<InstanceOf<TModel>, TSelect> | null>;
 
   count(options?: { where?: WhereType<TModel>; context?: TContext }): Promise<number>;
 
-  aggregate(
-    options: AggregateType<TModel>,
-  ): Promise<Record<string, unknown>[] | Record<string, unknown>>;
+  aggregate<const TOptions extends AggregateType<TModel>>(
+    options: TOptions,
+  ): Promise<
+    TOptions extends { groupBy: readonly string[] }
+      ? AggregateResult<EntityOf<TModel>, TOptions>[]
+      : AggregateResult<EntityOf<TModel>, TOptions>
+  >;
 
   create(options: {
     data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }

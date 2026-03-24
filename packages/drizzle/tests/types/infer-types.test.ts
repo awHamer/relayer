@@ -593,3 +593,112 @@ describe('OrderByType<EntityClass> (direct, no InferModel)', () => {
     expect(ob).toBeDefined();
   });
 });
+
+describe('SelectResult: findMany/findFirst return type narrows by select', () => {
+  it('findMany without select returns full instance', () => {
+    type Result = Awaited<ReturnType<typeof r.users.findMany>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('id');
+    expectTypeOf<Item>().toHaveProperty('firstName');
+    expectTypeOf<Item>().toHaveProperty('email');
+    expectTypeOf<Item>().toHaveProperty('fullName');
+  });
+
+  it('findMany with select narrows to selected fields', () => {
+    const fn = () => r.users.findMany({ select: { id: true, firstName: true } });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('id');
+    expectTypeOf<Item>().toHaveProperty('firstName');
+    expectTypeOf<Item>().not.toHaveProperty('email');
+    expectTypeOf<Item>().not.toHaveProperty('lastName');
+  });
+
+  it('findFirst without select returns full instance or null', () => {
+    type Result = Awaited<ReturnType<typeof r.users.findFirst>>;
+    expectTypeOf<Result>().toBeNullable();
+  });
+
+  it('findFirst with select narrows to selected fields', () => {
+    const fn = () => r.users.findFirst({ select: { id: true, email: true } });
+    type Result = NonNullable<Awaited<ReturnType<typeof fn>>>;
+    expectTypeOf<Result>().toHaveProperty('id');
+    expectTypeOf<Result>().toHaveProperty('email');
+    expectTypeOf<Result>().not.toHaveProperty('firstName');
+  });
+
+  it('select with computed field includes it', () => {
+    const fn = () => r.users.findMany({ select: { id: true, fullName: true } });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('id');
+    expectTypeOf<Item>().toHaveProperty('fullName');
+    expectTypeOf<Item>().not.toHaveProperty('email');
+  });
+});
+
+describe('AggregateResult: aggregate return type narrows by options', () => {
+  it('_count: true produces _count: number', () => {
+    const fn = () => r.users.aggregate({ _count: true });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    expectTypeOf<Result>().toHaveProperty('_count');
+    expectTypeOf<Result['_count']>().toBeNumber();
+  });
+
+  it('_sum produces nested object with number | null', () => {
+    const fn = () => r.posts.aggregate({ _sum: { id: true } });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    expectTypeOf<Result>().toHaveProperty('_sum');
+    expectTypeOf<Result['_sum']>().toHaveProperty('id');
+  });
+
+  it('without groupBy returns single object (not array)', () => {
+    const fn = () => r.users.aggregate({ _count: true });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    expectTypeOf<Result>().not.toBeArray();
+  });
+
+  it('with groupBy returns array', () => {
+    const fn = () => r.orders.aggregate({ groupBy: ['status'], _count: true });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    expectTypeOf<Result>().toBeArray();
+  });
+
+  it('groupBy materializes fields with original types', () => {
+    const fn = () => r.orders.aggregate({ groupBy: ['status'], _count: true });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('status');
+    expectTypeOf<Item>().toHaveProperty('_count');
+  });
+
+  it('multiple aggregate functions', () => {
+    const fn = () =>
+      r.orders.aggregate({
+        groupBy: ['status'],
+        _count: true,
+        _sum: { total: true },
+        _avg: { total: true },
+      });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('status');
+    expectTypeOf<Item>().toHaveProperty('_count');
+    expectTypeOf<Item>().toHaveProperty('_sum');
+    expectTypeOf<Item>().toHaveProperty('_avg');
+  });
+
+  it('relation dot path in groupBy', () => {
+    const fn = () => r.posts.aggregate({ groupBy: ['author.firstName'], _count: true });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('author');
+    expectTypeOf<Item>().toHaveProperty('_count');
+  });
+
+  it('relation dot path in _sum', () => {
+    const fn = () => r.posts.aggregate({ _sum: { 'author.postsCount': true } });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    expectTypeOf<Result>().toHaveProperty('_sum');
+  });
+});

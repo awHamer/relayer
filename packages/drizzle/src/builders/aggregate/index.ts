@@ -1,5 +1,5 @@
-import { sql, SQL } from 'drizzle-orm';
-import type { Column, Table } from 'drizzle-orm';
+import { Column, sql, SQL } from 'drizzle-orm';
+import type { Table } from 'drizzle-orm';
 import type { EntityMetadata, EntityRegistry } from '@relayerjs/core';
 
 import type { DialectAdapter, DrizzleDatabase } from '../../dialect';
@@ -11,7 +11,7 @@ import type { ResolveFieldCtx } from './resolve-field';
 export { hydrateAggregateResult } from './hydrate';
 
 export interface AggregateOptions {
-  groupBy?: string[];
+  groupBy?: readonly string[];
   _count?: boolean;
   _sum?: Record<string, boolean>;
   _avg?: Record<string, boolean>;
@@ -75,7 +75,23 @@ export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
       const resolveCtx: ResolveFieldCtx = { ...ctx, joins, joinedRelations };
       const resolved = resolveFieldColumn(fieldName, resolveCtx);
       if (resolved) {
-        const rawExpr = sql`${sql.raw(fn)}(${resolved})`;
+        const isNumericFn = fn === 'sum' || fn === 'avg';
+        let expr: Column | SQL = resolved;
+        if (isNumericFn) {
+          const isNumericCol =
+            resolved instanceof Column &&
+            (resolved.dataType === 'number' || resolved.dataType === 'bigint');
+          if (!isNumericCol) {
+            const castType =
+              ctx.adapter?.dialect === 'mysql'
+                ? 'DECIMAL'
+                : ctx.adapter?.dialect === 'sqlite'
+                  ? 'REAL'
+                  : 'numeric';
+            expr = sql`CAST(${resolved} AS ${sql.raw(castType)})`;
+          }
+        }
+        const rawExpr = sql`${sql.raw(fn)}(${expr})`;
         selectColumns[alias] = rawExpr.as(alias) as unknown as SQL;
         rawExpressions.set(alias, rawExpr);
         meta.aggFields.push({ fn: key, fieldName, alias });
