@@ -14,20 +14,17 @@ export type {
   TableColumnKeys,
   TableRelationKeys,
   RelationTargetName,
-  RelationTargetTable,
   JsonWhereOps,
   OpsForTSType,
-  JsonColumnDotPaths,
   NumericColumnKeys,
   ModelInstance,
   CustomFieldKeys,
   ModelDotPaths,
-  OwnDotPaths,
-  RelationDotPaths,
+  EntityWithRelations,
 } from './helpers';
 export type { ModelSelect } from './select';
 export type { ModelWhere } from './where';
-export type { ModelOrderBy, ModelOrderByField } from './order-by';
+export type { ModelOrderBy } from './order-by';
 export type { ModelAggregateOptions } from './aggregate';
 export type { TypedEntityClient, RelayerClient } from './client';
 export type { InferEntityWhere, InferEntitySelect, InferEntityOrderBy } from './infer';

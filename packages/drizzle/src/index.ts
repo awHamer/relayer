@@ -12,7 +12,6 @@ export type {
   ModelSelect,
   ModelWhere,
   ModelOrderBy,
-  ModelOrderByField,
   ModelAggregateOptions,
   ModelInstance,
   ModelDotPaths,

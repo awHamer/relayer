@@ -3,6 +3,7 @@ import type {
   ArrayOperators,
   BooleanOperators,
   DateOperators,
+  DotPaths,
   NumberOperators,
   StringOperators,
 } from '@relayerjs/core';
@@ -75,17 +76,6 @@ export type RelationTargetName<
       : DbName
     : never;
 
-export type RelationTargetTable<
-  TTableName extends string,
-  TSchema extends Record<string, unknown>,
-  K extends string,
-> =
-  RelationTargetName<TTableName, TSchema, K> extends infer TsName extends string
-    ? TsName extends keyof TSchema
-      ? TSchema[TsName]
-      : never
-    : never;
-
 // Model instance type: class entity -> InstanceType, plain table -> InferTableSelect
 export type ModelInstance<
   TSchema extends Record<string, unknown>,
@@ -132,72 +122,22 @@ export type OpsForTSType<T> = T extends string
             ? JsonWhereOps<T>
             : unknown;
 
-// Object sub-path expansion: { totalAmount: string; orderCount: number } -> "totalAmount" | "orderCount"
-type ObjectSubPaths<
-  T,
-  Prefix extends string,
-  Depth extends unknown[] = [],
-> = Depth['length'] extends 4
-  ? never
-  : {
-      [K in keyof T & string]:
-        | `${Prefix}${K}`
-        | (NonNullable<T[K]> extends Record<string, unknown>
-            ? NonNullable<T[K]> extends Date | unknown[]
-              ? never
-              : ObjectSubPaths<NonNullable<T[K]>, `${Prefix}${K}.`, [...Depth, unknown]>
-            : never);
-    }[keyof T & string];
-
-// JSON column dot paths
-export type JsonColumnDotPaths<TTable> = {
-  [K in TableColumnKeys<TTable>]: NonNullable<InferTableSelect<TTable>[K]> extends Record<
-    string,
-    unknown
-  >
-    ? NonNullable<InferTableSelect<TTable>[K]> extends Date | unknown[]
-      ? never
-      : ObjectSubPaths<NonNullable<InferTableSelect<TTable>[K]>, `${K}.`>
-    : never;
-}[TableColumnKeys<TTable>];
-
-// Own dot paths: scalars + custom fields + JSON expansion + object custom sub-fields
-export type OwnDotPaths<
+// Full entity shape: own fields + relation targets as nested objects (always singular)
+export type EntityWithRelations<
   TSchema extends Record<string, unknown>,
   TEntities extends Record<string, unknown>,
   TKey extends string,
-> =
-  | (TKey extends keyof TSchema ? TableColumnKeys<TSchema[TKey]> : never)
-  | (TKey extends keyof TSchema ? JsonColumnDotPaths<TSchema[TKey]> : never)
-  | CustomFieldKeys<TSchema, TEntities, TKey>
-  | {
-      [K in CustomFieldKeys<TSchema, TEntities, TKey>]: NonNullable<
-        ModelInstance<TSchema, TEntities, TKey>[K]
-      > extends Record<string, unknown>
-        ? NonNullable<ModelInstance<TSchema, TEntities, TKey>[K]> extends Date | unknown[]
-          ? never
-          : ObjectSubPaths<NonNullable<ModelInstance<TSchema, TEntities, TKey>[K]>, `${K}.`>
-        : never;
-    }[CustomFieldKeys<TSchema, TEntities, TKey>];
-
-// Relation dot paths: "relation.ownField" for each relation target
-export type RelationDotPaths<
-  TSchema extends Record<string, unknown>,
-  TEntities extends Record<string, unknown>,
-  TKey extends string,
-> = {
-  [R in TableRelationKeys<TKey, TSchema>]: RelationTargetName<
-    TKey,
+> = ModelInstance<TSchema, TEntities, TKey> & {
+  [R in TableRelationKeys<TKey, TSchema>]: ModelInstance<
     TSchema,
-    R
-  > extends infer Target extends string
-    ? `${R}.${OwnDotPaths<TSchema, TEntities, Target>}`
-    : never;
-}[TableRelationKeys<TKey, TSchema>];
+    TEntities,
+    RelationTargetName<TKey, TSchema, R> & string
+  >;
+};
 
 // All valid dot paths for an entity
 export type ModelDotPaths<
   TSchema extends Record<string, unknown>,
   TEntities extends Record<string, unknown>,
   TKey extends string,
-> = OwnDotPaths<TSchema, TEntities, TKey> | RelationDotPaths<TSchema, TEntities, TKey>;
+> = DotPaths<EntityWithRelations<TSchema, TEntities, TKey>, 5>;

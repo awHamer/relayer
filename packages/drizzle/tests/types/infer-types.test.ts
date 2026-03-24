@@ -593,3 +593,46 @@ describe('OrderByType<EntityClass> (direct, no InferModel)', () => {
     expect(ob).toBeDefined();
   });
 });
+
+describe('SelectResult: findMany/findFirst return type narrows by select', () => {
+  it('findMany without select returns full instance', () => {
+    type Result = Awaited<ReturnType<typeof r.users.findMany>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('id');
+    expectTypeOf<Item>().toHaveProperty('firstName');
+    expectTypeOf<Item>().toHaveProperty('email');
+    expectTypeOf<Item>().toHaveProperty('fullName');
+  });
+
+  it('findMany with select narrows to selected fields', () => {
+    const fn = () => r.users.findMany({ select: { id: true, firstName: true } });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('id');
+    expectTypeOf<Item>().toHaveProperty('firstName');
+    expectTypeOf<Item>().not.toHaveProperty('email');
+    expectTypeOf<Item>().not.toHaveProperty('lastName');
+  });
+
+  it('findFirst without select returns full instance or null', () => {
+    type Result = Awaited<ReturnType<typeof r.users.findFirst>>;
+    expectTypeOf<Result>().toBeNullable();
+  });
+
+  it('findFirst with select narrows to selected fields', () => {
+    const fn = () => r.users.findFirst({ select: { id: true, email: true } });
+    type Result = NonNullable<Awaited<ReturnType<typeof fn>>>;
+    expectTypeOf<Result>().toHaveProperty('id');
+    expectTypeOf<Result>().toHaveProperty('email');
+    expectTypeOf<Result>().not.toHaveProperty('firstName');
+  });
+
+  it('select with computed field includes it', () => {
+    const fn = () => r.users.findMany({ select: { id: true, fullName: true } });
+    type Result = Awaited<ReturnType<typeof fn>>;
+    type Item = Result[number];
+    expectTypeOf<Item>().toHaveProperty('id');
+    expectTypeOf<Item>().toHaveProperty('fullName');
+    expectTypeOf<Item>().not.toHaveProperty('email');
+  });
+});
