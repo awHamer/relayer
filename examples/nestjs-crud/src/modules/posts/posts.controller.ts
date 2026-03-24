@@ -62,6 +62,7 @@ import { PostsService } from './posts.service';
     },
     delete: true,
     count: true,
+    aggregate: true,
   },
   decorators: [
     UseGuards(AuthGuard),

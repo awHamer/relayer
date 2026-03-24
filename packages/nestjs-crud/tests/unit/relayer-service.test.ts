@@ -99,6 +99,23 @@ describe('RelayerService', () => {
     expect(client.deleteMany).toHaveBeenCalledWith({ where: { published: false } });
   });
 
+  it('aggregate delegates to entityClient', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({ _count: 42 }),
+    });
+    const service = new RelayerService(client);
+    const result = await service.aggregate({ _count: true, groupBy: ['status'] });
+    expect(result).toEqual({ _count: 42 });
+    expect(client.aggregate).toHaveBeenCalledWith({ _count: true, groupBy: ['status'] });
+  });
+
+  it('aggregate with no options passes empty object', async () => {
+    const client = mockEntityClient();
+    const service = new RelayerService(client);
+    await service.aggregate();
+    expect(client.aggregate).toHaveBeenCalledWith({});
+  });
+
   it('findMany with no options passes empty object', async () => {
     const client = mockEntityClient();
     const service = new RelayerService(client);

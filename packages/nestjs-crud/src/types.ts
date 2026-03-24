@@ -103,6 +103,7 @@ export interface CrudRoutes<TEntity> {
   update?: boolean | MutationRouteConfig;
   delete?: boolean;
   count?: boolean;
+  aggregate?: boolean;
 }
 
 export interface DecoratorTargeted {

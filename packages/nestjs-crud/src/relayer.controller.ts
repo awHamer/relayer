@@ -5,13 +5,13 @@ import { CRUD_CONTROLLER_METADATA, RELAYER_BASE_URL } from './constants';
 import type { DtoMapper } from './dto-mapper';
 import type { RelayerHooks } from './hooks';
 import {
-  ParseIdPipe,
   buildCursorWhere,
   decodeCursor,
   encodeCursor,
+  ParseIdPipe,
   parseListQuery,
-  type ParsedListQuery,
   validateBody,
+  type ParsedListQuery,
 } from './pipes';
 import type { RelayerService } from './relayer.service';
 import type {
@@ -245,14 +245,19 @@ export class RelayerController<
     _listConfig: ListRouteConfig<TEntity> | undefined,
   ): Promise<unknown> {
     const baseOrderBy = query.orderBy
-      ? (Array.isArray(query.orderBy) ? query.orderBy : [query.orderBy])
+      ? Array.isArray(query.orderBy)
+        ? query.orderBy
+        : [query.orderBy]
       : [];
 
     // Always add ID as tiebreaker for stable cursor pagination
     const hasIdInOrder = baseOrderBy.some((o) => o.field === idField);
     const orderBy = hasIdInOrder
       ? baseOrderBy
-      : [...baseOrderBy, { field: idField, order: (baseOrderBy[0]?.order ?? 'asc') as 'asc' | 'desc' }];
+      : [
+          ...baseOrderBy,
+          { field: idField, order: (baseOrderBy[0]?.order ?? 'asc') as 'asc' | 'desc' },
+        ];
 
     // Ensure cursor fields are in select
     if (query.select) {
@@ -434,6 +439,66 @@ export class RelayerController<
 
     const count = await this.service.count(query.where ? { where: query.where } : {});
     return { data: { count: Number(count) } };
+  }
+
+  protected async handleAggregate(request: { query: Record<string, string> }): Promise<unknown> {
+    const raw = request.query;
+
+    const options: Record<string, unknown> = {};
+
+    if (raw.where) {
+      try {
+        options.where = JSON.parse(raw.where);
+      } catch {
+        /* ignore invalid JSON */
+      }
+    }
+    if (raw.groupBy) {
+      try {
+        options.groupBy = JSON.parse(raw.groupBy);
+      } catch {
+        options.groupBy = raw.groupBy.split(',').map((s) => s.trim());
+      }
+    }
+    if (raw._count) options._count = raw._count === 'true' || raw._count === '1';
+    if (raw._sum) {
+      try {
+        options._sum = JSON.parse(raw._sum);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (raw._avg) {
+      try {
+        options._avg = JSON.parse(raw._avg);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (raw._min) {
+      try {
+        options._min = JSON.parse(raw._min);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (raw._max) {
+      try {
+        options._max = JSON.parse(raw._max);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (raw.having) {
+      try {
+        options.having = JSON.parse(raw.having);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const result = await this.service.aggregate(options);
+    return { data: result };
   }
 }
 

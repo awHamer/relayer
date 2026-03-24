@@ -14,6 +14,7 @@ export interface EntityClient {
   }): Promise<{ count: number }>;
   delete(options: { where: Record<string, unknown> }): Promise<unknown>;
   deleteMany(options: { where: Record<string, unknown> }): Promise<{ count: number }>;
+  aggregate(options?: Record<string, unknown>): Promise<unknown>;
 }
 
 export class RelayerService<TEntity> {
@@ -75,6 +76,10 @@ export class RelayerService<TEntity> {
 
   async deleteMany(where: Record<string, unknown>): Promise<{ count: number }> {
     return this.entityClient.deleteMany({ where });
+  }
+
+  async aggregate(options: Record<string, unknown> = {}): Promise<unknown> {
+    return this.entityClient.aggregate(options);
   }
 
   private mergeDefaults(options: Record<string, unknown>): Record<string, unknown> {

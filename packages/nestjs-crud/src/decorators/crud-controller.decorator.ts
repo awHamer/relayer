@@ -94,6 +94,15 @@ export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): 
       applyDecorators(proto, '__crudCount', 'count', config.decorators);
     }
 
+    if (routes.aggregate) {
+      proto.__crudAggregate = async function (req: unknown) {
+        return this.handleAggregate(req);
+      };
+      setMethodMetadata(proto, '__crudAggregate', RequestMethod.GET, '/aggregate');
+      setRouteArgs(proto, '__crudAggregate', createRouteArg(RouteParamtypes.REQUEST, 0));
+      applyDecorators(proto, '__crudAggregate', 'aggregate', config.decorators);
+    }
+
     if (routes.findById) {
       proto.__crudFindById = async function (id: string, req: unknown) {
         return this.handleFindById(id, req);

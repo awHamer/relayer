@@ -19,7 +19,11 @@ function createController<T extends RelayerController<any>>(
   const service = new RelayerService(client);
   const ctrl = new Ctrl(service);
   (ctrl as any).baseUrlConfig = baseUrl;
-  (ctrl as any).moduleRef = { get: () => { throw new Error('not found'); } };
+  (ctrl as any).moduleRef = {
+    get: () => {
+      throw new Error('not found');
+    },
+  };
   return ctrl;
 }
 
@@ -43,18 +47,34 @@ function req(query: Record<string, string> = {}) {
     update: true,
     delete: true,
     count: true,
+    aggregate: true,
   },
 })
 class TestController extends RelayerController<any> {
   constructor(service: RelayerService<any>) {
     super(service);
   }
-  list(r: any) { return this.handleList(r); }
-  findOne(id: string, r: unknown) { return this.handleFindById(id, r); }
-  doCreate(body: any, r: unknown) { return this.handleCreate(body, r); }
-  doUpdate(id: string, body: any, r: unknown) { return this.handleUpdate(id, body, r); }
-  doDelete(id: string, r: unknown) { return this.handleDelete(id, r); }
-  doCount(r: any) { return this.handleCount(r); }
+  list(r: any) {
+    return this.handleList(r);
+  }
+  findOne(id: string, r: unknown) {
+    return this.handleFindById(id, r);
+  }
+  doCreate(body: any, r: unknown) {
+    return this.handleCreate(body, r);
+  }
+  doUpdate(id: string, body: any, r: unknown) {
+    return this.handleUpdate(id, body, r);
+  }
+  doDelete(id: string, r: unknown) {
+    return this.handleDelete(id, r);
+  }
+  doCount(r: any) {
+    return this.handleCount(r);
+  }
+  doAggregate(r: any) {
+    return this.handleAggregate(r);
+  }
 }
 
 describe('RelayerController', () => {
@@ -77,30 +97,22 @@ describe('RelayerController', () => {
     it('returns data and meta', async () => {
       const result = (await controller.list(req())) as any;
       expect(result.data).toEqual([{ id: 1 }, { id: 2 }]);
-      expect(result.meta).toEqual(
-        expect.objectContaining({ total: 2, limit: 20, offset: 0 }),
-      );
+      expect(result.meta).toEqual(expect.objectContaining({ total: 2, limit: 20, offset: 0 }));
     });
 
     it('uses defaultLimit from config', async () => {
       await controller.list(req());
-      expect(client.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 20 }),
-      );
+      expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ limit: 20 }));
     });
 
     it('caps limit at maxLimit', async () => {
       await controller.list(req({ limit: '999' }));
-      expect(client.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 50 }),
-      );
+      expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
     });
 
     it('applies user limit when within maxLimit', async () => {
       await controller.list(req({ limit: '5' }));
-      expect(client.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 5 }),
-      );
+      expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ limit: 5 }));
     });
 
     it('applies defaults.orderBy when none in query', async () => {
@@ -119,9 +131,7 @@ describe('RelayerController', () => {
 
     it('applies offset from query', async () => {
       await controller.list(req({ offset: '10' }));
-      expect(client.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ offset: 10 }),
-      );
+      expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ offset: 10 }));
     });
 
     it('generates nextPageUrl when more results', async () => {
@@ -170,9 +180,7 @@ describe('RelayerController', () => {
 
     it('parses numeric id by default', async () => {
       await controller.findOne('42', {});
-      expect(client.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 42 } }),
-      );
+      expect(client.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 42 } }));
     });
   });
 
@@ -266,10 +274,18 @@ describe('RelayerController with hooks', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
-      doCreate(body: any, r: unknown) { return this.handleCreate(body, r); }
-      doUpdate(id: string, body: any, r: unknown) { return this.handleUpdate(id, body, r); }
-      doDelete(id: string, r: unknown) { return this.handleDelete(id, r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
+      doCreate(body: any, r: unknown) {
+        return this.handleCreate(body, r);
+      }
+      doUpdate(id: string, body: any, r: unknown) {
+        return this.handleUpdate(id, body, r);
+      }
+      doDelete(id: string, r: unknown) {
+        return this.handleDelete(id, r);
+      }
     }
 
     controller = createController(HookedController, client, '');
@@ -338,10 +354,18 @@ describe('RelayerController with dtoMapper', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
-      findOne(id: string, r: unknown) { return this.handleFindById(id, r); }
-      doCreate(body: any, r: unknown) { return this.handleCreate(body, r); }
-      doUpdate(id: string, body: any, r: unknown) { return this.handleUpdate(id, body, r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
+      findOne(id: string, r: unknown) {
+        return this.handleFindById(id, r);
+      }
+      doCreate(body: any, r: unknown) {
+        return this.handleCreate(body, r);
+      }
+      doUpdate(id: string, body: any, r: unknown) {
+        return this.handleUpdate(id, body, r);
+      }
     }
 
     controller = createController(MappedController, client, '');
@@ -402,8 +426,12 @@ describe('RelayerController with search', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
-      doCount(r: any) { return this.handleCount(r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
+      doCount(r: any) {
+        return this.handleCount(r);
+      }
     }
 
     controller = createController(SearchController, client);
@@ -478,8 +506,12 @@ describe('RelayerController with defaults.where and defaults.select', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
-      doCount(r: any) { return this.handleCount(r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
+      doCount(r: any) {
+        return this.handleCount(r);
+      }
     }
 
     controller = createController(DefaultsController, client, '');
@@ -508,9 +540,7 @@ describe('RelayerController with defaults.where and defaults.select', () => {
 
   it('query select overrides defaults.select', async () => {
     await controller.list(req({ select: '{"id":true}' }));
-    expect(client.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ select: { id: true } }),
-    );
+    expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ select: { id: true } }));
   });
 
   it('defaults.where applies to count', async () => {
@@ -542,7 +572,9 @@ describe('RelayerController cursor pagination', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
     }
 
     controller = createController(CursorController, client);
@@ -575,16 +607,17 @@ describe('RelayerController cursor pagination', () => {
 
   it('fetches limit+1 to detect hasMore', async () => {
     await controller.list(req());
-    expect(client.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 3 }),
-    );
+    expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ limit: 3 }));
   });
 
   it('adds id as tiebreaker to orderBy', async () => {
     await controller.list(req({ orderBy: '{"field":"title","order":"desc"}' }));
     expect(client.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: [{ field: 'title', order: 'desc' }, { field: 'id', order: 'desc' }],
+        orderBy: [
+          { field: 'title', order: 'desc' },
+          { field: 'id', order: 'desc' },
+        ],
       }),
     );
   });
@@ -610,10 +643,12 @@ describe('RelayerController cursor pagination', () => {
   });
 
   it('ensures cursor fields are added to select', async () => {
-    await controller.list(req({
-      select: '{"title":true}',
-      orderBy: '{"field":"createdAt","order":"desc"}',
-    }));
+    await controller.list(
+      req({
+        select: '{"title":true}',
+        orderBy: '{"field":"createdAt","order":"desc"}',
+      }),
+    );
     const callArgs = (client.findMany as any).mock.calls[0][0];
     expect(callArgs.select.createdAt).toBe(true);
     expect(callArgs.select.id).toBe(true);
@@ -680,7 +715,9 @@ describe('RelayerController enforceAllowSelectLimits', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
     }
 
     controller = createController(LimitController, client, '');
@@ -783,7 +820,9 @@ describe('RelayerController findById with defaults.select', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      findOne(id: string, r: unknown) { return this.handleFindById(id, r); }
+      findOne(id: string, r: unknown) {
+        return this.handleFindById(id, r);
+      }
     }
 
     const controller = createController(SelectController, client, '');
@@ -810,12 +849,251 @@ describe('RelayerController getBasePath', () => {
       constructor(service: RelayerService<any>) {
         super(service);
       }
-      list(r: any) { return this.handleList(r); }
+      list(r: any) {
+        return this.handleList(r);
+      }
     }
 
     const controller = createController(UrlController, client, '');
     (controller as any).baseUrlConfig = () => 'http://dynamic';
     const result = (await controller.list(req())) as any;
     expect(result.meta.nextPageUrl).toContain('http://dynamic/tests');
+  });
+});
+
+describe('RelayerController onModuleInit', () => {
+  it('resolves hooks from moduleRef', () => {
+    const hookInstance = { beforeCreate: vi.fn() };
+
+    class TestHooks extends RelayerHooks<any> {}
+
+    @CrudController({
+      model: TestEntity as any,
+      hooks: TestHooks as any,
+    })
+    class InitController extends RelayerController<any> {
+      constructor(service: RelayerService<any>) {
+        super(service);
+      }
+    }
+
+    const client = mockEntityClient();
+    const controller = createController(InitController, client, '');
+    (controller as any).moduleRef = {
+      get: vi.fn().mockReturnValue(hookInstance),
+    };
+
+    controller.onModuleInit();
+    expect((controller as any).resolvedHooks).toBe(hookInstance);
+    expect((controller as any).hooksResolved).toBe(true);
+  });
+
+  it('falls back to manual instantiation when moduleRef.get throws', () => {
+    class TestHooks extends RelayerHooks<any> {}
+
+    @CrudController({
+      model: TestEntity as any,
+      hooks: TestHooks as any,
+    })
+    class InitController extends RelayerController<any> {
+      constructor(service: RelayerService<any>) {
+        super(service);
+      }
+    }
+
+    const client = mockEntityClient();
+    const controller = createController(InitController, client, '');
+    controller.onModuleInit();
+    expect((controller as any).resolvedHooks).toBeInstanceOf(TestHooks);
+    expect((controller as any).hooksResolved).toBe(true);
+  });
+
+  it('resolves dtoMapper from moduleRef', () => {
+    const mapperInstance = { toListItem: vi.fn(), toResponse: vi.fn() };
+
+    class TestMapper extends DtoMapper<any> {
+      toListItem = vi.fn();
+      toResponse = vi.fn();
+    }
+
+    @CrudController({
+      model: TestEntity as any,
+      dtoMapper: TestMapper as any,
+    })
+    class InitController extends RelayerController<any> {
+      constructor(service: RelayerService<any>) {
+        super(service);
+      }
+    }
+
+    const client = mockEntityClient();
+    const controller = createController(InitController, client, '');
+    (controller as any).moduleRef = {
+      get: vi.fn().mockReturnValue(mapperInstance),
+    };
+
+    controller.onModuleInit();
+    expect((controller as any).resolvedDtoMapper).toBe(mapperInstance);
+    expect((controller as any).dtoMapperResolved).toBe(true);
+  });
+});
+
+describe('RelayerController with listConfig.schema', () => {
+  it('uses schema.parse instead of parseListQuery', async () => {
+    const client = mockEntityClient({
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    });
+
+    const customParse = vi.fn().mockReturnValue({
+      where: { custom: true },
+      limit: 5,
+    });
+
+    @CrudController({
+      model: TestEntity as any,
+      routes: {
+        list: {
+          schema: { parse: customParse } as any,
+        },
+      },
+    })
+    class SchemaController extends RelayerController<any> {
+      constructor(service: RelayerService<any>) {
+        super(service);
+      }
+      list(r: any) {
+        return this.handleList(r);
+      }
+    }
+
+    const controller = createController(SchemaController, client, '');
+    await controller.list(req({ foo: 'bar' }));
+    expect(customParse).toHaveBeenCalledWith({ foo: 'bar' });
+    expect(client.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { custom: true } }),
+    );
+  });
+});
+
+describe('handleAggregate', () => {
+  it('returns count when _count=true', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({ _count: 42 }),
+    });
+    const controller = createController(TestController, client);
+    const result = (await controller.doAggregate(req({ _count: 'true' }))) as any;
+    expect(result.data).toEqual({ _count: 42 });
+    expect(client.aggregate).toHaveBeenCalledWith(expect.objectContaining({ _count: true }));
+  });
+
+  it('passes groupBy as array', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue([{ _count: 1, status: 'active' }]),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(req({ _count: 'true', groupBy: 'status' }));
+    expect(client.aggregate).toHaveBeenCalledWith(expect.objectContaining({ groupBy: ['status'] }));
+  });
+
+  it('parses JSON groupBy', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue([]),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(req({ _count: 'true', groupBy: '["status","authorId"]' }));
+    expect(client.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ groupBy: ['status', 'authorId'] }),
+    );
+  });
+
+  it('passes where filter', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({ _count: 5 }),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(req({ _count: 'true', where: '{"published":true}' }));
+    expect(client.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { published: true } }),
+    );
+  });
+
+  it('passes _sum, _avg, _min, _max', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({}),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(
+      req({
+        _sum: '{"total":true}',
+        _avg: '{"total":true}',
+        _min: '{"total":true}',
+        _max: '{"total":true}',
+      }),
+    );
+    expect(client.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _sum: { total: true },
+        _avg: { total: true },
+        _min: { total: true },
+        _max: { total: true },
+      }),
+    );
+  });
+
+  it('ignores invalid JSON in where', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({ _count: 0 }),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(req({ _count: 'true', where: 'not-json' }));
+    expect(client.aggregate).toHaveBeenCalledWith(expect.objectContaining({ _count: true }));
+  });
+
+  it('ignores invalid JSON in _sum, _avg, _min, _max', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({}),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(
+      req({ _sum: 'bad', _avg: 'bad', _min: 'bad', _max: 'bad' }),
+    );
+    const callArgs = (client.aggregate as any).mock.calls[0][0];
+    expect(callArgs._sum).toBeUndefined();
+    expect(callArgs._avg).toBeUndefined();
+    expect(callArgs._min).toBeUndefined();
+    expect(callArgs._max).toBeUndefined();
+  });
+
+  it('passes having filter', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue([]),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(
+      req({ _count: 'true', groupBy: 'status', having: '{"_count":{"gt":5}}' }),
+    );
+    expect(client.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ having: { _count: { gt: 5 } } }),
+    );
+  });
+
+  it('ignores invalid JSON in having', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue([]),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(req({ _count: 'true', having: 'bad-json' }));
+    const callArgs = (client.aggregate as any).mock.calls[0][0];
+    expect(callArgs.having).toBeUndefined();
+  });
+
+  it('_count=1 is treated as true', async () => {
+    const client = mockEntityClient({
+      aggregate: vi.fn().mockResolvedValue({ _count: 10 }),
+    });
+    const controller = createController(TestController, client);
+    await controller.doAggregate(req({ _count: '1' }));
+    expect(client.aggregate).toHaveBeenCalledWith(expect.objectContaining({ _count: true }));
   });
 });

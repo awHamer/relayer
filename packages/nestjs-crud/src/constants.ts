@@ -7,7 +7,14 @@ export const RELAYER_BASE_URL = Symbol('RELAYER_BASE_URL');
 export const CRUD_CONTROLLER_METADATA = Symbol('CRUD_CONTROLLER_METADATA');
 export const CRUD_OVERRIDE_METADATA = Symbol('CRUD_OVERRIDE_METADATA');
 
-export type CrudRouteName = 'list' | 'findById' | 'create' | 'update' | 'delete' | 'count';
+export type CrudRouteName =
+  | 'list'
+  | 'findById'
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'count'
+  | 'aggregate';
 
 export const CRUD_ROUTE_NAMES: CrudRouteName[] = [
   'list',
@@ -16,4 +23,5 @@ export const CRUD_ROUTE_NAMES: CrudRouteName[] = [
   'update',
   'delete',
   'count',
+  'aggregate',
 ];

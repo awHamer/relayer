@@ -70,6 +70,7 @@ export default defineConfig({
           items: [
             { label: 'Getting Started', slug: 'nestjs/getting-started' },
             { label: 'Search & Filtering', slug: 'nestjs/search-and-filtering' },
+            { label: 'Aggregations', slug: 'nestjs/aggregations' },
             { label: 'Configuration', slug: 'nestjs/configuration' },
             { label: 'Validation', slug: 'nestjs/validation' },
             { label: 'DTO Mapper', slug: 'nestjs/dto-mapper' },

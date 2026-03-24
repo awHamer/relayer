@@ -13,6 +13,7 @@ export function mockEntityClient(overrides?: Partial<EntityClient>): EntityClien
     updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     delete: vi.fn().mockResolvedValue({}),
     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    aggregate: vi.fn().mockResolvedValue({ _count: 0 }),
     ...overrides,
   };
 }
@@ -21,7 +22,9 @@ export class TestEntity {
   static __entityKey = 'tests';
   static __schema = {};
   static __table = {};
-  static __relayerEntity = true;
+  static __relayer = true as const;
+  static __computed = new Map();
+  static __derived = new Map();
 
   id!: number;
   title!: string;
