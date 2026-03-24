@@ -1,5 +1,12 @@
 # @relayerjs/core
 
+## 0.2.1
+
+### Patch Changes
+
+- 571a3d0: feat(core): add `SelectResult` and `DotPaths` utility types
+  feat(drizzle): infer `findMany`/`findFirst` return type from `select`, add `EntityWithRelations` type, deduplicate dot path types via core's `DotPaths`
+
 ## 0.2.0
 
 ### Minor Changes
