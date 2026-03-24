@@ -1,12 +1,24 @@
 import { Module, type DynamicModule, type InjectionToken, type Provider } from '@nestjs/common';
-import { isRelayerEntityClass } from '@relayerjs/core';
+import { isRelayerEntityClass, type RelayerEntityClass } from '@relayerjs/core';
 
 import { RELAYER_BASE_URL, RELAYER_CLIENT, RELAYER_MODULE_OPTIONS } from './constants';
 import { getEntityToken, getServiceToken } from './decorators';
+import type { EntityClient } from './entity-client';
 import { RelayerService } from './relayer.service';
-import type { EntityClient } from './relayer.service';
 import type { RelayerModuleAsyncOptions, RelayerModuleOptions } from './types';
-import { entitiesToRecord } from './utils';
+import { entitiesToRecord, getEntityKey } from './utils';
+
+interface RelayerClient {
+  [key: string]: EntityClient;
+}
+
+type CreateRelayerDrizzleFn = (options: {
+  db: unknown;
+  schema: Record<string, unknown>;
+  entities: Record<string, RelayerEntityClass>;
+  maxRelationDepth?: number;
+  defaultRelationLimit?: number;
+}) => RelayerClient;
 
 @Module({})
 export class RelayerModule {
@@ -46,24 +58,23 @@ export class RelayerModule {
     };
   }
 
-  static forFeature(entities: (new (...args: unknown[]) => unknown)[]): DynamicModule {
+  static forFeature(entities: RelayerEntityClass[]): DynamicModule {
     const providers: Provider[] = [];
 
     for (const entity of entities.filter(isRelayerEntityClass)) {
       const entityToken = getEntityToken(entity);
       const serviceToken = getServiceToken(entity);
-      const key = (entity as unknown as { __entityKey: string }).__entityKey;
+      const key = getEntityKey(entity);
 
       providers.push({
         provide: entityToken,
-        useFactory: (client: Record<string, unknown>) => client[key],
+        useFactory: (client: RelayerClient) => client[key],
         inject: [RELAYER_CLIENT],
       });
 
       providers.push({
         provide: serviceToken,
-        useFactory: (client: Record<string, unknown>) =>
-          new RelayerService(client[key] as EntityClient),
+        useFactory: (client: RelayerClient) => new RelayerService(client[key]!),
         inject: [RELAYER_CLIENT],
       });
     }
@@ -77,7 +88,7 @@ export class RelayerModule {
 
   private static createProviders(
     options: RelayerModuleOptions,
-    entityMap: Record<string, unknown>,
+    entityMap: Record<string, RelayerEntityClass>,
   ): Provider[] {
     const clientProvider: Provider = {
       provide: RELAYER_CLIENT,
@@ -91,14 +102,13 @@ export class RelayerModule {
 
       entityProviders.push({
         provide: getEntityToken(entity),
-        useFactory: (client: Record<string, unknown>) => client[key],
+        useFactory: (client: RelayerClient) => client[key],
         inject: [RELAYER_CLIENT],
       });
 
       entityProviders.push({
         provide: getServiceToken(entity),
-        useFactory: (client: Record<string, unknown>) =>
-          new RelayerService(client[key] as EntityClient),
+        useFactory: (client: RelayerClient) => new RelayerService(client[key]!),
         inject: [RELAYER_CLIENT],
       });
     }
@@ -111,14 +121,14 @@ export class RelayerModule {
     return [clientProvider, baseUrlProvider, ...entityProviders];
   }
 
-  private static async createClient(options: RelayerModuleOptions): Promise<unknown> {
+  private static async createClient(options: RelayerModuleOptions): Promise<RelayerClient> {
     try {
       const drizzleModule = await import('@relayerjs/drizzle');
       const entityMap = entitiesToRecord(
         options.entities as Parameters<typeof entitiesToRecord>[0],
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (drizzleModule.createRelayerDrizzle as any)({
+      const createFn = drizzleModule.createRelayerDrizzle as unknown as CreateRelayerDrizzleFn;
+      return createFn({
         db: options.db,
         schema: options.schema,
         entities: entityMap,

@@ -258,17 +258,31 @@ describe('RelayerController with hooks', () => {
 
     hookSpies = {
       beforeFind: vi.fn(),
+      afterFind: vi.fn(),
+      beforeFindOne: vi.fn(),
+      afterFindOne: vi.fn(),
       beforeCreate: vi.fn(),
       afterCreate: vi.fn(),
       beforeUpdate: vi.fn(),
       afterUpdate: vi.fn(),
       beforeDelete: vi.fn(),
       afterDelete: vi.fn(),
+      beforeCount: vi.fn(),
+      beforeAggregate: vi.fn(),
+      afterAggregate: vi.fn(),
     };
 
     @CrudController({
       model: TestEntity as any,
-      routes: { list: true, create: true, update: true, delete: true },
+      routes: {
+        list: true,
+        findById: true,
+        create: true,
+        update: true,
+        delete: true,
+        count: true,
+        aggregate: true,
+      },
     })
     class HookedController extends RelayerController<any> {
       constructor(service: RelayerService<any>) {
@@ -276,6 +290,9 @@ describe('RelayerController with hooks', () => {
       }
       list(r: any) {
         return this.handleList(r);
+      }
+      findOne(id: string, r: unknown) {
+        return this.handleFindById(id, r);
       }
       doCreate(body: any, r: unknown) {
         return this.handleCreate(body, r);
@@ -285,6 +302,12 @@ describe('RelayerController with hooks', () => {
       }
       doDelete(id: string, r: unknown) {
         return this.handleDelete(id, r);
+      }
+      doCount(r: any) {
+        return this.handleCount(r);
+      }
+      doAggregate(r: any) {
+        return this.handleAggregate(r);
       }
     }
 
@@ -322,6 +345,67 @@ describe('RelayerController with hooks', () => {
     await controller.doDelete('1', {});
     expect(hookSpies.beforeDelete).toHaveBeenCalled();
     expect(hookSpies.afterDelete).toHaveBeenCalled();
+  });
+
+  it('calls afterFind with list results', async () => {
+    await controller.list(req());
+    expect(hookSpies.afterFind).toHaveBeenCalledWith([{ id: 1 }], expect.anything());
+  });
+
+  it('afterFind replaces list data', async () => {
+    hookSpies.afterFind.mockReturnValue([{ id: 1, extra: true }]);
+    const result = (await controller.list(req())) as any;
+    expect(result.data).toEqual([{ id: 1, extra: true }]);
+  });
+
+  it('afterFind void keeps original data', async () => {
+    hookSpies.afterFind.mockReturnValue(undefined);
+    const result = (await controller.list(req())) as any;
+    expect(result.data).toEqual([{ id: 1 }]);
+  });
+
+  it('calls beforeFindOne with options', async () => {
+    await controller.findOne('1', {});
+    expect(hookSpies.beforeFindOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 1 } }),
+      expect.anything(),
+    );
+  });
+
+  it('afterFindOne replaces entity', async () => {
+    hookSpies.afterFindOne.mockReturnValue({ id: 1, enriched: true });
+    const result = (await controller.findOne('1', {})) as any;
+    expect(result.data).toEqual({ id: 1, enriched: true });
+  });
+
+  it('calls beforeCount with options', async () => {
+    await controller.doCount(req({ where: '{"published":true}' }));
+    expect(hookSpies.beforeCount).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { published: true } }),
+      expect.anything(),
+    );
+  });
+
+  it('calls beforeAggregate with options', async () => {
+    await controller.doAggregate(req({ _count: 'true' }));
+    expect(hookSpies.beforeAggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ _count: true }),
+      expect.anything(),
+    );
+  });
+
+  it('afterAggregate replaces result', async () => {
+    (client.aggregate as any).mockResolvedValue({ _count: 10 });
+    hookSpies.afterAggregate.mockReturnValue({ _count: 10, enriched: true });
+    const result = (await controller.doAggregate(req({ _count: 'true' }))) as any;
+    expect(result.data).toEqual({ _count: 10, enriched: true });
+  });
+
+  it('afterAggregate void keeps original result', async () => {
+    (client.aggregate as any).mockResolvedValue({ _count: 10 });
+    hookSpies.afterAggregate.mockReturnValue(undefined);
+    const result = (await controller.doAggregate(req({ _count: 'true' }))) as any;
+    expect(result.data).toEqual({ _count: 10 });
   });
 });
 

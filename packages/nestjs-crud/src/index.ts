@@ -1,5 +1,6 @@
 export { RelayerModule } from './relayer.module';
-export { RelayerService, type EntityClient } from './relayer.service';
+export { RelayerService } from './relayer.service';
+export type { EntityClient } from './entity-client';
 export { RelayerController } from './relayer.controller';
 
 export {

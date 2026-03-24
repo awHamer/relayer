@@ -217,10 +217,15 @@ export class RelayerController<
       await hooks.beforeFind(findOptions as Record<string, unknown>, ctx);
     }
 
-    const [data, total] = await Promise.all([
+    let [data, total] = await Promise.all([
       this.service.findMany(findOptions as Record<string, unknown>),
       this.service.count(query.where ? { where: query.where } : {}),
     ]);
+
+    if (hooks?.afterFind) {
+      const modified = await hooks.afterFind(data, ctx);
+      if (modified) data = modified;
+    }
 
     const dtoMapper = this.getDtoMapper();
     const items = dtoMapper
@@ -290,7 +295,12 @@ export class RelayerController<
 
     const data = await this.service.findMany(findOptions as Record<string, unknown>);
     const hasMore = data.length > limit;
-    const results = hasMore ? data.slice(0, limit) : data;
+    let results = hasMore ? data.slice(0, limit) : data;
+
+    if (hooks?.afterFind) {
+      const modified = await hooks.afterFind(results, ctx);
+      if (modified) results = modified;
+    }
 
     const dtoMapper = this.getDtoMapper();
     const items = dtoMapper
@@ -325,13 +335,24 @@ export class RelayerController<
       ...(findByIdConfig?.defaults?.select ? { select: findByIdConfig.defaults.select } : {}),
     };
 
-    const result = await this.service.findFirst(findOptions);
+    const ctx = this.buildContext(request);
+    const hooks = this.getHooks();
+
+    if (hooks?.beforeFindOne) {
+      await hooks.beforeFindOne(findOptions, ctx);
+    }
+
+    let result = await this.service.findFirst(findOptions);
     if (!result) {
       throw new NotFoundException('Entity not found');
     }
 
+    if (hooks?.afterFindOne) {
+      const modified = await hooks.afterFindOne(result, ctx);
+      if (modified) result = modified;
+    }
+
     const dtoMapper = this.getDtoMapper();
-    const ctx = this.buildContext(request);
     const transformed = dtoMapper ? await dtoMapper.toResponse(result, ctx) : result;
     return { data: transformed };
   }
@@ -437,12 +458,24 @@ export class RelayerController<
     }
     this.applySearch(query, listConfig);
 
-    const count = await this.service.count(query.where ? { where: query.where } : {});
+    const ctx = this.buildContext(request);
+    const hooks = this.getHooks();
+    const countOptions: Record<string, unknown> = query.where ? { where: query.where } : {};
+
+    if (hooks?.beforeCount) {
+      await hooks.beforeCount(countOptions, ctx);
+    }
+
+    const count = await this.service.count(countOptions);
     return { data: { count: Number(count) } };
   }
 
-  protected async handleAggregate(request: { query: Record<string, string> }): Promise<unknown> {
+  protected async handleAggregate(request: {
+    query: Record<string, string>;
+  }): Promise<unknown> {
     const raw = request.query;
+    const ctx = this.buildContext(request);
+    const hooks = this.getHooks();
 
     const options: Record<string, unknown> = {};
 
@@ -497,7 +530,17 @@ export class RelayerController<
       }
     }
 
+    if (hooks?.beforeAggregate) {
+      await hooks.beforeAggregate(options, ctx);
+    }
+
     const result = await this.service.aggregate(options);
+
+    if (hooks?.afterAggregate) {
+      const modified = await hooks.afterAggregate(result, ctx);
+      if (modified !== undefined) return { data: modified };
+    }
+
     return { data: result };
   }
 }

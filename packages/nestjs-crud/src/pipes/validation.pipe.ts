@@ -26,7 +26,9 @@ function isZodSchema(schema: unknown): schema is ZodLike {
   );
 }
 
-function isClassValidatorDto(schema: unknown): schema is new (...args: unknown[]) => unknown {
+type DtoConstructor = new (...args: unknown[]) => object;
+
+function isClassValidatorDto(schema: unknown): schema is DtoConstructor {
   return typeof schema === 'function' && schema.prototype !== undefined;
 }
 
@@ -98,12 +100,12 @@ async function loadClassValidator(): Promise<{
 }
 
 export async function validateWithClassValidator(
-  DtoClass: new (...args: unknown[]) => unknown,
+  DtoClass: DtoConstructor,
   data: unknown,
 ): Promise<unknown> {
   const { plainToInstance, validate } = await loadClassValidator();
   const instance = plainToInstance(DtoClass, data);
-  const errors = (await validate(instance as object)) as ClassValidatorError[];
+  const errors = (await validate(instance)) as ClassValidatorError[];
 
   if (errors.length > 0) {
     throw createValidationException(flattenClassValidatorErrors(errors));

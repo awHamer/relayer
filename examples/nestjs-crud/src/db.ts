@@ -7,4 +7,4 @@ const DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgres://relayer:relayer@localhost:5433/relayer_dev';
 
 export const client = postgres(DATABASE_URL);
-export const db = drizzle(client, { schema,  logger: true });
+export const db = drizzle(client, { schema,  logger: false });

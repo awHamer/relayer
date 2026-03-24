@@ -22,7 +22,11 @@ export class RelayerExceptionFilter implements ExceptionFilter {
           message:
             typeof exceptionResponse === 'string'
               ? exceptionResponse
-              : ((exceptionResponse as Record<string, unknown>).message ?? exception.message),
+              : typeof exceptionResponse === 'object' &&
+                  exceptionResponse !== null &&
+                  'message' in exceptionResponse
+                ? String((exceptionResponse as { message: unknown }).message)
+                : exception.message,
           status,
         },
       });

@@ -15,4 +15,22 @@ export abstract class RelayerHooks<TEntity = unknown> {
   beforeDelete?(where: Record<string, unknown>, ctx: RequestContext): Promise<void> | void;
   afterDelete?(entity: TEntity, ctx: RequestContext): Promise<void> | void;
   beforeFind?(options: Record<string, unknown>, ctx: RequestContext): Promise<void> | void;
+  afterFind?(
+    entities: TEntity[],
+    ctx: RequestContext,
+  ): Promise<TEntity[] | void> | TEntity[] | void;
+
+  beforeFindOne?(options: Record<string, unknown>, ctx: RequestContext): Promise<void> | void;
+  afterFindOne?(
+    entity: TEntity,
+    ctx: RequestContext,
+  ): Promise<TEntity | void> | TEntity | void;
+
+  beforeCount?(options: Record<string, unknown>, ctx: RequestContext): Promise<void> | void;
+
+  beforeAggregate?(options: Record<string, unknown>, ctx: RequestContext): Promise<void> | void;
+  afterAggregate?(
+    result: unknown,
+    ctx: RequestContext,
+  ): Promise<unknown | void> | unknown | void;
 }
