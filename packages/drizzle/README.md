@@ -320,6 +320,52 @@ type UserSelect = InferEntitySelect<typeof r, 'users'>;
 type UserOrderBy = InferEntityOrderBy<typeof r, 'users'>;
 ```
 
+### Return type inference
+
+`findMany` and `findFirst` narrow their return type based on `select`:
+
+```ts
+// Without select -> full entity type
+const users = await r.users.findMany();
+// users: { id: number; firstName: string; email: string; fullName: string; ... }[]
+
+// With select -> only selected fields
+const users = await r.users.findMany({ select: { id: true, fullName: true } });
+// users: { id: number; fullName: string }[]
+```
+
+`aggregate` infers its return type from the options:
+
+```ts
+// Return type includes _count, _sum, and groupBy fields
+const stats = await r.orders.aggregate({
+  groupBy: ['status'],
+  _count: true,
+  _sum: { total: true },
+});
+// stats: { status: string; _count: number; _sum: { total: number | null } }[]
+
+// Without groupBy -> single object (not array)
+const totals = await r.users.aggregate({ _count: true });
+// totals: { _count: number }
+```
+
+### EntityWithRelations
+
+Full entity shape including relation targets as nested objects. Useful for generic utilities:
+
+```ts
+import type { DotPaths, TypeAtPath } from '@relayerjs/core';
+import type { EntityWithRelations } from '@relayerjs/drizzle';
+
+// DotPaths works on EntityWithRelations to produce all valid paths
+type PostEntity = EntityWithRelations<typeof schema, { users: User }, 'posts'>;
+type AllPaths = DotPaths<PostEntity>; // "id" | "title" | "author.fullName" | ...
+
+// TypeAtPath extracts the value type at a dot path
+type AuthorName = TypeAtPath<PostEntity, 'author.fullName'>; // string
+```
+
 ## License
 
 MIT
