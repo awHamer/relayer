@@ -28,6 +28,8 @@ export type { ValueType, ScalarValueType, ObjectValueType } from './types/value-
 export { FieldType } from './types/field-type';
 export type { OperatorsForValue } from './types/operators';
 export type { WhereType } from './types/where';
+export type { SelectResult } from './types/select-result';
+export type { DotPaths } from './types/dot-paths';
 export type {
   FindManyOptions,
   FindFirstOptions,
