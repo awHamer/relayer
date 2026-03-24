@@ -37,7 +37,7 @@ export interface EntityClientConfig {
 
 interface AggregateOptions {
   where?: Record<string, unknown>;
-  groupBy?: string[];
+  groupBy?: readonly string[];
   _count?: boolean;
   _sum?: Record<string, boolean>;
   _avg?: Record<string, boolean>;

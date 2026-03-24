@@ -430,6 +430,20 @@ describe('aggregate: nested format', () => {
       expect(row._count).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it('own derived field in aggregate (_sum postsCount)', async () => {
+    const result = await r.users.aggregate({
+      _sum: { postsCount: true },
+    });
+    expect((result as any)._sum).toBeDefined();
+    expect(typeof (result as any)._sum.postsCount).toBe('number');
+  });
+
+  it('CAST for sum on string-typed column (numeric -> DECIMAL)', async () => {
+    const result = await r.orders.aggregate({ _sum: { total: true } });
+    expect((result as any)._sum).toBeDefined();
+    expect(typeof (result as any)._sum.total).toBe('number');
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,8 @@
-import type { SelectResult } from '@relayerjs/core';
+import type { AggregateResult, SelectResult } from '@relayerjs/core';
 
 import type { SchemaTableKeys } from './entity-config';
 import type {
+  EntityWithRelations,
   ExtractMeta,
   InferTableInsert,
   InferTableSelect,
@@ -23,6 +24,15 @@ type InstanceOf<TModel> =
     key: infer K extends string;
   }
     ? ModelInstance<S, E, K>
+    : Record<string, unknown>;
+
+type EntityOf<TModel> =
+  ExtractMeta<TModel> extends {
+    schema: infer S extends Record<string, unknown>;
+    entities: infer E extends Record<string, unknown>;
+    key: infer K extends string;
+  }
+    ? EntityWithRelations<S, E, K>
     : Record<string, unknown>;
 
 export interface TypedEntityClient<TModel, TContext = unknown> {
@@ -53,9 +63,13 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
 
   count(options?: { where?: WhereType<TModel>; context?: TContext }): Promise<number>;
 
-  aggregate(
-    options: AggregateType<TModel>,
-  ): Promise<Record<string, unknown>[] | Record<string, unknown>>;
+  aggregate<const TOptions extends AggregateType<TModel>>(
+    options: TOptions,
+  ): Promise<
+    TOptions extends { groupBy: readonly string[] }
+      ? AggregateResult<EntityOf<TModel>, TOptions>[]
+      : AggregateResult<EntityOf<TModel>, TOptions>
+  >;
 
   create(options: {
     data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }

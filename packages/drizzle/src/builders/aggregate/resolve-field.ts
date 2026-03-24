@@ -69,9 +69,43 @@ export function resolveFieldColumn(
   }
 
   const segments = fieldPath.split('.');
-  const relationName = segments[0]!;
-  const relDef = metadata.relationFields.get(relationName);
-  if (!relDef) return undefined;
+  const first = segments[0]!;
+
+  // Own derived sub-field: orderSummary.totalAmount
+  if (segments.length === 2 && metadata.derivedFields.has(first) && db && adapter) {
+    const subField = segments[1]!;
+    const resolutions = resolveDerivedFields(metadata.derivedFields, [first], {
+      table,
+      db,
+      schema,
+      context: queryContext,
+      dialect: adapter.dialect,
+    });
+    const res = resolutions.get(first);
+    if (res?.isObjectType && res.valueColumns) {
+      const subCol = res.valueColumns.get(subField);
+      if (subCol) {
+        const derivedKey = aggDerivedKey(first);
+        if (!joined.has(derivedKey)) {
+          joined.add(derivedKey);
+          jns.push({ subquery: res.subquery, on: res.joinCondition });
+        }
+        return subCol;
+      }
+    }
+  }
+
+  // JSON sub-path: metadata.role
+  if (!metadata.relationFields.has(first)) {
+    const col = tableColumns[first];
+    if (col && adapter) {
+      return adapter.jsonPath(col, segments.slice(1));
+    }
+    return undefined;
+  }
+
+  const relationName = first;
+  const relDef = metadata.relationFields.get(relationName)!;
 
   const targetInfo = allTables.get(relDef.targetEntity);
   if (!targetInfo) return undefined;

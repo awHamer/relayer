@@ -30,6 +30,7 @@ export type { OperatorsForValue } from './types/operators';
 export type { WhereType } from './types/where';
 export type { SelectResult } from './types/select-result';
 export type { DotPaths } from './types/dot-paths';
+export type { AggregateResult, TypeAtPath } from './types/aggregate-result';
 export type {
   FindManyOptions,
   FindFirstOptions,
