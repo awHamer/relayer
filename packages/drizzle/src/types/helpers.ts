@@ -122,16 +122,17 @@ export type OpsForTSType<T> = T extends string
             ? JsonWhereOps<T>
             : unknown;
 
+// Strip class identity so DotPaths sees a plain object (class instances lack index signatures)
+type ToPlainObject<T> = { [K in keyof T]: T[K] };
+
 // Full entity shape: own fields + relation targets as nested objects (always singular)
 export type EntityWithRelations<
   TSchema extends Record<string, unknown>,
   TEntities extends Record<string, unknown>,
   TKey extends string,
-> = ModelInstance<TSchema, TEntities, TKey> & {
-  [R in TableRelationKeys<TKey, TSchema>]: ModelInstance<
-    TSchema,
-    TEntities,
-    RelationTargetName<TKey, TSchema, R> & string
+> = ToPlainObject<ModelInstance<TSchema, TEntities, TKey>> & {
+  [R in TableRelationKeys<TKey, TSchema>]: ToPlainObject<
+    ModelInstance<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string>
   >;
 };
 

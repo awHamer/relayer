@@ -15,6 +15,7 @@ export type {
   ModelAggregateOptions,
   ModelInstance,
   ModelDotPaths,
+  EntityWithRelations,
   CustomFieldKeys,
   OpsForTSType,
   TypedEntityClient,
