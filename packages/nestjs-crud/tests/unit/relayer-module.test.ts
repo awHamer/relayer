@@ -72,12 +72,8 @@ describe('RelayerModule.forRoot', () => {
     });
 
     const providers = result.providers as Array<{ provide: unknown }>;
-    const entityProvider = providers.find(
-      (p) => p.provide === `${RELAYER_ENTITY_PREFIX}tests`,
-    );
-    const serviceProvider = providers.find(
-      (p) => p.provide === `${RELAYER_SERVICE_PREFIX}tests`,
-    );
+    const entityProvider = providers.find((p) => p.provide === `${RELAYER_ENTITY_PREFIX}tests`);
+    const serviceProvider = providers.find((p) => p.provide === `${RELAYER_SERVICE_PREFIX}tests`);
     expect(entityProvider).toBeDefined();
     expect(serviceProvider).toBeDefined();
   });
@@ -129,12 +125,8 @@ describe('RelayerModule.forFeature', () => {
     const providers = result.providers as Array<{ provide: unknown }>;
     expect(providers.length).toBe(2);
 
-    const entityProvider = providers.find(
-      (p) => p.provide === `${RELAYER_ENTITY_PREFIX}tests`,
-    );
-    const serviceProvider = providers.find(
-      (p) => p.provide === `${RELAYER_SERVICE_PREFIX}tests`,
-    );
+    const entityProvider = providers.find((p) => p.provide === `${RELAYER_ENTITY_PREFIX}tests`);
+    const serviceProvider = providers.find((p) => p.provide === `${RELAYER_SERVICE_PREFIX}tests`);
     expect(entityProvider).toBeDefined();
     expect(serviceProvider).toBeDefined();
   });

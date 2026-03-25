@@ -8,33 +8,38 @@ import type {
   WhereType,
 } from '@relayerjs/core';
 
-import type { CrudRouteName } from './constants';
-import type { DtoMapper } from './dto-mapper';
-import type { RelayerHooks } from './hooks';
+import type { CrudRouteName } from '../constants';
+import type { DtoMapper } from '../relayer.dto-mapper';
+import type { RelayerHooks } from '../relayer.hooks';
+import type { Model } from './entity-repo';
 
-export interface RequestContext {
-  request: unknown;
-  user?: unknown;
-  tx?: unknown;
-  [key: string]: unknown;
-}
-
-export interface ValidationError {
-  code: string;
-  message: string;
-  path: (string | number)[];
-  [key: string]: unknown;
-}
-
-type EntityKeys<TEntity> = keyof TEntity & string;
+type ModelKeys<TEntity, TEntities extends Record<string, unknown>> = keyof Model<
+  TEntity,
+  TEntities
+> &
+  string;
 
 export interface ZodLike {
   parse(data: unknown): unknown;
   safeParse?(data: unknown): { success: boolean; error?: { errors: unknown[] }; data?: unknown };
 }
 
-export type SelectConfig<TEntity> = Partial<Record<EntityKeys<TEntity>, boolean>> &
-  Record<string, unknown>;
+type SelectConfigOf<T> = {
+  [K in keyof T & string]?: NonNullable<T[K]> extends (infer Item)[]
+    ? Item extends Record<string, unknown>
+      ? boolean | ({ $limit?: number } & SelectConfigOf<Item>)
+      : boolean
+    : NonNullable<T[K]> extends Record<string, unknown>
+      ? NonNullable<T[K]> extends Date
+        ? boolean
+        : boolean | SelectConfigOf<NonNullable<T[K]>>
+      : boolean;
+};
+
+export type SelectConfig<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> = SelectConfigOf<Model<TEntity, TEntities>>;
 
 export type OperatorName =
   | keyof StringOperators
@@ -43,9 +48,10 @@ export type OperatorName =
   | keyof DateOperators
   | keyof ArrayOperators;
 
-export type WhereConfig<TEntity> = Partial<
-  Record<EntityKeys<TEntity>, boolean | { operators: OperatorName[] }>
->;
+export type WhereConfig<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> = Partial<Record<ModelKeys<TEntity, TEntities>, boolean | { operators: OperatorName[] }>>;
 
 /**
  * 'offset' — standard offset/limit pagination with total count
@@ -59,7 +65,10 @@ export type WhereConfig<TEntity> = Partial<
  */
 export type PaginationMode = 'offset' | 'cursor_UNSTABLE';
 
-export interface ListRouteConfig<TEntity> {
+export interface ListRouteConfig<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> {
   schema?: ZodLike;
   /**
    * 'offset' (default) — standard offset/limit with total count.
@@ -69,25 +78,28 @@ export interface ListRouteConfig<TEntity> {
    */
   pagination?: PaginationMode;
   defaults?: {
-    select?: SelectConfig<TEntity>;
-    where?: Partial<Record<EntityKeys<TEntity>, unknown>>;
+    select?: SelectConfig<TEntity, TEntities>;
+    where?: Partial<Record<ModelKeys<TEntity, TEntities>, unknown>>;
     orderBy?:
-      | { field: EntityKeys<TEntity>; order: 'asc' | 'desc' }
-      | { field: EntityKeys<TEntity>; order: 'asc' | 'desc' }[];
+      | { field: ModelKeys<TEntity, TEntities>; order: 'asc' | 'desc' }
+      | { field: ModelKeys<TEntity, TEntities>; order: 'asc' | 'desc' }[];
   };
   allow?: {
-    select?: SelectConfig<TEntity> & Record<string, boolean | { $limit?: number }>;
-    where?: WhereConfig<TEntity>;
-    orderBy?: EntityKeys<TEntity>[];
+    select?: SelectConfig<TEntity, TEntities>;
+    where?: WhereConfig<TEntity, TEntities>;
+    orderBy?: ModelKeys<TEntity, TEntities>[];
   };
   maxLimit?: number;
   defaultLimit?: number;
-  search?: (query: string) => WhereType<TEntity>;
+  search?: (query: string) => WhereType<Model<TEntity, TEntities>>;
 }
 
-export interface FindByIdRouteConfig<TEntity> {
+export interface FindByIdRouteConfig<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> {
   defaults?: {
-    select?: SelectConfig<TEntity>;
+    select?: SelectConfig<TEntity, TEntities>;
   };
 }
 
@@ -96,9 +108,12 @@ export interface MutationRouteConfig {
   schema?: ZodLike | Function;
 }
 
-export interface CrudRoutes<TEntity> {
-  list?: boolean | ListRouteConfig<TEntity>;
-  findById?: boolean | FindByIdRouteConfig<TEntity>;
+export interface CrudRoutes<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> {
+  list?: boolean | ListRouteConfig<TEntity, TEntities>;
+  findById?: boolean | FindByIdRouteConfig<TEntity, TEntities>;
   create?: boolean | MutationRouteConfig;
   update?: boolean | MutationRouteConfig;
   delete?: boolean;
@@ -113,19 +128,23 @@ export interface DecoratorTargeted {
 
 export type DecoratorEntry = MethodDecorator | DecoratorTargeted;
 
-export interface CrudControllerConfig<TEntity = unknown> {
+export interface CrudControllerConfig<
+  TEntity = unknown,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> {
   model: RelayerEntityClass & (new (...args: unknown[]) => TEntity);
   path?: string;
   id?: {
     field?: string;
     type?: 'number' | 'string' | 'uuid';
   };
-  routes?: CrudRoutes<TEntity>;
+  routes?: CrudRoutes<TEntity, TEntities>;
   decorators?: DecoratorEntry[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dtoMapper?: new (...args: any[]) => DtoMapper<TEntity, any, any>;
+  dtoMapper?: new (...args: any[]) => DtoMapper<any, any, any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  hooks?: new (...args: any[]) => RelayerHooks<TEntity>;
+  hooks?: new (...args: any[]) => RelayerHooks<TEntity, TEntities>;
+  // todo: implement?
   swagger?: Record<string, unknown>;
   params?: Record<string, { field: string; type: 'number' | 'string' }>;
 }

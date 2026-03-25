@@ -1,6 +1,11 @@
 import type { ExtractTablesWithRelations, One, Table } from 'drizzle-orm';
 
-import type { InferTableSelect, ModelInstance, RelationTargetName, TableRelationKeys } from './helpers';
+import type {
+  InferTableSelect,
+  ModelInstance,
+  RelationTargetName,
+  TableRelationKeys,
+} from './helpers';
 
 type ToPlain<T> = { [K in keyof T]: T[K] };
 
@@ -16,12 +21,14 @@ type IsOneRelation<
     : false
   : false;
 
-type OwnColumns<TSchema extends Record<string, unknown>, TKey extends string> =
-  TKey extends keyof TSchema
-    ? TSchema[TKey] extends Table
-      ? InferTableSelect<TSchema[TKey]>
-      : Record<string, unknown>
-    : Record<string, unknown>;
+type OwnColumns<
+  TSchema extends Record<string, unknown>,
+  TKey extends string,
+> = TKey extends keyof TSchema
+  ? TSchema[TKey] extends Table
+    ? InferTableSelect<TSchema[TKey]>
+    : Record<string, unknown>
+  : Record<string, unknown>;
 
 // Entity model type with recursive relations (depth-limited)
 // Uses ModelInstance: entity class -> InstanceType (with computed/derived), plain table -> InferTableSelect
@@ -77,21 +84,29 @@ type SchemaFromEntities<TEntities extends Record<string, unknown>> = {
     : never;
 }[keyof TEntities & string];
 
-export type EntityModelFromInstance<
-  TEntity,
-  TEntities extends Record<string, unknown>,
-> = SchemaFromEntities<TEntities> extends infer S extends Record<string, unknown>
-  ? FindEntityKey<TEntity, TEntities> extends infer K extends string
-    ? ToPlain<TEntity> &
-        (TableRelationKeys<K, S> extends never
-          ? {}
-          : {
-              [R in TableRelationKeys<K, S>]: IsOneRelation<S, K, R> extends true
-                ? EntityModelWithRelations<S, TEntities, RelationTargetName<K, S, R> & string, [unknown]> | null
-                : EntityModelWithRelations<S, TEntities, RelationTargetName<K, S, R> & string, [unknown]>[];
-            })
-    : ToPlain<TEntity>
-  : ToPlain<TEntity>;
+export type EntityModelFromInstance<TEntity, TEntities extends Record<string, unknown>> =
+  SchemaFromEntities<TEntities> extends infer S extends Record<string, unknown>
+    ? FindEntityKey<TEntity, TEntities> extends infer K extends string
+      ? ToPlain<TEntity> &
+          (TableRelationKeys<K, S> extends never
+            ? {}
+            : {
+                [R in TableRelationKeys<K, S>]: IsOneRelation<S, K, R> extends true
+                  ? EntityModelWithRelations<
+                      S,
+                      TEntities,
+                      RelationTargetName<K, S, R> & string,
+                      [unknown]
+                    > | null
+                  : EntityModelWithRelations<
+                      S,
+                      TEntities,
+                      RelationTargetName<K, S, R> & string,
+                      [unknown]
+                    >[];
+              })
+      : ToPlain<TEntity>
+    : ToPlain<TEntity>;
 
 // Entity instance type with recursive relations (depth-limited, schema-only, no computed/derived)
 export type EntityInstanceWithRelations<

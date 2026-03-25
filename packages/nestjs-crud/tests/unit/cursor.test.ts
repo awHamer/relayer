@@ -5,11 +5,7 @@ import { buildCursorWhere, decodeCursor, encodeCursor } from '../../src/pipes/cu
 
 describe('encodeCursor', () => {
   it('encodes single-field orderBy', () => {
-    const cursor = encodeCursor(
-      { id: 10, title: 'Test' },
-      [{ field: 'id', order: 'asc' }],
-      'id',
-    );
+    const cursor = encodeCursor({ id: 10, title: 'Test' }, [{ field: 'id', order: 'asc' }], 'id');
     const decoded = decodeCursor(cursor);
     expect(decoded.f).toEqual(['id']);
     expect(decoded.v).toEqual([10]);
@@ -30,11 +26,7 @@ describe('encodeCursor', () => {
   });
 
   it('does not duplicate idField when already in orderBy', () => {
-    const cursor = encodeCursor(
-      { id: 1 },
-      [{ field: 'id', order: 'asc' }],
-      'id',
-    );
+    const cursor = encodeCursor({ id: 1 }, [{ field: 'id', order: 'asc' }], 'id');
     const decoded = decodeCursor(cursor);
     expect(decoded.f).toEqual(['id']);
   });
@@ -52,11 +44,7 @@ describe('encodeCursor', () => {
   });
 
   it('marks string values as s, numbers as n', () => {
-    const cursor = encodeCursor(
-      { id: 1, slug: 'hello' },
-      [{ field: 'slug', order: 'asc' }],
-      'id',
-    );
+    const cursor = encodeCursor({ id: 1, slug: 'hello' }, [{ field: 'slug', order: 'asc' }], 'id');
     const decoded = decodeCursor(cursor);
     expect(decoded.t).toEqual(['s', 'n']);
   });
@@ -135,10 +123,7 @@ describe('buildCursorWhere', () => {
       t: ['s', 'n'],
     });
     expect(result).toEqual({
-      OR: [
-        { title: { gt: 'A' } },
-        { title: { gte: 'A' }, id: { gt: 1 } },
-      ],
+      OR: [{ title: { gt: 'A' } }, { title: { gte: 'A' }, id: { gt: 1 } }],
     });
   });
 });

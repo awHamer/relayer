@@ -1,6 +1,6 @@
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
 import { lastValueFrom, of } from 'rxjs';
+import { describe, expect, it, vi } from 'vitest';
 
 import { EnvelopeInterceptor } from '../../src/interceptors/envelope.interceptor';
 

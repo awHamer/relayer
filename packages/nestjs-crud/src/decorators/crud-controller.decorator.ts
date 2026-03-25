@@ -60,7 +60,10 @@ function applyDecorators(
   }
 }
 
-export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): ClassDecorator {
+export function CrudController<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+>(config: CrudControllerConfig<TEntity, TEntities>): ClassDecorator {
   const path = config.path ?? getEntityKey(config.model);
   const routes = config.routes ?? {
     list: true,
@@ -77,28 +80,36 @@ export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): 
     const proto = (target as Type).prototype;
 
     if (routes.list) {
-      proto.list = function (req: unknown) { return this.handleList(req); };
+      proto.list = function (req: unknown) {
+        return this.handleList(req);
+      };
       setMethodMetadata(proto, 'list', RequestMethod.GET, '/');
       setRouteArgs(proto, 'list', createRouteArg(RouteParamtypes.REQUEST, 0));
       applyDecorators(proto, 'list', 'list', config.decorators);
     }
 
     if (routes.count) {
-      proto.count = function (req: unknown) { return this.handleCount(req); };
+      proto.count = function (req: unknown) {
+        return this.handleCount(req);
+      };
       setMethodMetadata(proto, 'count', RequestMethod.GET, '/count');
       setRouteArgs(proto, 'count', createRouteArg(RouteParamtypes.REQUEST, 0));
       applyDecorators(proto, 'count', 'count', config.decorators);
     }
 
     if (routes.aggregate) {
-      proto.aggregate = function (req: unknown) { return this.handleAggregate(req); };
+      proto.aggregate = function (req: unknown) {
+        return this.handleAggregate(req);
+      };
       setMethodMetadata(proto, 'aggregate', RequestMethod.GET, '/aggregate');
       setRouteArgs(proto, 'aggregate', createRouteArg(RouteParamtypes.REQUEST, 0));
       applyDecorators(proto, 'aggregate', 'aggregate', config.decorators);
     }
 
     if (routes.findById) {
-      proto.findById = function (id: string, req: unknown) { return this.handleFindById(id, req); };
+      proto.findById = function (id: string, req: unknown) {
+        return this.handleFindById(id, req);
+      };
       setMethodMetadata(proto, 'findById', RequestMethod.GET, '/:id');
       setRouteArgs(proto, 'findById', {
         ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
@@ -108,7 +119,9 @@ export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): 
     }
 
     if (routes.create) {
-      proto.create = function (body: unknown, req: unknown) { return this.handleCreate(body, req); };
+      proto.create = function (body: unknown, req: unknown) {
+        return this.handleCreate(body, req);
+      };
       setMethodMetadata(proto, 'create', RequestMethod.POST, '/');
       setRouteArgs(proto, 'create', {
         ...createRouteArg(RouteParamtypes.BODY, 0),
@@ -118,7 +131,9 @@ export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): 
     }
 
     if (routes.update) {
-      proto.update = function (id: string, body: unknown, req: unknown) { return this.handleUpdate(id, body, req); };
+      proto.update = function (id: string, body: unknown, req: unknown) {
+        return this.handleUpdate(id, body, req);
+      };
       setMethodMetadata(proto, 'update', RequestMethod.PATCH, '/:id');
       setRouteArgs(proto, 'update', {
         ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
@@ -129,7 +144,9 @@ export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): 
     }
 
     if (routes.delete) {
-      proto.delete = function (id: string, req: unknown) { return this.handleDelete(id, req); };
+      proto.delete = function (id: string, req: unknown) {
+        return this.handleDelete(id, req);
+      };
       setMethodMetadata(proto, 'delete', RequestMethod.DELETE, '/:id');
       setRouteArgs(proto, 'delete', {
         ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),

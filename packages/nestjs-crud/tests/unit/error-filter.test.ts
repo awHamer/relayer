@@ -8,7 +8,7 @@ import {
 import type { ArgumentsHost } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import { RelayerExceptionFilter } from '../../src/interceptors/error.filter';
+import { RelayerExceptionFilter } from '../../src/interceptors/relayer-exception.filter';
 
 function createMockHost() {
   const response = {

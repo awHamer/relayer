@@ -30,14 +30,14 @@ interface PostDetail {
 @Injectable()
 export class PostDtoMapper extends DtoMapper<PostEntity, PostListItem, PostDetail> {
   toListItem(entity: PostListItem): PostListItem {
-    return entity
-  }
-
-  toResponse(entity: PostEntity): PostDetail {
     return entity;
   }
 
-  toCreateInput(input: Record<string, unknown>, ctx: RequestContext) {
+  toSingleItem(entity: PostEntity): PostDetail {
+    return entity;
+  }
+
+  toCreateInput(input: Partial<PostEntity>, ctx: RequestContext) {
     return {
       ...input,
       authorId: (ctx.user as { id: number })?.id ?? 1,

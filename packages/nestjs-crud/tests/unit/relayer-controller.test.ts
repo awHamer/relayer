@@ -5,19 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
 import { CrudController } from '../../src/decorators/crud-controller.decorator';
-import { DtoMapper } from '../../src/dto-mapper';
-import { RelayerHooks } from '../../src/hooks';
 import { RelayerController } from '../../src/relayer.controller';
+import { DtoMapper } from '../../src/relayer.dto-mapper';
+import { RelayerHooks } from '../../src/relayer.hooks';
 import { RelayerService } from '../../src/relayer.service';
 import { mockEntityClient, TestEntity } from '../helpers';
 
-function createController<T extends RelayerController<any>>(
-  Ctrl: new (service: RelayerService<any>) => T,
-  client: Record<string, unknown>,
+function createController<T extends RelayerController<any, Record<string, unknown>>>(
+  Ctrl: new (service: RelayerService<any, Record<string, unknown>>) => T,
+  client: unknown,
   baseUrl = 'http://test',
 ): T {
   const r = { tests: client } as any;
-  const service = new RelayerService(r, 'tests');
+  const service = new RelayerService<any, Record<string, unknown>>(r, 'tests');
   const ctrl = new Ctrl(service);
   (ctrl as any).baseUrlConfig = baseUrl;
   (ctrl as any).moduleRef = {
@@ -40,8 +40,8 @@ function req(query: Record<string, string> = {}) {
       defaultLimit: 20,
       maxLimit: 50,
       defaults: {
-        orderBy: { field: 'id' as any, order: 'desc' },
-      },
+        orderBy: { field: 'id', order: 'desc' },
+      } as any,
     },
     findById: true,
     create: true,
@@ -51,8 +51,8 @@ function req(query: Record<string, string> = {}) {
     aggregate: true,
   },
 })
-class TestController extends RelayerController<any> {
-  constructor(service: RelayerService<any>) {
+class TestController extends RelayerController<any, Record<string, unknown>> {
+  constructor(service: RelayerService<any, Record<string, unknown>>) {
     super(service);
   }
   list(r: any) {
@@ -245,7 +245,21 @@ describe('RelayerController', () => {
 describe('RelayerController with hooks', () => {
   let controller: any;
   let client: ReturnType<typeof mockEntityClient>;
-  let hookSpies: Record<string, ReturnType<typeof vi.fn>>;
+  let hookSpies: {
+    beforeFind: ReturnType<typeof vi.fn>;
+    afterFind: ReturnType<typeof vi.fn>;
+    beforeFindOne: ReturnType<typeof vi.fn>;
+    afterFindOne: ReturnType<typeof vi.fn>;
+    beforeCreate: ReturnType<typeof vi.fn>;
+    afterCreate: ReturnType<typeof vi.fn>;
+    beforeUpdate: ReturnType<typeof vi.fn>;
+    afterUpdate: ReturnType<typeof vi.fn>;
+    beforeDelete: ReturnType<typeof vi.fn>;
+    afterDelete: ReturnType<typeof vi.fn>;
+    beforeCount: ReturnType<typeof vi.fn>;
+    beforeAggregate: ReturnType<typeof vi.fn>;
+    afterAggregate: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     client = mockEntityClient({
@@ -285,8 +299,8 @@ describe('RelayerController with hooks', () => {
         aggregate: true,
       },
     })
-    class HookedController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class HookedController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -426,7 +440,7 @@ describe('RelayerController with dtoMapper', () => {
 
     mapperSpies = {
       toListItem: vi.fn((entity) => ({ ...entity, mapped: true })),
-      toResponse: vi.fn((entity) => ({ ...entity, detailed: true })),
+      toSingleItem: vi.fn((entity) => ({ ...entity, detailed: true })),
       toCreateInput: vi.fn((data) => ({ ...data, authorId: 99 })),
       toUpdateInput: vi.fn((data) => ({ ...data, updatedBy: 99 })),
     };
@@ -435,8 +449,8 @@ describe('RelayerController with dtoMapper', () => {
       model: TestEntity as any,
       routes: { list: true, findById: true, create: true, update: true },
     })
-    class MappedController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class MappedController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -467,7 +481,7 @@ describe('RelayerController with dtoMapper', () => {
   it('toResponse transforms findById result', async () => {
     const result = (await controller.findOne('1', {})) as any;
     expect(result.data).toEqual({ id: 1, title: 'Raw', detailed: true });
-    expect(mapperSpies.toResponse).toHaveBeenCalled();
+    expect(mapperSpies.toSingleItem).toHaveBeenCalled();
   });
 
   it('toCreateInput transforms create data', async () => {
@@ -507,8 +521,8 @@ describe('RelayerController with search', () => {
         count: true,
       },
     })
-    class SearchController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class SearchController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -587,8 +601,8 @@ describe('RelayerController with defaults.where and defaults.select', () => {
         count: true,
       },
     })
-    class DefaultsController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class DefaultsController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -653,8 +667,8 @@ describe('RelayerController cursor pagination', () => {
         },
       },
     })
-    class CursorController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class CursorController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -796,8 +810,8 @@ describe('RelayerController enforceAllowSelectLimits', () => {
         },
       },
     })
-    class LimitController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class LimitController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -846,8 +860,8 @@ describe('RelayerController findById with defaults.select', () => {
         },
       },
     })
-    class SelectController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class SelectController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       findOne(id: string, r: unknown) {
@@ -875,8 +889,8 @@ describe('RelayerController getBasePath', () => {
       model: TestEntity as any,
       routes: { list: true },
     })
-    class UrlController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class UrlController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -901,8 +915,8 @@ describe('RelayerController onModuleInit', () => {
       model: TestEntity as any,
       hooks: TestHooks as any,
     })
-    class InitController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class InitController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
     }
@@ -925,8 +939,8 @@ describe('RelayerController onModuleInit', () => {
       model: TestEntity as any,
       hooks: TestHooks as any,
     })
-    class InitController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class InitController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
     }
@@ -939,19 +953,19 @@ describe('RelayerController onModuleInit', () => {
   });
 
   it('resolves dtoMapper from moduleRef', () => {
-    const mapperInstance = { toListItem: vi.fn(), toResponse: vi.fn() };
+    const mapperInstance = { toListItem: vi.fn(), toSingleItem: vi.fn() };
 
     class TestMapper extends DtoMapper<any> {
       toListItem = vi.fn();
-      toResponse = vi.fn();
+      toSingleItem = vi.fn();
     }
 
     @CrudController({
       model: TestEntity as any,
       dtoMapper: TestMapper as any,
     })
-    class InitController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class InitController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
     }
@@ -964,6 +978,33 @@ describe('RelayerController onModuleInit', () => {
 
     controller.onModuleInit();
     expect((controller as any).resolvedDtoMapper).toBe(mapperInstance);
+    expect((controller as any).dtoMapperResolved).toBe(true);
+  });
+
+  it('falls back to manual instantiation for dtoMapper when moduleRef.get throws', () => {
+    class TestMapper extends DtoMapper<any> {
+      toListItem() {
+        return {};
+      }
+      toSingleItem() {
+        return {};
+      }
+    }
+
+    @CrudController({
+      model: TestEntity as any,
+      dtoMapper: TestMapper as any,
+    })
+    class InitController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
+        super(service);
+      }
+    }
+
+    const client = mockEntityClient();
+    const controller = createController(InitController, client, '');
+    controller.onModuleInit();
+    expect((controller as any).resolvedDtoMapper).toBeInstanceOf(TestMapper);
     expect((controller as any).dtoMapperResolved).toBe(true);
   });
 });
@@ -988,8 +1029,8 @@ describe('RelayerController with listConfig.schema', () => {
         },
       },
     })
-    class SchemaController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
+    class SchemaController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
         super(service);
       }
       list(r: any) {
@@ -1085,9 +1126,7 @@ describe('handleAggregate', () => {
       aggregate: vi.fn().mockResolvedValue({}),
     });
     const controller = createController(TestController, client);
-    await controller.doAggregate(
-      req({ _sum: 'bad', _avg: 'bad', _min: 'bad', _max: 'bad' }),
-    );
+    await controller.doAggregate(req({ _sum: 'bad', _avg: 'bad', _min: 'bad', _max: 'bad' }));
     const callArgs = (client.aggregate as any).mock.calls[0][0];
     expect(callArgs._sum).toBeUndefined();
     expect(callArgs._avg).toBeUndefined();

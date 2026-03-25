@@ -51,15 +51,37 @@ export class UserEntity extends UserBase {
 }
 ```
 
-### 2. Register the module
+### 2. Create an entity map
+
+The entity map ties your entity classes together and enables cross-entity type inference:
+
+```ts
+// entities/entity-map.ts
+import { PostEntity } from './post.entity';
+import { UserEntity } from './user.entity';
+
+export const entities = { users: UserEntity, posts: PostEntity };
+export type EM = typeof entities;
+```
+
+### 3. Register the module
+
+Call `RelayerModule.forRoot()` once in your root `AppModule`. This creates the Relayer client, registers entity providers, and makes everything available globally:
 
 ```ts
 // app.module.ts
+import { Module } from '@nestjs/common';
+import { RelayerModule } from '@relayerjs/nestjs-crud';
+
+import { db } from './db';
+import { PostEntity, UserEntity } from './entities';
+import * as schema from './schema';
+
 @Module({
   imports: [
     RelayerModule.forRoot({
-      db,
-      schema,
+      db, // your Drizzle db instance
+      schema, // Drizzle schema export (tables + relations)
       entities: [UserEntity, PostEntity],
       defaultRelationLimit: 50,
       baseUrl: () => `http://localhost:${process.env.PORT ?? 3000}`,
@@ -70,15 +92,29 @@ export class UserEntity extends UserBase {
 export class AppModule {}
 ```
 
-### 3. Create a controller
+For dynamic configuration (e.g. reading DB URL from environment):
+
+```ts
+RelayerModule.forRootAsync({
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: (config: ConfigService) => ({
+    db: createDb(config.get('DATABASE_URL')),
+    schema,
+    entities: [UserEntity, PostEntity],
+  }),
+});
+```
+
+### 4. Create a controller
 
 Minimal -- zero custom code:
 
 ```ts
 // posts.controller.ts
-@CrudController({ model: PostEntity })
-export class PostsController extends RelayerController<PostEntity> {
-  constructor(@InjectQueryService(PostEntity) service: RelayerService<PostEntity>) {
+@CrudController<PostEntity, EM>({ model: PostEntity })
+export class PostsController extends RelayerController<PostEntity, EM> {
+  constructor(@InjectQueryService(PostEntity) service: RelayerService<PostEntity, EM>) {
     super(service);
   }
 }
@@ -95,7 +131,7 @@ DELETE /posts/:id         -- delete
 GET    /posts/count       -- count with filtering
 ```
 
-### 4. Feature module
+### 5. Feature module
 
 ```ts
 @Module({
@@ -107,10 +143,15 @@ export class PostsModule {}
 
 ## What's next
 
-- [Search & filtering](/nestjs/search-and-filtering) -- how clients query your API
-- [Configuration](/nestjs/configuration) -- defaults, restrictions, pagination mode
+**API Reference:**
+
+- [CRUD Controller](/nestjs/crud-controller) -- routes, defaults, access control, decorators, pagination
+- [Query Service](/nestjs/query-service) -- service methods, defaults, cross-entity access, DI
+- [Hooks](/nestjs/hooks) -- lifecycle hooks for side effects
+- [Data Mapper](/nestjs/data-mapper) -- transform response shapes
+
+**Usage:**
+
+- [Search & Filtering](/nestjs/search-and-filtering) -- how clients query your API
+- [Aggregations](/nestjs/aggregations) -- groupBy, count, sum, avg, min, max
 - [Validation](/nestjs/validation) -- Zod schemas, class-validator DTOs
-- [DTO Mapper](/nestjs/dto-mapper) -- transform response shape
-- [Hooks](/nestjs/hooks) -- side effects (notifications, cache)
-- [Decorators & Guards](/nestjs/decorators) -- auth, per-route config
-- [Dependency Injection](/nestjs/dependency-injection) -- services, cross-entity access

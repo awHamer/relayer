@@ -7,12 +7,12 @@ Relayer is in early development. The core query layer is stable and usable. Futu
 
 ## Current packages
 
-| Package                  | Status      | Description                                                   |
-| ------------------------ | ----------- | ------------------------------------------------------------- |
-| `@relayerjs/core`        | Published   | ORM-agnostic types, contracts, and decorators                 |
-| `@relayerjs/drizzle`     | Published   | Drizzle ORM adapter with full query DSL                       |
-| `@relayerjs/next`        | Published   | Next.js App Router integration                                |
-| `@relayerjs/nestjs-crud` | Published   | NestJS CRUD controllers with search, aggregations, pagination |
+| Package                  | Status    | Description                                                   |
+| ------------------------ | --------- | ------------------------------------------------------------- |
+| `@relayerjs/core`        | Published | ORM-agnostic types, contracts, and decorators                 |
+| `@relayerjs/drizzle`     | Published | Drizzle ORM adapter with full query DSL                       |
+| `@relayerjs/next`        | Published | Next.js App Router integration                                |
+| `@relayerjs/nestjs-crud` | Published | NestJS CRUD controllers with search, aggregations, pagination |
 
 ## Recent changes
 

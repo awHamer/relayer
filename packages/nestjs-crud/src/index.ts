@@ -1,6 +1,15 @@
 export { RelayerModule } from './relayer.module';
 export { RelayerService } from './relayer.service';
-export type { RelayerInstance, FindManyOptions, FindFirstOptions } from './relayer.service';
+export type {
+  RelayerInstance,
+  EntityRepo,
+  Model,
+  Where,
+  Select,
+  OrderBy,
+  ManyOptions,
+  FirstOptions,
+} from './relayer.service';
 export { RelayerController } from './relayer.controller';
 
 export {
@@ -13,8 +22,8 @@ export {
   InjectRelayer,
 } from './decorators';
 
-export { DtoMapper } from './dto-mapper';
-export { RelayerHooks } from './hooks';
+export { DtoMapper } from './relayer.dto-mapper';
+export { RelayerHooks } from './relayer.hooks';
 
 export { EnvelopeInterceptor } from './interceptors';
 export { RelayerExceptionFilter } from './interceptors';
@@ -30,6 +39,16 @@ export {
   decodeCursor,
   buildCursorWhere,
 } from './pipes';
+
+export type { AggregateOptions, AggregateHaving } from './types';
+export type {
+  ListResponse,
+  CursorListResponse,
+  DetailResponse,
+  CountResponse,
+  OffsetMeta,
+  CursorMeta,
+} from './types';
 
 export type {
   RequestContext,

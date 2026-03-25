@@ -1,14 +1,15 @@
 import { Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { CrudController, RelayerController } from '@relayerjs/nestjs-crud';
+
 import { AuthGuard } from '../../common/auth.guard';
 import { Roles } from '../../common/roles.decorator';
-import { PostEntity } from '../../entities';
+import { EM, PostEntity } from '../../entities';
 import { PostDtoMapper } from './posts.dto-mapper';
 import { PostHooks } from './posts.hooks';
 import { createPostSchema, updatePostSchema } from './posts.schema';
 import { PostsService } from './posts.service';
 
-@CrudController({
+@CrudController<PostEntity, EM>({
   model: PostEntity,
   routes: {
     list: {
@@ -70,7 +71,7 @@ import { PostsService } from './posts.service';
   dtoMapper: PostDtoMapper,
   hooks: PostHooks,
 })
-export class PostsController extends RelayerController<PostEntity, PostDtoMapper> {
+export class PostsController extends RelayerController<PostEntity, EM, PostDtoMapper> {
   constructor(private readonly postsService: PostsService) {
     super(postsService);
   }
@@ -83,6 +84,11 @@ export class PostsController extends RelayerController<PostEntity, PostDtoMapper
     });
     return { msg: 'Overridden findById handler', id, item, headers: request.headers };
   }*/
+
+  @Get('custom-aggregation')
+  customAggregation() {
+    return this.postsService.customAggregate();
+  }
 
   @Post(':id/publish')
   @UseGuards(AuthGuard)

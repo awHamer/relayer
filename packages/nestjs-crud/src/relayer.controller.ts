@@ -2,8 +2,6 @@ import { Inject, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 
 import { CRUD_CONTROLLER_METADATA, RELAYER_BASE_URL } from './constants';
-import type { DtoMapper } from './dto-mapper';
-import type { RelayerHooks } from './hooks';
 import {
   buildCursorWhere,
   decodeCursor,
@@ -14,73 +12,25 @@ import {
   validateBody,
   type ParsedListQuery,
 } from './pipes';
+import type { DtoMapper } from './relayer.dto-mapper';
+import type { RelayerHooks } from './relayer.hooks';
 import type { RelayerService } from './relayer.service';
 import type {
   CrudControllerConfig,
   FindByIdRouteConfig,
+  FirstOptions,
   ListRouteConfig,
+  ManyOptions,
   MutationRouteConfig,
   RequestContext,
+  Where,
 } from './types';
-
-function getRouteConfig(routes: CrudControllerConfig['routes'], name: string): unknown {
-  if (!routes) return undefined;
-  const value = (routes as Record<string, unknown>)[name];
-  if (typeof value === 'object' && value !== null) return value;
-  return undefined;
-}
-
-function buildNextPageUrl(
-  basePath: string,
-  query: Record<string, unknown>,
-  offset: number,
-  limit: number,
-  total: number,
-): string | null {
-  if (offset + limit >= total) return null;
-
-  const nextOffset = offset + limit;
-  const parts: string[] = [`offset=${nextOffset}`, `limit=${limit}`];
-
-  if (query.where) parts.push(`where=${encodeURIComponent(JSON.stringify(query.where))}`);
-  if (query.select) parts.push(`select=${encodeURIComponent(JSON.stringify(query.select))}`);
-  if (query.orderBy) parts.push(`orderBy=${encodeURIComponent(JSON.stringify(query.orderBy))}`);
-  if (query.search) parts.push(`search=${encodeURIComponent(String(query.search))}`);
-
-  return `${basePath}?${parts.join('&')}`;
-}
-
-function enforceAllowSelectLimits(
-  select: Record<string, unknown> | undefined,
-  allowSelect: Record<string, boolean | { $limit?: number; [field: string]: unknown }> | undefined,
-): Record<string, unknown> | undefined {
-  if (!select || !allowSelect) return select;
-
-  const result = { ...select };
-  for (const [key, allowValue] of Object.entries(allowSelect)) {
-    if (typeof allowValue === 'object' && allowValue !== null && '$limit' in allowValue) {
-      const configLimit = (allowValue as { $limit: number }).$limit;
-      const selectValue = result[key];
-
-      if (typeof selectValue === 'object' && selectValue !== null) {
-        const clientLimit = (selectValue as Record<string, unknown>).$limit as number | undefined;
-        (result[key] as Record<string, unknown>) = {
-          ...(selectValue as Record<string, unknown>),
-          $limit: clientLimit ? Math.min(clientLimit, configLimit) : configLimit,
-        };
-      } else if (selectValue === true) {
-        result[key] = { $limit: configLimit };
-      }
-    }
-  }
-
-  return result;
-}
+import { buildNextPageUrl, enforceAllowSelectLimits, getRouteConfig } from './utils';
 
 export class RelayerController<
   TEntity,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _TDtoMapper extends DtoMapper<TEntity, any, any> = DtoMapper<TEntity, TEntity, TEntity>,
+  EM extends Record<string, unknown> = Record<string, unknown>,
+  _TDtoMapper extends DtoMapper<TEntity, unknown, unknown> = DtoMapper<TEntity, TEntity, TEntity>,
 > implements OnModuleInit {
   @Inject(ModuleRef)
   private moduleRef!: ModuleRef;
@@ -89,11 +39,11 @@ export class RelayerController<
   private baseUrlConfig!: string | (() => string);
 
   private resolvedDtoMapper: DtoMapper<TEntity> | null = null;
-  private resolvedHooks: RelayerHooks<TEntity> | null = null;
+  private resolvedHooks: RelayerHooks<TEntity, EM> | null = null;
   private dtoMapperResolved = false;
   private hooksResolved = false;
 
-  constructor(private readonly service: RelayerService<TEntity>) {}
+  constructor(private readonly service: RelayerService<TEntity, EM>) {}
 
   onModuleInit(): void {
     const config = this.getConfig();
@@ -111,7 +61,7 @@ export class RelayerController<
       try {
         this.resolvedHooks = this.moduleRef.get(config.hooks, { strict: false });
       } catch {
-        this.resolvedHooks = new config.hooks() as RelayerHooks<TEntity>;
+        this.resolvedHooks = new config.hooks() as RelayerHooks<TEntity, EM>;
       }
       this.hooksResolved = true;
     }
@@ -142,7 +92,7 @@ export class RelayerController<
     return this.dtoMapperResolved ? this.resolvedDtoMapper : null;
   }
 
-  protected getHooks(): RelayerHooks<TEntity> | null {
+  protected getHooks(): RelayerHooks<TEntity, EM> | null {
     return this.hooksResolved ? this.resolvedHooks : null;
   }
 
@@ -185,7 +135,10 @@ export class RelayerController<
     }
 
     this.applySearch(query, listConfig);
-    query.select = enforceAllowSelectLimits(query.select, listConfig?.allow?.select);
+    query.select = enforceAllowSelectLimits(
+      query.select,
+      listConfig?.allow?.select as Record<string, boolean | { $limit?: number }> | undefined,
+    );
 
     const limit = Math.min(
       query.limit ?? listConfig?.defaultLimit ?? 20,
@@ -211,12 +164,13 @@ export class RelayerController<
     const hooks = this.getHooks();
 
     if (hooks?.beforeFind) {
-      await hooks.beforeFind(findOptions as Record<string, unknown>, ctx);
+      await hooks.beforeFind(findOptions as ManyOptions<TEntity, EM>, ctx);
     }
 
+    // eslint-disable-next-line prefer-const
     let [data, total] = await Promise.all([
-      this.service.findMany(findOptions as any) as Promise<TEntity[]>,
-      this.service.count(query.where ? { where: query.where } : {} as any),
+      this.service.findMany(findOptions as ManyOptions<TEntity, EM>) as Promise<TEntity[]>,
+      this.service.count(query.where ? { where: query.where as Where<TEntity, EM> } : {}),
     ]);
 
     if (hooks?.afterFind) {
@@ -287,12 +241,14 @@ export class RelayerController<
     const hooks = this.getHooks();
 
     if (hooks?.beforeFind) {
-      await hooks.beforeFind(findOptions as Record<string, unknown>, ctx);
+      await hooks.beforeFind(findOptions as ManyOptions<TEntity, EM>, ctx);
     }
 
-    const data = (await this.service.findMany(findOptions as any)) as TEntity[];
-    const hasMore = data.length > limit;
-    let results = hasMore ? data.slice(0, limit) : data;
+    const rawData = (await this.service.findMany(
+      findOptions as ManyOptions<TEntity, EM>,
+    )) as TEntity[];
+    const hasMore = rawData.length > limit;
+    let results = hasMore ? rawData.slice(0, limit) : rawData;
 
     if (hooks?.afterFind) {
       const modified = await hooks.afterFind(results, ctx);
@@ -327,8 +283,8 @@ export class RelayerController<
       | FindByIdRouteConfig<TEntity>
       | undefined;
 
-    const findOptions: Record<string, unknown> = {
-      where: { [idField]: parsedId },
+    const findOptions = {
+      where: { [idField]: parsedId } as Where<TEntity, EM>,
       ...(findByIdConfig?.defaults?.select ? { select: findByIdConfig.defaults.select } : {}),
     };
 
@@ -336,10 +292,12 @@ export class RelayerController<
     const hooks = this.getHooks();
 
     if (hooks?.beforeFindOne) {
-      await hooks.beforeFindOne(findOptions, ctx);
+      await hooks.beforeFindOne(findOptions as FirstOptions<TEntity, EM>, ctx);
     }
 
-    let result = await this.service.findFirst(findOptions);
+    let result = (await this.service.findFirst(
+      findOptions as FirstOptions<TEntity, EM>,
+    )) as TEntity | null;
     if (!result) {
       throw new NotFoundException('Entity not found');
     }
@@ -350,7 +308,7 @@ export class RelayerController<
     }
 
     const dtoMapper = this.getDtoMapper();
-    const transformed = dtoMapper ? await dtoMapper.toResponse(result, ctx) : result;
+    const transformed = dtoMapper ? await dtoMapper.toSingleItem(result, ctx) : result;
     return { data: transformed };
   }
 
@@ -361,14 +319,17 @@ export class RelayerController<
     const dtoMapper = this.getDtoMapper();
     const hooks = this.getHooks();
 
-    let data = (await validateBody(createConfig?.schema, body)) as Record<string, unknown>;
+    let data: Partial<TEntity> = (await validateBody(
+      createConfig?.schema,
+      body,
+    )) as Partial<TEntity>;
 
     if (dtoMapper?.toCreateInput) {
-      data = (await dtoMapper.toCreateInput(data, ctx)) as Record<string, unknown>;
+      data = (await dtoMapper.toCreateInput(data, ctx)) as Partial<TEntity>;
     }
 
     if (hooks?.beforeCreate) {
-      const modified = await hooks.beforeCreate(data, ctx);
+      const modified = (await hooks.beforeCreate(data, ctx)) as Partial<TEntity>;
       if (modified) data = modified;
     }
 
@@ -378,7 +339,7 @@ export class RelayerController<
       await hooks.afterCreate(created, ctx);
     }
 
-    const transformed = dtoMapper ? await dtoMapper.toResponse(created, ctx) : created;
+    const transformed = dtoMapper ? await dtoMapper.toSingleItem(created, ctx) : created;
     return { data: transformed };
   }
 
@@ -399,21 +360,31 @@ export class RelayerController<
     let data = (await validateBody(updateConfig?.schema, body)) as Record<string, unknown>;
 
     if (dtoMapper?.toUpdateInput) {
-      data = (await dtoMapper.toUpdateInput(data, ctx)) as Record<string, unknown>;
+      data = (await dtoMapper.toUpdateInput(data as Partial<TEntity>, ctx)) as Record<
+        string,
+        unknown
+      >;
     }
 
     if (hooks?.beforeUpdate) {
-      const modified = await hooks.beforeUpdate(data, where, ctx);
-      if (modified) data = modified;
+      const modified = await hooks.beforeUpdate(
+        data as Partial<TEntity>,
+        where as Where<TEntity, EM>,
+        ctx,
+      );
+      if (modified) data = modified as Record<string, unknown>;
     }
 
-    const updated = (await this.service.update({ where, data } as any)) as TEntity;
+    const updated = (await this.service.update({
+      where: where as Where<TEntity, EM>,
+      data: data as Partial<TEntity>,
+    })) as TEntity;
 
     if (hooks?.afterUpdate) {
       await hooks.afterUpdate(updated, ctx);
     }
 
-    const transformed = dtoMapper ? await dtoMapper.toResponse(updated, ctx) : updated;
+    const transformed = dtoMapper ? await dtoMapper.toSingleItem(updated, ctx) : updated;
     return { data: transformed };
   }
 
@@ -426,10 +397,10 @@ export class RelayerController<
     const hooks = this.getHooks();
 
     if (hooks?.beforeDelete) {
-      await hooks.beforeDelete(where, ctx);
+      await hooks.beforeDelete(where as Where<TEntity, EM>, ctx);
     }
 
-    const deleted = (await this.service.delete({ where } as any)) as TEntity;
+    const deleted = (await this.service.delete({ where: where as Where<TEntity, EM> })) as TEntity;
 
     if (!deleted) {
       throw new NotFoundException('Entity not found');
@@ -457,7 +428,7 @@ export class RelayerController<
 
     const ctx = this.buildContext(request);
     const hooks = this.getHooks();
-    const countOptions: Record<string, unknown> = query.where ? { where: query.where } : {};
+    const countOptions = query.where ? { where: query.where as Where<TEntity, EM> } : {};
 
     if (hooks?.beforeCount) {
       await hooks.beforeCount(countOptions, ctx);
@@ -467,22 +438,25 @@ export class RelayerController<
     return { data: { count: Number(count) } };
   }
 
-  protected async handleAggregate(request: {
-    query: Record<string, string>;
-  }): Promise<unknown> {
+  protected async handleAggregate(request: { query: Record<string, string> }): Promise<unknown> {
     const raw = request.query;
     const ctx = this.buildContext(request);
     const hooks = this.getHooks();
 
-    const options: Record<string, unknown> = {};
+    const options: Record<string, unknown> = {} as Record<string, unknown>;
 
     const where = tryParseJson(raw.where);
     if (where) options.where = where as Record<string, unknown>;
 
     if (raw.groupBy) {
-      options.groupBy = (tryParseJson(raw.groupBy) as string[]) ?? raw.groupBy.split(',').map((s) => s.trim());
+      options.groupBy =
+        (tryParseJson(raw.groupBy) as string[]) ?? raw.groupBy.split(',').map((s) => s.trim());
     }
-    if (raw._count) options._count = raw._count === 'true' || raw._count === '1';
+
+    if (raw._count) {
+      options._count = raw._count === 'true' || raw._count === '1';
+    }
+
     for (const key of ['_sum', '_avg', '_min', '_max', 'having'] as const) {
       const parsed = tryParseJson(raw[key]);
       if (parsed) (options as Record<string, unknown>)[key] = parsed;

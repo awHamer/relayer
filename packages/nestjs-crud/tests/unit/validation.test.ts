@@ -2,7 +2,11 @@ import { HttpException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { validateBody, validateWithZod } from '../../src/pipes/validation.pipe';
+import {
+  validateBody,
+  validateWithClassValidator,
+  validateWithZod,
+} from '../../src/pipes/validation.pipe';
 
 describe('validateWithZod', () => {
   const schema = z.object({ name: z.string(), age: z.number() });
@@ -85,5 +89,99 @@ describe('validateWithZod edge cases', () => {
   it('strips extra fields when schema uses strict', () => {
     const schema = z.object({ name: z.string() }).strict();
     expect(() => validateWithZod(schema, { name: 'ok', extra: true })).toThrow(HttpException);
+  });
+});
+
+describe('validateWithClassValidator', () => {
+  it('validates successfully when class-validator returns no errors', async () => {
+    const mockInstance = { name: 'Alice' };
+
+    vi.doMock('class-transformer' as string, () => ({
+      plainToInstance: vi.fn().mockReturnValue(mockInstance),
+    }));
+    vi.doMock('class-validator' as string, () => ({
+      validate: vi.fn().mockResolvedValue([]),
+    }));
+
+    class TestDto {
+      name!: string;
+    }
+
+    const result = await validateWithClassValidator(TestDto, { name: 'Alice' });
+    expect(result).toBe(mockInstance);
+
+    vi.doUnmock('class-transformer' as string);
+    vi.doUnmock('class-validator' as string);
+  });
+
+  it('throws 422 when class-validator returns errors', async () => {
+    vi.doMock('class-transformer' as string, () => ({
+      plainToInstance: vi.fn().mockReturnValue({}),
+    }));
+    vi.doMock('class-validator' as string, () => ({
+      validate: vi.fn().mockResolvedValue([
+        {
+          property: 'name',
+          constraints: { isNotEmpty: 'name should not be empty' },
+        },
+      ]),
+    }));
+
+    class TestDto {
+      name!: string;
+    }
+
+    try {
+      await validateWithClassValidator(TestDto, {});
+      expect.fail('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpException);
+      const response = (e as HttpException).getResponse() as Record<string, unknown>;
+      expect(response.statusCode).toBe(422);
+      const errors = response.errors as Array<{ code: string; message: string; path: unknown[] }>;
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.code).toBe('isNotEmpty');
+      expect(errors[0]!.path).toEqual(['name']);
+    }
+
+    vi.doUnmock('class-transformer' as string);
+    vi.doUnmock('class-validator' as string);
+  });
+
+  it('flattens nested child errors', async () => {
+    vi.doMock('class-transformer' as string, () => ({
+      plainToInstance: vi.fn().mockReturnValue({}),
+    }));
+    vi.doMock('class-validator' as string, () => ({
+      validate: vi.fn().mockResolvedValue([
+        {
+          property: 'address',
+          constraints: undefined,
+          children: [
+            {
+              property: 'street',
+              constraints: { isString: 'street must be a string' },
+            },
+          ],
+        },
+      ]),
+    }));
+
+    class TestDto {
+      address!: { street: string };
+    }
+
+    try {
+      await validateWithClassValidator(TestDto, {});
+      expect.fail('should have thrown');
+    } catch (e) {
+      const response = (e as HttpException).getResponse() as Record<string, unknown>;
+      const errors = response.errors as Array<{ path: unknown[] }>;
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.path).toEqual(['address', 'street']);
+    }
+
+    vi.doUnmock('class-transformer' as string);
+    vi.doUnmock('class-validator' as string);
   });
 });

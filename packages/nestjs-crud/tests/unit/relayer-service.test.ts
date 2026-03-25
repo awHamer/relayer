@@ -6,7 +6,7 @@ import { mockEntityClient } from '../helpers';
 function createService(overrides = {}) {
   const client = mockEntityClient(overrides);
   const r = { posts: client } as any;
-  const service = new RelayerService(r, 'posts');
+  const service = new RelayerService<any, Record<string, unknown>>(r, 'posts');
   return { service, client };
 }
 
@@ -72,5 +72,35 @@ describe('RelayerService', () => {
     const result = await service.aggregate({ _count: true, groupBy: ['status'] });
     expect(result).toEqual({ _count: 42 });
     expect(client.aggregate).toHaveBeenCalled();
+  });
+
+  it('updateMany delegates to repo', async () => {
+    const { service, client } = createService({
+      updateMany: vi.fn().mockResolvedValue({ count: 3 }),
+    });
+    const result = await service.updateMany({
+      where: { published: false },
+      data: { published: true },
+    });
+    expect(result).toEqual({ count: 3 });
+    expect(client.updateMany).toHaveBeenCalled();
+  });
+
+  it('deleteMany delegates to repo', async () => {
+    const { service, client } = createService({
+      deleteMany: vi.fn().mockResolvedValue({ count: 5 }),
+    });
+    const result = await service.deleteMany({ where: { archived: true } });
+    expect(result).toEqual({ count: 5 });
+    expect(client.deleteMany).toHaveBeenCalled();
+  });
+
+  it('createMany delegates to repo', async () => {
+    const { service, client } = createService({
+      createMany: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
+    });
+    const result = await service.createMany({ data: [{ title: 'A' }, { title: 'B' }] });
+    expect(result).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(client.createMany).toHaveBeenCalled();
   });
 });

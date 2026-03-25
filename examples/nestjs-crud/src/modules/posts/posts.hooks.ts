@@ -1,17 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RelayerHooks, type RequestContext } from '@relayerjs/nestjs-crud';
+import { RelayerHooks, type AggregateOptions, type FirstOptions } from '@relayerjs/nestjs-crud';
 
-import type { PostEntity } from '../../entities';
+import { PostEntity, type EM } from '../../entities';
 
 @Injectable()
-export class PostHooks extends RelayerHooks<PostEntity> {
+export class PostHooks extends RelayerHooks<PostEntity, EM> {
   private readonly logger = new Logger(PostHooks.name);
 
   async afterFind(entities: PostEntity[]): Promise<void> {
     this.logger.log(`Found ${entities.length} posts`);
   }
 
-  async beforeFindOne(options: Record<string, unknown>): Promise<void> {
+  async beforeFindOne(options: FirstOptions<PostEntity, EM>): Promise<void> {
     this.logger.log(`Finding post with options: ${JSON.stringify(options)}`);
   }
 
@@ -27,7 +27,7 @@ export class PostHooks extends RelayerHooks<PostEntity> {
     this.logger.log(`Post deleted: ${entity.id}`);
   }
 
-  async beforeAggregate(options: Record<string, unknown>): Promise<void> {
+  async beforeAggregate(options: AggregateOptions<PostEntity, EM>): Promise<void> {
     this.logger.log(`Aggregating posts: ${JSON.stringify(options)}`);
   }
 

@@ -128,12 +128,26 @@ This will be resolved when cursor logic moves to Relayer core (ORM level), where
 
 ## Entity types and relations
 
-`createRelayerEntity(schema, 'posts')` currently includes only scalar columns in the TypeScript type. Relation fields (`comments`, `author`, etc.) are loaded at runtime but not reflected in the entity class type.
+Entity classes created with `createRelayerEntity(schema, 'posts')` include scalar and computed/derived fields but not relation fields by default.
 
-This means:
+To get full relation-aware types (with autocomplete for `entity.comments`, `entity.author.fullName`, etc.), use the entity map pattern with `TEntities` generic:
 
-- No autocomplete for `entity.comments` in DtoMapper, hooks, or services
-- Relation data requires `as` casts: `(entity as PostEntity & { comments: Comment[] }).comments`
-- `select` config accepts relation names but without type checking
+```ts
+// Define entity map
+export const entities = { users: UserEntity, posts: PostEntity, comments: CommentEntity };
+export type EM = typeof entities;
 
-This is tracked for a fix in Relayer core. Once resolved, entity types will include optional relation fields derived from the Drizzle schema.
+// Service with relation-aware types
+class PostsService extends RelayerService<PostEntity, EM> { ... }
+
+// Model<PostEntity, EM> includes: id, title, ..., author, comments (with nested types)
+```
+
+`Model<TEntity, TEntities>` resolves relation fields automatically from the Drizzle schema. This works in services, hooks, dto mappers, and controller config (via `@CrudController<PostEntity, EM>`).
+
+## Roadmap
+
+- Stable cursor pagination (requires `@relayerjs/drizzle` patch)
+- Swagger for API documentation
+- API endpoints for linking m2m, one2m relations
+- Better integration with Relayer context object

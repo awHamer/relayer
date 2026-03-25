@@ -69,14 +69,23 @@ export default defineConfig({
           label: '@relayerjs/nestjs-crud',
           items: [
             { label: 'Getting Started', slug: 'nestjs/getting-started' },
-            { label: 'Search & Filtering', slug: 'nestjs/search-and-filtering' },
-            { label: 'Aggregations', slug: 'nestjs/aggregations' },
-            { label: 'Configuration', slug: 'nestjs/configuration' },
-            { label: 'Validation', slug: 'nestjs/validation' },
-            { label: 'DTO Mapper', slug: 'nestjs/dto-mapper' },
-            { label: 'Hooks', slug: 'nestjs/hooks' },
-            { label: 'Decorators & Guards', slug: 'nestjs/decorators' },
-            { label: 'Dependency Injection', slug: 'nestjs/dependency-injection' },
+            {
+              label: 'API Reference',
+              items: [
+                { label: 'CRUD Controller', slug: 'nestjs/crud-controller' },
+                { label: 'Query Service', slug: 'nestjs/query-service' },
+                { label: 'Hooks', slug: 'nestjs/hooks' },
+                { label: 'Data Mapper', slug: 'nestjs/data-mapper' },
+              ],
+            },
+            {
+              label: 'Usage',
+              items: [
+                { label: 'Search & Filtering', slug: 'nestjs/search-and-filtering' },
+                { label: 'Aggregations', slug: 'nestjs/aggregations' },
+                { label: 'Validation', slug: 'nestjs/validation' },
+              ],
+            },
             { label: 'Known Limitations', slug: 'nestjs/limitations' },
           ],
         },

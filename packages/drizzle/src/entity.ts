@@ -39,13 +39,7 @@ export interface EntityClassStatics<TTable, _TDb, TSchema, TKey extends string =
 }
 
 // Entity class methods: decorators & chain
-export interface EntityClassMethods<
-  TTable,
-  TDb,
-  TSchema,
-  TInstance,
-  TKey extends string = string,
-> {
+export interface EntityClassMethods<TTable, TDb, TSchema, TInstance, TKey extends string = string> {
   computed(config: ComputedDecoratorConfig<TTable, TSchema>): PropertyDecorator;
   computed<V, K extends string>(
     name: K,

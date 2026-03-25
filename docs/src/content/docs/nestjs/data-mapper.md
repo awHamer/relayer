@@ -1,5 +1,5 @@
 ---
-title: 'NestJS: DTO Mapper'
+title: 'NestJS: Data Mapper'
 description: Transform entity data for API responses with DtoMapper.
 ---
 
@@ -37,7 +37,7 @@ export class PostDtoMapper extends DtoMapper<PostEntity, PostListItem, PostDetai
     };
   }
 
-  toResponse(entity: PostEntity): PostDetail {
+  toSingleItem(entity: PostEntity): PostDetail {
     return {
       id: entity.id,
       title: entity.title,
@@ -49,31 +49,39 @@ export class PostDtoMapper extends DtoMapper<PostEntity, PostListItem, PostDetai
 }
 ```
 
-Three generics with cascading defaults:
+Four generics with cascading defaults:
+
+| Generic       | Default            | Description                                          |
+| ------------- | ------------------ | ---------------------------------------------------- |
+| `TEntity`     |                    | Entity type                                          |
+| `TListItem`   | `TEntity`          | Return type of `toListItem()`                        |
+| `TSingleItem` | `TListItem`        | Return type of `toSingleItem()`                      |
+| `TInput`      | `Partial<TEntity>` | Input type for `toCreateInput()` / `toUpdateInput()` |
 
 ```ts
 DtoMapper<TEntity>; // no transformation
 DtoMapper<TEntity, TResponse>; // same format for list and detail
-DtoMapper<TEntity, TListItem, TDetailItem>; // different formats
+DtoMapper<TEntity, TListItem, TSingleItem>; // different formats
+DtoMapper<TEntity, TListItem, TSingleItem, TInput>; // custom input type
 ```
 
 ## Input transformation
 
-Transform incoming create/update data:
+Transform incoming create/update data. Input is typed as `TInput` (defaults to `Partial<TEntity>`), return is `Partial<TEntity>`:
 
 ```ts
 @Injectable()
 export class PostDtoMapper extends DtoMapper<PostEntity, PostListItem, PostDetail> {
-  // ... toListItem, toResponse
+  // ... toListItem, toSingleItem
 
-  toCreateInput(input: Record<string, unknown>, ctx: RequestContext) {
+  toCreateInput(input: Partial<PostEntity>, ctx: RequestContext) {
     return {
       ...input,
       authorId: (ctx.user as { id: number })?.id ?? 1,
     };
   }
 
-  toUpdateInput(input: Record<string, unknown>, ctx: RequestContext) {
+  toUpdateInput(input: Partial<PostEntity>, ctx: RequestContext) {
     return {
       ...input,
       updatedAt: new Date(),
@@ -93,7 +101,7 @@ export class PostDtoMapper extends DtoMapper<PostEntity, PostListItem, PostDetai
     super();
   }
 
-  async toResponse(entity: PostEntity): Promise<PostDetail> {
+  async toSingleItem(entity: PostEntity): Promise<PostDetail> {
     const imageUrl = await this.storage.getSignedUrl(entity.imageKey);
     return { ...entity, imageUrl };
   }
@@ -105,11 +113,11 @@ export class PostDtoMapper extends DtoMapper<PostEntity, PostListItem, PostDetai
 Register in module providers and reference in `@CrudController`:
 
 ```ts
-@CrudController({
+@CrudController<PostEntity, EM>({
   model: PostEntity,
   dtoMapper: PostDtoMapper,
 })
-export class PostsController extends RelayerController<PostEntity, PostDtoMapper> { ... }
+export class PostsController extends RelayerController<PostEntity, EM> { ... }
 
 @Module({
   providers: [PostsService, PostDtoMapper],

@@ -3,7 +3,7 @@ import { isRelayerEntityClass, type RelayerEntityClass } from '@relayerjs/core';
 
 import { RELAYER_BASE_URL, RELAYER_CLIENT, RELAYER_MODULE_OPTIONS } from './constants';
 import { getEntityToken, getServiceToken } from './decorators';
-import { RelayerService } from './relayer.service';
+import { RelayerService, type RelayerInstance } from './relayer.service';
 import type { RelayerModuleAsyncOptions, RelayerModuleOptions } from './types';
 import { entitiesToRecord, getEntityKey } from './utils';
 
@@ -73,7 +73,8 @@ export class RelayerModule {
 
       providers.push({
         provide: serviceToken,
-        useFactory: (client: RelayerClient) => new RelayerService(client as any, key),
+        useFactory: (client: RelayerInstance<Record<string, unknown>>) =>
+          new RelayerService(client, key),
         inject: [RELAYER_CLIENT],
       });
     }
@@ -107,7 +108,8 @@ export class RelayerModule {
 
       entityProviders.push({
         provide: getServiceToken(entity),
-        useFactory: (client: RelayerClient) => new RelayerService(client as any, key),
+        useFactory: (client: RelayerInstance<Record<string, unknown>>) =>
+          new RelayerService(client, key),
         inject: [RELAYER_CLIENT],
       });
     }

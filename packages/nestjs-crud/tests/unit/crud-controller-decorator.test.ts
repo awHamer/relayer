@@ -4,8 +4,8 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common/enums/request-method.enum';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
 import { CrudController, RelayerController } from '../../src';
+import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
 import { TestEntity } from '../helpers';
 
 function getMethodMeta(proto: object, method: string) {
@@ -133,6 +133,34 @@ describe('CrudController decorator', () => {
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.DELETE);
     expect(meta!.path).toBe('/:id');
+  });
+
+  it('generates aggregate with GET /aggregate', () => {
+    @CrudController({ model: TestEntity as any, routes: { aggregate: true } })
+    class TestCtrl extends RelayerController<any> {
+      constructor() {
+        super(null as any);
+      }
+    }
+
+    const meta = getMethodMeta(TestCtrl.prototype, 'aggregate');
+    expect(meta).not.toBeNull();
+    expect(meta!.httpMethod).toBe(RequestMethod.GET);
+    expect(meta!.path).toBe('/aggregate');
+  });
+
+  it('does not create aggregate when disabled', () => {
+    @CrudController({
+      model: TestEntity as any,
+      routes: { list: true, aggregate: false },
+    })
+    class TestCtrl extends RelayerController<any> {
+      constructor() {
+        super(null as any);
+      }
+    }
+
+    expect((TestCtrl.prototype as any).aggregate).toBeUndefined();
   });
 
   it('does not create method for disabled route', () => {

@@ -1,8 +1,10 @@
 import { vi } from 'vitest';
 
-import type { EntityClient } from '../src/relayer.service';
+import type { EntityRepo } from '../src/relayer.service';
 
-export function mockEntityClient(overrides?: Partial<EntityClient>): EntityClient {
+type MockEntityRepo = EntityRepo<any, Record<string, unknown>>;
+
+export function mockEntityClient(overrides?: Partial<MockEntityRepo>): MockEntityRepo {
   return {
     findMany: vi.fn().mockResolvedValue([]),
     findFirst: vi.fn().mockResolvedValue(null),
@@ -15,7 +17,7 @@ export function mockEntityClient(overrides?: Partial<EntityClient>): EntityClien
     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     aggregate: vi.fn().mockResolvedValue({ _count: 0 }),
     ...overrides,
-  };
+  } as MockEntityRepo;
 }
 
 export class TestEntity {

@@ -33,9 +33,7 @@ describe('getEntityKey', () => {
   });
 
   it('throws for entity without __entityKey', () => {
-    expect(() => getEntityKey(invalidEntity as any)).toThrow(
-      'Entity class must have __entityKey',
-    );
+    expect(() => getEntityKey(invalidEntity as any)).toThrow('Entity class must have __entityKey');
   });
 });
 
