@@ -77,79 +77,65 @@ export function CrudController<TEntity>(config: CrudControllerConfig<TEntity>): 
     const proto = (target as Type).prototype;
 
     if (routes.list) {
-      proto.__crudList = async function (req: unknown) {
-        return this.handleList(req);
-      };
-      setMethodMetadata(proto, '__crudList', RequestMethod.GET, '/');
-      setRouteArgs(proto, '__crudList', createRouteArg(RouteParamtypes.REQUEST, 0));
-      applyDecorators(proto, '__crudList', 'list', config.decorators);
+      proto.list = function (req: unknown) { return this.handleList(req); };
+      setMethodMetadata(proto, 'list', RequestMethod.GET, '/');
+      setRouteArgs(proto, 'list', createRouteArg(RouteParamtypes.REQUEST, 0));
+      applyDecorators(proto, 'list', 'list', config.decorators);
     }
 
     if (routes.count) {
-      proto.__crudCount = async function (req: unknown) {
-        return this.handleCount(req);
-      };
-      setMethodMetadata(proto, '__crudCount', RequestMethod.GET, '/count');
-      setRouteArgs(proto, '__crudCount', createRouteArg(RouteParamtypes.REQUEST, 0));
-      applyDecorators(proto, '__crudCount', 'count', config.decorators);
+      proto.count = function (req: unknown) { return this.handleCount(req); };
+      setMethodMetadata(proto, 'count', RequestMethod.GET, '/count');
+      setRouteArgs(proto, 'count', createRouteArg(RouteParamtypes.REQUEST, 0));
+      applyDecorators(proto, 'count', 'count', config.decorators);
     }
 
     if (routes.aggregate) {
-      proto.__crudAggregate = async function (req: unknown) {
-        return this.handleAggregate(req);
-      };
-      setMethodMetadata(proto, '__crudAggregate', RequestMethod.GET, '/aggregate');
-      setRouteArgs(proto, '__crudAggregate', createRouteArg(RouteParamtypes.REQUEST, 0));
-      applyDecorators(proto, '__crudAggregate', 'aggregate', config.decorators);
+      proto.aggregate = function (req: unknown) { return this.handleAggregate(req); };
+      setMethodMetadata(proto, 'aggregate', RequestMethod.GET, '/aggregate');
+      setRouteArgs(proto, 'aggregate', createRouteArg(RouteParamtypes.REQUEST, 0));
+      applyDecorators(proto, 'aggregate', 'aggregate', config.decorators);
     }
 
     if (routes.findById) {
-      proto.__crudFindById = async function (id: string, req: unknown) {
-        return this.handleFindById(id, req);
-      };
-      setMethodMetadata(proto, '__crudFindById', RequestMethod.GET, '/:id');
-      setRouteArgs(proto, '__crudFindById', {
+      proto.findById = function (id: string, req: unknown) { return this.handleFindById(id, req); };
+      setMethodMetadata(proto, 'findById', RequestMethod.GET, '/:id');
+      setRouteArgs(proto, 'findById', {
         ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
         ...createRouteArg(RouteParamtypes.REQUEST, 1),
       });
-      applyDecorators(proto, '__crudFindById', 'findById', config.decorators);
+      applyDecorators(proto, 'findById', 'findById', config.decorators);
     }
 
     if (routes.create) {
-      proto.__crudCreate = async function (body: unknown, req: unknown) {
-        return this.handleCreate(body, req);
-      };
-      setMethodMetadata(proto, '__crudCreate', RequestMethod.POST, '/');
-      setRouteArgs(proto, '__crudCreate', {
+      proto.create = function (body: unknown, req: unknown) { return this.handleCreate(body, req); };
+      setMethodMetadata(proto, 'create', RequestMethod.POST, '/');
+      setRouteArgs(proto, 'create', {
         ...createRouteArg(RouteParamtypes.BODY, 0),
         ...createRouteArg(RouteParamtypes.REQUEST, 1),
       });
-      applyDecorators(proto, '__crudCreate', 'create', config.decorators);
+      applyDecorators(proto, 'create', 'create', config.decorators);
     }
 
     if (routes.update) {
-      proto.__crudUpdate = async function (id: string, body: unknown, req: unknown) {
-        return this.handleUpdate(id, body, req);
-      };
-      setMethodMetadata(proto, '__crudUpdate', RequestMethod.PATCH, '/:id');
-      setRouteArgs(proto, '__crudUpdate', {
+      proto.update = function (id: string, body: unknown, req: unknown) { return this.handleUpdate(id, body, req); };
+      setMethodMetadata(proto, 'update', RequestMethod.PATCH, '/:id');
+      setRouteArgs(proto, 'update', {
         ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
         ...createRouteArg(RouteParamtypes.BODY, 1),
         ...createRouteArg(RouteParamtypes.REQUEST, 2),
       });
-      applyDecorators(proto, '__crudUpdate', 'update', config.decorators);
+      applyDecorators(proto, 'update', 'update', config.decorators);
     }
 
     if (routes.delete) {
-      proto.__crudDelete = async function (id: string, req: unknown) {
-        return this.handleDelete(id, req);
-      };
-      setMethodMetadata(proto, '__crudDelete', RequestMethod.DELETE, '/:id');
-      setRouteArgs(proto, '__crudDelete', {
+      proto.delete = function (id: string, req: unknown) { return this.handleDelete(id, req); };
+      setMethodMetadata(proto, 'delete', RequestMethod.DELETE, '/:id');
+      setRouteArgs(proto, 'delete', {
         ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
         ...createRouteArg(RouteParamtypes.REQUEST, 1),
       });
-      applyDecorators(proto, '__crudDelete', 'delete', config.decorators);
+      applyDecorators(proto, 'delete', 'delete', config.decorators);
     }
 
     Controller(path)(target as Type);

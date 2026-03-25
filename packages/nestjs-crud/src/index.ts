@@ -1,16 +1,16 @@
 export { RelayerModule } from './relayer.module';
 export { RelayerService } from './relayer.service';
-export type { EntityClient } from './entity-client';
+export type { RelayerInstance, FindManyOptions, FindFirstOptions } from './relayer.service';
 export { RelayerController } from './relayer.controller';
 
 export {
   CrudController,
-  Override,
   ListQuery,
   InjectEntity,
   getEntityToken,
   InjectQueryService,
   getServiceToken,
+  InjectRelayer,
 } from './decorators';
 
 export { DtoMapper } from './dto-mapper';

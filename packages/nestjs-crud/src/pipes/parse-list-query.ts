@@ -9,7 +9,7 @@ export interface ParsedListQuery {
   [key: string]: unknown;
 }
 
-function tryParseJson(value: string | undefined): unknown {
+export function tryParseJson(value: string | undefined): unknown {
   if (!value) return undefined;
   try {
     return JSON.parse(value);

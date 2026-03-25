@@ -3,13 +3,12 @@ import { isRelayerEntityClass, type RelayerEntityClass } from '@relayerjs/core';
 
 import { RELAYER_BASE_URL, RELAYER_CLIENT, RELAYER_MODULE_OPTIONS } from './constants';
 import { getEntityToken, getServiceToken } from './decorators';
-import type { EntityClient } from './entity-client';
 import { RelayerService } from './relayer.service';
 import type { RelayerModuleAsyncOptions, RelayerModuleOptions } from './types';
 import { entitiesToRecord, getEntityKey } from './utils';
 
 interface RelayerClient {
-  [key: string]: EntityClient;
+  [key: string]: unknown;
 }
 
 type CreateRelayerDrizzleFn = (options: {
@@ -74,7 +73,7 @@ export class RelayerModule {
 
       providers.push({
         provide: serviceToken,
-        useFactory: (client: RelayerClient) => new RelayerService(client[key]!),
+        useFactory: (client: RelayerClient) => new RelayerService(client as any, key),
         inject: [RELAYER_CLIENT],
       });
     }
@@ -108,7 +107,7 @@ export class RelayerModule {
 
       entityProviders.push({
         provide: getServiceToken(entity),
-        useFactory: (client: RelayerClient) => new RelayerService(client[key]!),
+        useFactory: (client: RelayerClient) => new RelayerService(client as any, key),
         inject: [RELAYER_CLIENT],
       });
     }

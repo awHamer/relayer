@@ -1,6 +1,5 @@
 import { Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
-import { CrudController, RelayerController, SelectConfig } from '@relayerjs/nestjs-crud';
-
+import { CrudController, RelayerController } from '@relayerjs/nestjs-crud';
 import { AuthGuard } from '../../common/auth.guard';
 import { Roles } from '../../common/roles.decorator';
 import { PostEntity } from '../../entities';
@@ -13,7 +12,7 @@ import { PostsService } from './posts.service';
   model: PostEntity,
   routes: {
     list: {
-      pagination: 'offset',
+      pagination: 'cursor_UNSTABLE',
       defaults: {
         select: {
           id: true,
@@ -75,6 +74,15 @@ export class PostsController extends RelayerController<PostEntity, PostDtoMapper
   constructor(private readonly postsService: PostsService) {
     super(postsService);
   }
+
+  // Override example — just override the parent methods: handleFindById, handleList etc
+  /*async handleFindById(id: string, request: Request) {
+    const item = await this.postsService.findFirst({
+      select: { id: true, title: true,  author: { id: true, fullName: true, postsCount: true } },
+      where: { id: parseInt(id, 10) },
+    });
+    return { msg: 'Overridden findById handler', id, item, headers: request.headers };
+  }*/
 
   @Post(':id/publish')
   @UseGuards(AuthGuard)

@@ -5,7 +5,6 @@ export const RELAYER_SERVICE_PREFIX = 'RELAYER_SERVICE_';
 export const RELAYER_BASE_URL = Symbol('RELAYER_BASE_URL');
 
 export const CRUD_CONTROLLER_METADATA = Symbol('CRUD_CONTROLLER_METADATA');
-export const CRUD_OVERRIDE_METADATA = Symbol('CRUD_OVERRIDE_METADATA');
 
 export type CrudRouteName =
   | 'list'

@@ -8,15 +8,16 @@ import { CrudController } from '../../src/decorators/crud-controller.decorator';
 import { DtoMapper } from '../../src/dto-mapper';
 import { RelayerHooks } from '../../src/hooks';
 import { RelayerController } from '../../src/relayer.controller';
-import { RelayerService, type EntityClient } from '../../src/relayer.service';
+import { RelayerService } from '../../src/relayer.service';
 import { mockEntityClient, TestEntity } from '../helpers';
 
 function createController<T extends RelayerController<any>>(
   Ctrl: new (service: RelayerService<any>) => T,
-  client: EntityClient,
+  client: Record<string, unknown>,
   baseUrl = 'http://test',
 ): T {
-  const service = new RelayerService(client);
+  const r = { tests: client } as any;
+  const service = new RelayerService(r, 'tests');
   const ctrl = new Ctrl(service);
   (ctrl as any).baseUrlConfig = baseUrl;
   (ctrl as any).moduleRef = {
@@ -79,7 +80,7 @@ class TestController extends RelayerController<any> {
 
 describe('RelayerController', () => {
   let controller: TestController;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
 
   beforeEach(() => {
     client = mockEntityClient({
@@ -243,7 +244,7 @@ describe('RelayerController', () => {
 
 describe('RelayerController with hooks', () => {
   let controller: any;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
   let hookSpies: Record<string, ReturnType<typeof vi.fn>>;
 
   beforeEach(() => {
@@ -411,7 +412,7 @@ describe('RelayerController with hooks', () => {
 
 describe('RelayerController with dtoMapper', () => {
   let controller: any;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
   let mapperSpies: Record<string, ReturnType<typeof vi.fn>>;
 
   beforeEach(() => {
@@ -487,7 +488,7 @@ describe('RelayerController with dtoMapper', () => {
 
 describe('RelayerController with search', () => {
   let controller: any;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
 
   beforeEach(() => {
     client = mockEntityClient({
@@ -566,7 +567,7 @@ describe('RelayerController with search', () => {
 
 describe('RelayerController with defaults.where and defaults.select', () => {
   let controller: any;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
 
   beforeEach(() => {
     client = mockEntityClient({
@@ -635,7 +636,7 @@ describe('RelayerController with defaults.where and defaults.select', () => {
 
 describe('RelayerController cursor pagination', () => {
   let controller: any;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
 
   beforeEach(() => {
     client = mockEntityClient({
@@ -777,7 +778,7 @@ describe('RelayerController cursor pagination', () => {
 
 describe('RelayerController enforceAllowSelectLimits', () => {
   let controller: any;
-  let client: EntityClient;
+  let client: ReturnType<typeof mockEntityClient>;
 
   beforeEach(() => {
     client = mockEntityClient({
@@ -826,61 +827,6 @@ describe('RelayerController enforceAllowSelectLimits', () => {
     expect(client.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ select: { comments: { $limit: 2 } } }),
     );
-  });
-});
-
-describe('RelayerControllerBase (via controller.base)', () => {
-  let controller: any;
-  let client: EntityClient;
-
-  beforeEach(() => {
-    client = mockEntityClient({
-      findMany: vi.fn().mockResolvedValue([{ id: 1 }]),
-      findFirst: vi.fn().mockResolvedValue({ id: 1 }),
-      create: vi.fn().mockResolvedValue({ id: 1 }),
-      update: vi.fn().mockResolvedValue({ id: 1 }),
-      delete: vi.fn().mockResolvedValue({ id: 1 }),
-      count: vi.fn().mockResolvedValue(5),
-    });
-
-    @CrudController({ model: TestEntity as any })
-    class BaseTestController extends RelayerController<any> {
-      constructor(service: RelayerService<any>) {
-        super(service);
-      }
-    }
-
-    controller = createController(BaseTestController, client, '');
-  });
-
-  it('base.list delegates to service.findMany', async () => {
-    const result = await controller.base.list({ where: { active: true } });
-    expect(result).toEqual([{ id: 1 }]);
-  });
-
-  it('base.findById delegates to service.findFirst', async () => {
-    const result = await controller.base.findById(1);
-    expect(result).toEqual({ id: 1 });
-  });
-
-  it('base.create delegates to service.create', async () => {
-    await controller.base.create({ title: 'Test' });
-    expect(client.create).toHaveBeenCalledWith({ data: { title: 'Test' } });
-  });
-
-  it('base.update delegates to service.update', async () => {
-    await controller.base.update({ id: 1 }, { title: 'X' });
-    expect(client.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { title: 'X' } });
-  });
-
-  it('base.delete delegates to service.delete', async () => {
-    await controller.base.delete({ id: 1 });
-    expect(client.delete).toHaveBeenCalledWith({ where: { id: 1 } });
-  });
-
-  it('base.count delegates to service.count', async () => {
-    const result = await controller.base.count({ where: { active: true } });
-    expect(result).toBe(5);
   });
 });
 

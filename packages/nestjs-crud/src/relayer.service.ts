@@ -1,84 +1,117 @@
-import type { EntityClient } from './entity-client';
+import type { SelectResult, SelectType, WhereType, OrderByType } from '@relayerjs/core';
+import type { EntityModelFromInstance } from '@relayerjs/drizzle';
 
-export type { EntityClient } from './entity-client';
+type Model<TEntity, TEntities extends Record<string, unknown>> =
+  EntityModelFromInstance<TEntity, TEntities>;
 
-export class RelayerService<TEntity> {
-  constructor(protected readonly entityClient: EntityClient) {}
+type Where<TEntity, TEntities extends Record<string, unknown>> =
+  WhereType<Model<TEntity, TEntities>>;
 
-  protected getDefaultWhere(
-    upstream?: Record<string, unknown>,
-  ): Record<string, unknown> | undefined {
-    return upstream;
+type Select<TEntity, TEntities extends Record<string, unknown>> =
+  SelectType<Model<TEntity, TEntities>>;
+
+type OrderBy<TEntity, TEntities extends Record<string, unknown>> =
+  OrderByType<Model<TEntity, TEntities>> | OrderByType<Model<TEntity, TEntities>>[];
+
+export interface FindManyOptions<TEntity, TEntities extends Record<string, unknown>> {
+  select?: Select<TEntity, TEntities>;
+  where?: Where<TEntity, TEntities>;
+  orderBy?: OrderBy<TEntity, TEntities>;
+  limit?: number;
+  offset?: number;
+}
+
+export interface FindFirstOptions<TEntity, TEntities extends Record<string, unknown>> {
+  select?: Select<TEntity, TEntities>;
+  where?: Where<TEntity, TEntities>;
+  orderBy?: OrderBy<TEntity, TEntities>;
+}
+
+// Typed client for a single entity — what this.repo exposes
+interface EntityRepo<TEntity, TEntities extends Record<string, unknown>> {
+  findMany<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
+    options?: FindManyOptions<TEntity, TEntities> & { select?: TSelect },
+  ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect>[]>;
+  findFirst<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
+    options?: FindFirstOptions<TEntity, TEntities> & { select?: TSelect },
+  ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect> | null>;
+  count(options?: { where?: Where<TEntity, TEntities> }): Promise<number>;
+  create(options: { data: Record<string, unknown> }): Promise<Model<TEntity, TEntities>>;
+  createMany(options: { data: Record<string, unknown>[] }): Promise<Model<TEntity, TEntities>[]>;
+  update(options: { where: Where<TEntity, TEntities>; data: Record<string, unknown> }): Promise<Model<TEntity, TEntities>>;
+  updateMany(options: { where: Where<TEntity, TEntities>; data: Record<string, unknown> }): Promise<{ count: number }>;
+  delete(options: { where: Where<TEntity, TEntities> }): Promise<Model<TEntity, TEntities>>;
+  deleteMany(options: { where: Where<TEntity, TEntities> }): Promise<{ count: number }>;
+  aggregate(options: Record<string, unknown>): Promise<unknown>;
+}
+
+// Full client — all entities accessible via this.r
+export type RelayerInstance<TEntities extends Record<string, unknown>> = {
+  [K in keyof TEntities & string]: TEntities[K] extends new (...args: unknown[]) => infer I
+    ? EntityRepo<I, TEntities>
+    : never;
+};
+
+export class RelayerService<
+  TEntity,
+  TEntities extends Record<string, unknown> = Record<string, never>,
+> {
+  protected readonly repo!: EntityRepo<TEntity, TEntities>;
+  protected readonly r!: RelayerInstance<TEntities>;
+
+  constructor(r: RelayerInstance<TEntities>, entity: { __entityKey: string } | string) {
+    this.r = r;
+    const key = typeof entity === 'string' ? entity : entity.__entityKey;
+    this.repo = (r as Record<string, unknown>)[key] as EntityRepo<TEntity, TEntities>;
   }
 
-  protected getDefaultSelect(
-    upstream?: Record<string, unknown>,
-  ): Record<string, unknown> | undefined {
-    return upstream;
+  findMany<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
+    options?: FindManyOptions<TEntity, TEntities> & { select?: TSelect },
+  ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect>[]> {
+    return this.repo.findMany(options as any) as any;
   }
 
-  protected getDefaultOrderBy(upstream?: unknown): unknown {
-    return upstream;
+  findFirst<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
+    options?: FindFirstOptions<TEntity, TEntities> & { select?: TSelect },
+  ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect> | null> {
+    return this.repo.findFirst(options as any) as any;
   }
 
-  async findMany(options: Record<string, unknown> = {}): Promise<TEntity[]> {
-    const merged = this.mergeDefaults(options);
-    return this.entityClient.findMany(merged) as Promise<TEntity[]>;
+  count(options?: { where?: Where<TEntity, TEntities> }): Promise<number> {
+    return this.repo.count(options as any);
   }
 
-  async findFirst(options: Record<string, unknown> = {}): Promise<TEntity | null> {
-    const merged = this.mergeDefaults(options);
-    return this.entityClient.findFirst(merged) as Promise<TEntity | null>;
+  create(options: { data: Record<string, unknown> }): Promise<Model<TEntity, TEntities>> {
+    return this.repo.create(options as any) as any;
   }
 
-  async count(options: Record<string, unknown> = {}): Promise<number> {
-    const where = this.getDefaultWhere(options.where as Record<string, unknown> | undefined);
-    return this.entityClient.count(where ? { ...options, where } : options);
+  createMany(options: { data: Record<string, unknown>[] }): Promise<Model<TEntity, TEntities>[]> {
+    return this.repo.createMany(options as any) as any;
   }
 
-  async create(data: Record<string, unknown>): Promise<TEntity> {
-    return this.entityClient.create({ data }) as Promise<TEntity>;
+  update(options: {
+    where: Where<TEntity, TEntities>;
+    data: Record<string, unknown>;
+  }): Promise<Model<TEntity, TEntities>> {
+    return this.repo.update(options as any) as any;
   }
 
-  async createMany(data: Record<string, unknown>[]): Promise<TEntity[]> {
-    return this.entityClient.createMany({ data }) as Promise<TEntity[]>;
+  updateMany(options: {
+    where: Where<TEntity, TEntities>;
+    data: Record<string, unknown>;
+  }): Promise<{ count: number }> {
+    return this.repo.updateMany(options as any);
   }
 
-  async update(where: Record<string, unknown>, data: Record<string, unknown>): Promise<TEntity> {
-    return this.entityClient.update({ where, data }) as Promise<TEntity>;
+  delete(options: { where: Where<TEntity, TEntities> }): Promise<Model<TEntity, TEntities>> {
+    return this.repo.delete(options as any) as any;
   }
 
-  async updateMany(
-    where: Record<string, unknown>,
-    data: Record<string, unknown>,
-  ): Promise<{ count: number }> {
-    return this.entityClient.updateMany({ where, data });
+  deleteMany(options: { where: Where<TEntity, TEntities> }): Promise<{ count: number }> {
+    return this.repo.deleteMany(options as any);
   }
 
-  async delete(where: Record<string, unknown>): Promise<TEntity> {
-    return this.entityClient.delete({ where }) as Promise<TEntity>;
-  }
-
-  async deleteMany(where: Record<string, unknown>): Promise<{ count: number }> {
-    return this.entityClient.deleteMany({ where });
-  }
-
-  async aggregate(options: Record<string, unknown> = {}): Promise<unknown> {
-    return this.entityClient.aggregate(options);
-  }
-
-  private mergeDefaults(options: Record<string, unknown>): Record<string, unknown> {
-    const result = { ...options };
-
-    const where = this.getDefaultWhere(options.where as Record<string, unknown> | undefined);
-    if (where) result.where = where;
-
-    const select = this.getDefaultSelect(options.select as Record<string, unknown> | undefined);
-    if (select) result.select = select;
-
-    const orderBy = this.getDefaultOrderBy(options.orderBy);
-    if (orderBy) result.orderBy = orderBy;
-
-    return result;
+  aggregate(options: Record<string, unknown>): Promise<unknown> {
+    return this.repo.aggregate(options as any) as any;
   }
 }

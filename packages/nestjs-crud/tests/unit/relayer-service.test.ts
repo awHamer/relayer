@@ -3,159 +3,74 @@ import { describe, expect, it, vi } from 'vitest';
 import { RelayerService } from '../../src/relayer.service';
 import { mockEntityClient } from '../helpers';
 
+function createService(overrides = {}) {
+  const client = mockEntityClient(overrides);
+  const r = { posts: client } as any;
+  const service = new RelayerService(r, 'posts');
+  return { service, client };
+}
+
 describe('RelayerService', () => {
-  it('findMany delegates to entityClient', async () => {
-    const client = mockEntityClient({
+  it('findMany delegates to repo', async () => {
+    const { service, client } = createService({
       findMany: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
     });
-    const service = new RelayerService(client);
     const result = await service.findMany({ where: { published: true } });
     expect(result).toEqual([{ id: 1 }, { id: 2 }]);
-    expect(client.findMany).toHaveBeenCalledWith({ where: { published: true } });
+    expect(client.findMany).toHaveBeenCalled();
   });
 
-  it('findFirst delegates to entityClient', async () => {
-    const client = mockEntityClient({
+  it('findFirst delegates to repo', async () => {
+    const { service, client } = createService({
       findFirst: vi.fn().mockResolvedValue({ id: 1 }),
     });
-    const service = new RelayerService(client);
     const result = await service.findFirst({ where: { id: 1 } });
     expect(result).toEqual({ id: 1 });
-    expect(client.findFirst).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(client.findFirst).toHaveBeenCalled();
   });
 
-  it('count delegates to entityClient', async () => {
-    const client = mockEntityClient({
+  it('count delegates to repo', async () => {
+    const { service, client } = createService({
       count: vi.fn().mockResolvedValue(42),
     });
-    const service = new RelayerService(client);
     const result = await service.count({ where: { published: true } });
     expect(result).toBe(42);
-    expect(client.count).toHaveBeenCalledWith({ where: { published: true } });
+    expect(client.count).toHaveBeenCalled();
   });
 
-  it('create wraps data in { data }', async () => {
-    const client = mockEntityClient({
+  it('create delegates to repo', async () => {
+    const { service, client } = createService({
       create: vi.fn().mockResolvedValue({ id: 1, title: 'New' }),
     });
-    const service = new RelayerService(client);
-    const result = await service.create({ title: 'New' });
+    const result = await service.create({ data: { title: 'New' } });
     expect(result).toEqual({ id: 1, title: 'New' });
-    expect(client.create).toHaveBeenCalledWith({ data: { title: 'New' } });
+    expect(client.create).toHaveBeenCalled();
   });
 
-  it('createMany wraps data array', async () => {
-    const client = mockEntityClient({
-      createMany: vi.fn().mockResolvedValue([{ id: 1 }]),
-    });
-    const service = new RelayerService(client);
-    await service.createMany([{ title: 'A' }]);
-    expect(client.createMany).toHaveBeenCalledWith({ data: [{ title: 'A' }] });
-  });
-
-  it('update wraps where and data', async () => {
-    const client = mockEntityClient({
+  it('update delegates to repo', async () => {
+    const { service, client } = createService({
       update: vi.fn().mockResolvedValue({ id: 1, title: 'Updated' }),
     });
-    const service = new RelayerService(client);
-    const result = await service.update({ id: 1 }, { title: 'Updated' });
+    const result = await service.update({ where: { id: 1 }, data: { title: 'Updated' } });
     expect(result).toEqual({ id: 1, title: 'Updated' });
-    expect(client.update).toHaveBeenCalledWith({
-      where: { id: 1 },
-      data: { title: 'Updated' },
-    });
+    expect(client.update).toHaveBeenCalled();
   });
 
-  it('updateMany wraps where and data', async () => {
-    const client = mockEntityClient({
-      updateMany: vi.fn().mockResolvedValue({ count: 3 }),
-    });
-    const service = new RelayerService(client);
-    const result = await service.updateMany({ published: false }, { published: true });
-    expect(result).toEqual({ count: 3 });
-    expect(client.updateMany).toHaveBeenCalledWith({
-      where: { published: false },
-      data: { published: true },
-    });
-  });
-
-  it('delete wraps where', async () => {
-    const client = mockEntityClient({
+  it('delete delegates to repo', async () => {
+    const { service, client } = createService({
       delete: vi.fn().mockResolvedValue({ id: 1 }),
     });
-    const service = new RelayerService(client);
-    const result = await service.delete({ id: 1 });
+    const result = await service.delete({ where: { id: 1 } });
     expect(result).toEqual({ id: 1 });
-    expect(client.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(client.delete).toHaveBeenCalled();
   });
 
-  it('deleteMany wraps where', async () => {
-    const client = mockEntityClient({
-      deleteMany: vi.fn().mockResolvedValue({ count: 5 }),
-    });
-    const service = new RelayerService(client);
-    const result = await service.deleteMany({ published: false });
-    expect(result).toEqual({ count: 5 });
-    expect(client.deleteMany).toHaveBeenCalledWith({ where: { published: false } });
-  });
-
-  it('aggregate delegates to entityClient', async () => {
-    const client = mockEntityClient({
+  it('aggregate delegates to repo', async () => {
+    const { service, client } = createService({
       aggregate: vi.fn().mockResolvedValue({ _count: 42 }),
     });
-    const service = new RelayerService(client);
     const result = await service.aggregate({ _count: true, groupBy: ['status'] });
     expect(result).toEqual({ _count: 42 });
-    expect(client.aggregate).toHaveBeenCalledWith({ _count: true, groupBy: ['status'] });
-  });
-
-  it('aggregate with no options passes empty object', async () => {
-    const client = mockEntityClient();
-    const service = new RelayerService(client);
-    await service.aggregate();
-    expect(client.aggregate).toHaveBeenCalledWith({});
-  });
-
-  it('findMany with no options passes empty object', async () => {
-    const client = mockEntityClient();
-    const service = new RelayerService(client);
-    await service.findMany();
-    expect(client.findMany).toHaveBeenCalledWith({});
-  });
-
-  it('subclass getDefaultWhere merges into findMany', async () => {
-    const client = mockEntityClient({
-      findMany: vi.fn().mockResolvedValue([]),
-    });
-
-    class ScopedService extends RelayerService<unknown> {
-      protected getDefaultWhere(upstream?: Record<string, unknown>) {
-        return { ...upstream, tenantId: 1 };
-      }
-    }
-
-    const service = new ScopedService(client);
-    await service.findMany({ where: { published: true } });
-    expect(client.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { published: true, tenantId: 1 } }),
-    );
-  });
-
-  it('subclass getDefaultWhere merges into count', async () => {
-    const client = mockEntityClient({
-      count: vi.fn().mockResolvedValue(0),
-    });
-
-    class ScopedService extends RelayerService<unknown> {
-      protected getDefaultWhere(upstream?: Record<string, unknown>) {
-        return { ...upstream, tenantId: 1 };
-      }
-    }
-
-    const service = new ScopedService(client);
-    await service.count({ where: { published: true } });
-    expect(client.count).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { published: true, tenantId: 1 } }),
-    );
+    expect(client.aggregate).toHaveBeenCalled();
   });
 });

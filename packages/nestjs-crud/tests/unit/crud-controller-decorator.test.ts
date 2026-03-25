@@ -5,9 +5,7 @@ import { RequestMethod } from '@nestjs/common/enums/request-method.enum';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
-import { CrudController } from '../../src/decorators/crud-controller.decorator';
-import { RelayerController } from '../../src/relayer.controller';
-import { RelayerService } from '../../src/relayer.service';
+import { CrudController, RelayerController } from '../../src';
 import { TestEntity } from '../helpers';
 
 function getMethodMeta(proto: object, method: string) {
@@ -53,7 +51,7 @@ describe('CrudController decorator', () => {
     });
   });
 
-  it('generates __crudList with GET /', () => {
+  it('generates list with GET /', () => {
     @CrudController({ model: TestEntity as any, routes: { list: true } })
     class TestCtrl extends RelayerController<any> {
       constructor() {
@@ -61,13 +59,13 @@ describe('CrudController decorator', () => {
       }
     }
 
-    const meta = getMethodMeta(TestCtrl.prototype, '__crudList');
+    const meta = getMethodMeta(TestCtrl.prototype, 'list');
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.GET);
     expect(meta!.path).toBe('/');
   });
 
-  it('generates __crudCount with GET /count', () => {
+  it('generates count with GET /count', () => {
     @CrudController({ model: TestEntity as any, routes: { count: true } })
     class TestCtrl extends RelayerController<any> {
       constructor() {
@@ -75,13 +73,13 @@ describe('CrudController decorator', () => {
       }
     }
 
-    const meta = getMethodMeta(TestCtrl.prototype, '__crudCount');
+    const meta = getMethodMeta(TestCtrl.prototype, 'count');
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.GET);
     expect(meta!.path).toBe('/count');
   });
 
-  it('generates __crudFindById with GET /:id', () => {
+  it('generates findById with GET /:id', () => {
     @CrudController({ model: TestEntity as any, routes: { findById: true } })
     class TestCtrl extends RelayerController<any> {
       constructor() {
@@ -89,13 +87,13 @@ describe('CrudController decorator', () => {
       }
     }
 
-    const meta = getMethodMeta(TestCtrl.prototype, '__crudFindById');
+    const meta = getMethodMeta(TestCtrl.prototype, 'findById');
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.GET);
     expect(meta!.path).toBe('/:id');
   });
 
-  it('generates __crudCreate with POST /', () => {
+  it('generates create with POST /', () => {
     @CrudController({ model: TestEntity as any, routes: { create: true } })
     class TestCtrl extends RelayerController<any> {
       constructor() {
@@ -103,13 +101,13 @@ describe('CrudController decorator', () => {
       }
     }
 
-    const meta = getMethodMeta(TestCtrl.prototype, '__crudCreate');
+    const meta = getMethodMeta(TestCtrl.prototype, 'create');
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.POST);
     expect(meta!.path).toBe('/');
   });
 
-  it('generates __crudUpdate with PATCH /:id', () => {
+  it('generates update with PATCH /:id', () => {
     @CrudController({ model: TestEntity as any, routes: { update: true } })
     class TestCtrl extends RelayerController<any> {
       constructor() {
@@ -117,13 +115,13 @@ describe('CrudController decorator', () => {
       }
     }
 
-    const meta = getMethodMeta(TestCtrl.prototype, '__crudUpdate');
+    const meta = getMethodMeta(TestCtrl.prototype, 'update');
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.PATCH);
     expect(meta!.path).toBe('/:id');
   });
 
-  it('generates __crudDelete with DELETE /:id', () => {
+  it('generates delete with DELETE /:id', () => {
     @CrudController({ model: TestEntity as any, routes: { delete: true } })
     class TestCtrl extends RelayerController<any> {
       constructor() {
@@ -131,7 +129,7 @@ describe('CrudController decorator', () => {
       }
     }
 
-    const meta = getMethodMeta(TestCtrl.prototype, '__crudDelete');
+    const meta = getMethodMeta(TestCtrl.prototype, 'delete');
     expect(meta).not.toBeNull();
     expect(meta!.httpMethod).toBe(RequestMethod.DELETE);
     expect(meta!.path).toBe('/:id');
@@ -148,9 +146,9 @@ describe('CrudController decorator', () => {
       }
     }
 
-    expect(TestCtrl.prototype.__crudList).toBeDefined();
-    expect(TestCtrl.prototype.__crudCreate).toBeUndefined();
-    expect(TestCtrl.prototype.__crudDelete).toBeUndefined();
+    expect((TestCtrl.prototype as any).list).toBeDefined();
+    expect((TestCtrl.prototype as any).create).toBeUndefined();
+    expect((TestCtrl.prototype as any).delete).toBeUndefined();
   });
 
   it('uses entity key as default path', () => {

@@ -25,6 +25,6 @@ import { CommentEntity } from '../../entities';
 })
 export class CommentsController extends RelayerController<CommentEntity> {
   constructor(@InjectQueryService(CommentEntity) service: RelayerService<CommentEntity>) {
-    super(service);
+    super(service as any);
   }
 }

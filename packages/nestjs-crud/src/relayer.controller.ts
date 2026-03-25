@@ -10,6 +10,7 @@ import {
   encodeCursor,
   ParseIdPipe,
   parseListQuery,
+  tryParseJson,
   validateBody,
   type ParsedListQuery,
 } from './pipes';
@@ -81,8 +82,6 @@ export class RelayerController<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   _TDtoMapper extends DtoMapper<TEntity, any, any> = DtoMapper<TEntity, TEntity, TEntity>,
 > implements OnModuleInit {
-  protected readonly base: RelayerControllerBase;
-
   @Inject(ModuleRef)
   private moduleRef!: ModuleRef;
 
@@ -94,9 +93,7 @@ export class RelayerController<
   private dtoMapperResolved = false;
   private hooksResolved = false;
 
-  constructor(protected readonly service: RelayerService<TEntity>) {
-    this.base = new RelayerControllerBase(service as RelayerService<unknown>);
-  }
+  constructor(private readonly service: RelayerService<TEntity>) {}
 
   onModuleInit(): void {
     const config = this.getConfig();
@@ -218,8 +215,8 @@ export class RelayerController<
     }
 
     let [data, total] = await Promise.all([
-      this.service.findMany(findOptions as Record<string, unknown>),
-      this.service.count(query.where ? { where: query.where } : {}),
+      this.service.findMany(findOptions as any) as Promise<TEntity[]>,
+      this.service.count(query.where ? { where: query.where } : {} as any),
     ]);
 
     if (hooks?.afterFind) {
@@ -293,7 +290,7 @@ export class RelayerController<
       await hooks.beforeFind(findOptions as Record<string, unknown>, ctx);
     }
 
-    const data = await this.service.findMany(findOptions as Record<string, unknown>);
+    const data = (await this.service.findMany(findOptions as any)) as TEntity[];
     const hasMore = data.length > limit;
     let results = hasMore ? data.slice(0, limit) : data;
 
@@ -375,7 +372,7 @@ export class RelayerController<
       if (modified) data = modified;
     }
 
-    const created = await this.service.create(data);
+    const created = (await this.service.create({ data })) as TEntity;
 
     if (hooks?.afterCreate) {
       await hooks.afterCreate(created, ctx);
@@ -410,7 +407,7 @@ export class RelayerController<
       if (modified) data = modified;
     }
 
-    const updated = await this.service.update(where, data);
+    const updated = (await this.service.update({ where, data } as any)) as TEntity;
 
     if (hooks?.afterUpdate) {
       await hooks.afterUpdate(updated, ctx);
@@ -432,7 +429,7 @@ export class RelayerController<
       await hooks.beforeDelete(where, ctx);
     }
 
-    const deleted = await this.service.delete(where);
+    const deleted = (await this.service.delete({ where } as any)) as TEntity;
 
     if (!deleted) {
       throw new NotFoundException('Entity not found');
@@ -479,55 +476,16 @@ export class RelayerController<
 
     const options: Record<string, unknown> = {};
 
-    if (raw.where) {
-      try {
-        options.where = JSON.parse(raw.where);
-      } catch {
-        /* ignore invalid JSON */
-      }
-    }
+    const where = tryParseJson(raw.where);
+    if (where) options.where = where as Record<string, unknown>;
+
     if (raw.groupBy) {
-      try {
-        options.groupBy = JSON.parse(raw.groupBy);
-      } catch {
-        options.groupBy = raw.groupBy.split(',').map((s) => s.trim());
-      }
+      options.groupBy = (tryParseJson(raw.groupBy) as string[]) ?? raw.groupBy.split(',').map((s) => s.trim());
     }
     if (raw._count) options._count = raw._count === 'true' || raw._count === '1';
-    if (raw._sum) {
-      try {
-        options._sum = JSON.parse(raw._sum);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (raw._avg) {
-      try {
-        options._avg = JSON.parse(raw._avg);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (raw._min) {
-      try {
-        options._min = JSON.parse(raw._min);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (raw._max) {
-      try {
-        options._max = JSON.parse(raw._max);
-      } catch {
-        /* ignore */
-      }
-    }
-    if (raw.having) {
-      try {
-        options.having = JSON.parse(raw.having);
-      } catch {
-        /* ignore */
-      }
+    for (const key of ['_sum', '_avg', '_min', '_max', 'having'] as const) {
+      const parsed = tryParseJson(raw[key]);
+      if (parsed) (options as Record<string, unknown>)[key] = parsed;
     }
 
     if (hooks?.beforeAggregate) {
@@ -542,33 +500,5 @@ export class RelayerController<
     }
 
     return { data: result };
-  }
-}
-
-class RelayerControllerBase {
-  constructor(private readonly service: RelayerService<unknown>) {}
-
-  async list(query: Record<string, unknown> = {}): Promise<unknown[]> {
-    return this.service.findMany(query);
-  }
-
-  async findById(id: string | number): Promise<unknown> {
-    return this.service.findFirst({ where: { id } });
-  }
-
-  async create(data: Record<string, unknown>): Promise<unknown> {
-    return this.service.create(data);
-  }
-
-  async update(where: Record<string, unknown>, data: Record<string, unknown>): Promise<unknown> {
-    return this.service.update(where, data);
-  }
-
-  async delete(where: Record<string, unknown>): Promise<unknown> {
-    return this.service.delete(where);
-  }
-
-  async count(options: Record<string, unknown> = {}): Promise<number> {
-    return this.service.count(options);
   }
 }
