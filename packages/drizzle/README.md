@@ -1,6 +1,22 @@
 # @relayerjs/drizzle
 
-Drizzle ORM adapter for Relayer: type-safe repository layer with class-based entity models, computed fields, derived fields, and query DSL.
+Turn your Drizzle schemas into a first-class data layer with a familiar Prisma-style query DSL. Computed and derived SQL fields become regular properties you can filter, sort, and select on. Full JSON support included.
+
+---
+
+## Features
+
+🔄 **Prisma-style DSL on top of Drizzle** — `findMany`, `where`, `select`, `orderBy` with 20+ operators. Keep Drizzle's SQL power, get Prisma's developer experience.
+
+🧮 **Computed and derived fields** — Define virtual SQL expressions and subquery JOINs as class properties. Use them in `where`, `orderBy`, `select`, and aggregations just like regular columns.
+
+📦 **First-class JSON support** — Filter by nested JSON paths with full comparison operators and automatic type casting across dialects.
+
+📊 **Aggregations** — `_count`, `_sum`, `_avg`, `_min`, `_max` with `groupBy`, `having`, and dot-notation paths. Works on regular columns, computed fields, derived fields, and relation fields.
+
+🏗️ **Full TypeScript inference** — Select narrows the return type. Where, orderBy, and aggregate results are fully typed. No manual casts.
+
+---
 
 ## Installation
 
@@ -280,44 +296,27 @@ await r.$transaction(async (tx) => {
 
 ## Type Utilities
 
-### From entity class (simplest)
+### Entity types
+
+Use `WhereType`, `SelectType`, `OrderByType` directly with your entity class. Computed, derived, and relation fields included automatically:
 
 ```ts
 import type { DotPaths, OrderByType, SelectType, WhereType } from '@relayerjs/drizzle';
 
-// Works directly with your entity class
+type UserWhere = WhereType<User>; // includes fullName, postsCount
 type UserSelect = SelectType<User>;
-type UserWhere = WhereType<User>;
-type UserPaths = DotPaths<User>;
 type UserOrderBy = OrderByType<User>;
-
-function findActiveUsers(where: WhereType<User>) {
-  return r.users.findMany({ where: { ...where, active: true } });
-}
+type UserPaths = DotPaths<User>; // "id" | "fullName" | "postsCount" | ...
 ```
 
-### From client (full cross-entity resolution)
-
-For relation dot paths and cross-entity computed/derived fields, use `InferModel`:
+For relation-aware types (e.g. `author.fullName` on posts), use `InferModel`:
 
 ```ts
-import type { DotPaths, InferModel, SelectType, WhereType } from '@relayerjs/drizzle';
+import type { InferModel } from '@relayerjs/drizzle';
 
 type Post = InferModel<typeof r, 'posts'>;
-
 type PostWhere = WhereType<Post>; // includes author.fullName, author.postsCount
-type PostPaths = DotPaths<Post>; // "id" | "title" | "author.fullName" | "author.postsCount" | ...
-type PostSelect = SelectType<Post>; // { author?: boolean | { fullName?: boolean; ... }; ... }
-```
-
-### From client (alternative)
-
-```ts
-import type { InferEntityOrderBy, InferEntitySelect, InferEntityWhere } from '@relayerjs/drizzle';
-
-type UserWhere = InferEntityWhere<typeof r, 'users'>;
-type UserSelect = InferEntitySelect<typeof r, 'users'>;
-type UserOrderBy = InferEntityOrderBy<typeof r, 'users'>;
+type PostPaths = DotPaths<Post>; // "id" | "title" | "author.fullName" | ...
 ```
 
 ### Return type inference
@@ -325,45 +324,22 @@ type UserOrderBy = InferEntityOrderBy<typeof r, 'users'>;
 `findMany` and `findFirst` narrow their return type based on `select`:
 
 ```ts
-// Without select -> full entity type
 const users = await r.users.findMany();
-// users: { id: number; firstName: string; email: string; fullName: string; ... }[]
+// { id: number; firstName: string; fullName: string; postsCount: number; ... }[]
 
-// With select -> only selected fields
 const users = await r.users.findMany({ select: { id: true, fullName: true } });
-// users: { id: number; fullName: string }[]
+// { id: number; fullName: string }[]
 ```
 
 `aggregate` infers its return type from the options:
 
 ```ts
-// Return type includes _count, _sum, and groupBy fields
 const stats = await r.orders.aggregate({
   groupBy: ['status'],
   _count: true,
   _sum: { total: true },
 });
-// stats: { status: string; _count: number; _sum: { total: number | null } }[]
-
-// Without groupBy -> single object (not array)
-const totals = await r.users.aggregate({ _count: true });
-// totals: { _count: number }
-```
-
-### EntityWithRelations
-
-Full entity shape including relation targets as nested objects. Useful for generic utilities:
-
-```ts
-import type { DotPaths, TypeAtPath } from '@relayerjs/core';
-import type { EntityWithRelations } from '@relayerjs/drizzle';
-
-// DotPaths works on EntityWithRelations to produce all valid paths
-type PostEntity = EntityWithRelations<typeof schema, { users: User }, 'posts'>;
-type AllPaths = DotPaths<PostEntity>; // "id" | "title" | "author.fullName" | ...
-
-// TypeAtPath extracts the value type at a dot path
-type AuthorName = TypeAtPath<PostEntity, 'author.fullName'>; // string
+// { status: string; _count: number; _sum: { total: number | null } }[]
 ```
 
 ## License

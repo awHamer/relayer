@@ -21,13 +21,20 @@ export type {
   CustomFieldKeys,
   ModelDotPaths,
   EntityWithRelations,
+  InferModelFromEntity,
 } from './helpers';
+export type {
+  EntityInstanceWithRelations,
+  EntityModelWithRelations,
+  EntityModelFromClass,
+  EntityModelFromInstance,
+} from './entity-with-relations-instance';
 export type { ModelSelect } from './select';
 export type { ModelWhere } from './where';
 export type { ModelOrderBy } from './order-by';
 export type { ModelAggregateOptions } from './aggregate';
 export type { TypedEntityClient, RelayerClient } from './client';
-export type { InferEntityWhere, InferEntitySelect, InferEntityOrderBy } from './infer';
+export type { InferEntityWhere, InferEntitySelect, InferEntityOrderBy } from '@relayerjs/core';
 export type {
   InferModel,
   SelectType,

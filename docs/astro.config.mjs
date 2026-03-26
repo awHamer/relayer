@@ -65,6 +65,30 @@ export default defineConfig({
             { label: 'Response Format', slug: 'next/response-format' },
           ],
         },
+        {
+          label: '@relayerjs/nestjs-crud',
+          items: [
+            { label: 'Getting Started', slug: 'nestjs/getting-started' },
+            {
+              label: 'API Reference',
+              items: [
+                { label: 'CRUD Controller', slug: 'nestjs/crud-controller' },
+                { label: 'Query Service', slug: 'nestjs/query-service' },
+                { label: 'Hooks', slug: 'nestjs/hooks' },
+                { label: 'Data Mapper', slug: 'nestjs/data-mapper' },
+              ],
+            },
+            {
+              label: 'Usage',
+              items: [
+                { label: 'Search & Filtering', slug: 'nestjs/search-and-filtering' },
+                { label: 'Aggregations', slug: 'nestjs/aggregations' },
+                { label: 'Validation', slug: 'nestjs/validation' },
+              ],
+            },
+            { label: 'Known Limitations', slug: 'nestjs/limitations' },
+          ],
+        },
         { label: 'Roadmap', slug: 'roadmap' },
       ],
     }),

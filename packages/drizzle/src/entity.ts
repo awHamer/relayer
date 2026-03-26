@@ -29,42 +29,48 @@ interface DerivedDecoratorConfig<TTable, TDb, TSchema> {
   on: (ctx: DerivedJoinContext<TTable>) => unknown;
 }
 
-export interface EntityClassStatics<TTable, _TDb, TSchema> {
+export interface EntityClassStatics<TTable, _TDb, TSchema, TKey extends string = string> {
   readonly __relayer: true;
   readonly __schema: TSchema;
-  readonly __entityKey: string;
+  readonly __entityKey: TKey;
   readonly __table: TTable;
   readonly __computed: Map<string, ComputedFieldDef>;
   readonly __derived: Map<string, DerivedFieldDef>;
 }
 
 // Entity class methods: decorators & chain
-export interface EntityClassMethods<TTable, TDb, TSchema, TInstance> {
+export interface EntityClassMethods<TTable, TDb, TSchema, TInstance, TKey extends string = string> {
   computed(config: ComputedDecoratorConfig<TTable, TSchema>): PropertyDecorator;
   computed<V, K extends string>(
     name: K,
     config: ComputedDecoratorConfig<TTable, TSchema>,
-  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>>;
+  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>, TKey>;
 
   derived(config: DerivedDecoratorConfig<TTable, TDb, TSchema>): PropertyDecorator;
   derived<V, K extends string>(
     name: K,
     config: DerivedDecoratorConfig<TTable, TDb, TSchema>,
-  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>>;
+  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>, TKey>;
 }
 
-export type EntityChainResult<TTable, TDb, TSchema, TInstance> = (new () => TInstance) &
-  EntityClassStatics<TTable, TDb, TSchema> &
+export type EntityChainResult<
+  TTable,
+  TDb,
+  TSchema,
+  TInstance,
+  TKey extends string = string,
+> = (new () => TInstance) &
+  EntityClassStatics<TTable, TDb, TSchema, TKey> &
   EntityClassMethods<TTable, TDb, TSchema, TInstance>;
 
 type EntityBaseClass<
   TTable,
   TDb,
   TSchema extends Record<string, unknown>,
-  _TTableName extends string = string,
+  TKey extends string = string,
 > = (new () => InferTableSelect<TTable>) &
-  EntityClassStatics<TTable, TDb, TSchema> &
-  EntityClassMethods<TTable, TDb, TSchema, InferTableSelect<TTable>>;
+  EntityClassStatics<TTable, TDb, TSchema, TKey> &
+  EntityClassMethods<TTable, TDb, TSchema, InferTableSelect<TTable>, TKey>;
 
 interface EntityClassWithMaps {
   __computed: Map<string, ComputedFieldDef>;

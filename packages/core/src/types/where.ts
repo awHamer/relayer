@@ -15,7 +15,9 @@ type OpsForType<T> = T extends string
       : T extends Date
         ? DateOperators | Date
         : T extends Array<infer U>
-          ? ArrayOperators<U>
+          ? U extends Record<string, unknown>
+            ? WhereType<U>
+            : ArrayOperators<U>
           : T extends Record<string, unknown>
             ? JsonWhereType<T>
             : never;

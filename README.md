@@ -160,11 +160,12 @@ const ordersByUser = await r.orders.aggregate({
 
 ## Packages
 
-| Package                                  | Description                       |
-| ---------------------------------------- | --------------------------------- |
-| [@relayerjs/drizzle](./packages/drizzle) | Drizzle ORM adapter, main package |
-| [@relayerjs/core](./packages/core)       | ORM-agnostic types and contracts  |
-| [@relayerjs/next](./packages/next)       | Next.js App Router integration    |
+| Package                                          | Description                       |
+| ------------------------------------------------ | --------------------------------- |
+| [@relayerjs/drizzle](./packages/drizzle)         | Drizzle ORM adapter, main package |
+| [@relayerjs/core](./packages/core)               | ORM-agnostic types and contracts  |
+| [@relayerjs/next](./packages/next)               | Next.js App Router integration    |
+| [@relayerjs/nestjs-crud](./packages/nestjs-crud) | NestJS CRUD controllers           |
 
 ## Documentation
 
@@ -181,8 +182,7 @@ See the [examples/drizzle](./examples/drizzle) directory for runnable examples w
 Relayer is in early development. Planned packages:
 
 - **@relayerjs/rest**: auto-generate REST CRUD endpoints (Express, Fastify, Hono)
-- **@relayerjs/nest**: NestJS module with CRUD controllers and GraphQL resolvers
-- **@relayerjs/graphql**: standalone GraphQL schema generation
+- **@relayerjs/nestjs-graphql**: NestJS GraphQL resolvers with auto-generated schemas
 - **@relayerjs/react**: React client with hooks for querying Relayer endpoints
 
 ## Contributing

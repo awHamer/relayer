@@ -136,6 +136,14 @@ export type EntityWithRelations<
   >;
 };
 
+// Infer full ResolvedModel from entity class (typeof PostEntity -> ResolvedModel with ModelMeta)
+export type InferModelFromEntity<TEntityClass> = TEntityClass extends {
+  __schema: infer S extends Record<string, unknown>;
+  __entityKey: infer K extends string;
+}
+  ? ModelInstance<S, { [P in K]: TEntityClass }, K> & ModelMeta<S, { [P in K]: TEntityClass }, K>
+  : never;
+
 // All valid dot paths for an entity
 export type ModelDotPaths<
   TSchema extends Record<string, unknown>,

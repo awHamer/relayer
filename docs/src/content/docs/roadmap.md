@@ -7,11 +7,12 @@ Relayer is in early development. The core query layer is stable and usable. Futu
 
 ## Current packages
 
-| Package              | Status    | Description                                   |
-| -------------------- | --------- | --------------------------------------------- |
-| `@relayerjs/core`    | Published | ORM-agnostic types, contracts, and decorators |
-| `@relayerjs/drizzle` | Published | Drizzle ORM adapter with full query DSL       |
-| `@relayerjs/next`    | Published | Next.js App Router integration                |
+| Package                  | Status    | Description                                                   |
+| ------------------------ | --------- | ------------------------------------------------------------- |
+| `@relayerjs/core`        | Published | ORM-agnostic types, contracts, and decorators                 |
+| `@relayerjs/drizzle`     | Published | Drizzle ORM adapter with full query DSL                       |
+| `@relayerjs/next`        | Published | Next.js App Router integration                                |
+| `@relayerjs/nestjs-crud` | Published | NestJS CRUD controllers with search, aggregations, pagination |
 
 ## Recent changes
 
@@ -41,13 +42,9 @@ Auto-generate REST CRUD endpoints from your Relayer entities. Planned framework 
 
 The query DSL is already JSON-serializable, making it straightforward to accept `where`, `select`, `orderBy` as query parameters or request body fields.
 
-### @relayerjs/nest
+### @relayerjs/nestjs-graphql
 
-NestJS module providing: CRUD controllers with automatic routing, GraphQL resolvers, decorator-based configuration.
-
-### @relayerjs/graphql
-
-Standalone GraphQL schema generation from Relayer entities: auto-generated types, queries, and mutations, filter input types matching the Relayer DSL, relation loading via DataLoader pattern.
+NestJS GraphQL resolvers with auto-generated schemas, filter input types matching the Relayer DSL, relation loading via DataLoader pattern.
 
 ### @relayerjs/react
 
