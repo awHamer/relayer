@@ -1,5 +1,13 @@
 # @relayerjs/next
 
+## 1.0.0
+
+### Patch Changes
+
+- Updated dependencies [840168e]
+  - @relayerjs/core@0.3.0
+  - @relayerjs/drizzle@0.5.0
+
 ## 0.1.1
 
 ### Patch Changes

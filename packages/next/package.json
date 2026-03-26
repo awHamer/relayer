@@ -1,6 +1,6 @@
 {
   "name": "@relayerjs/next",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Next.js App Router integration for Relayer - type-safe CRUD route handlers with validation and hooks",
   "license": "MIT",
   "repository": {
