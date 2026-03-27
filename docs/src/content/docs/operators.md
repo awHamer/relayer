@@ -46,7 +46,25 @@ await r.users.findMany({
 });
 ```
 
-Available: `eq`, `ne`, `in`, `notIn`, `like`, `notLike`, `ilike`, `notIlike`, `contains`, `startsWith`, `endsWith`, `isNull`, `isNotNull`
+Available: `eq`, `ne`, `in`, `notIn`, `like`, `notLike`, `ilike`, `notIlike`, `contains`, `startsWith`, `endsWith`, `isNull`, `isNotNull`, `mode`
+
+#### Case-insensitive search with `mode`
+
+Add `mode: 'insensitive'` to `contains`, `startsWith`, or `endsWith` for case-insensitive matching:
+
+```ts
+await r.users.findMany({
+  where: {
+    firstName: { contains: 'john', mode: 'insensitive' },
+  },
+});
+```
+
+- **PostgreSQL** — uses `ILIKE`
+- **MySQL** — uses `LOWER()` wrapping (MySQL default collation is already case-insensitive)
+- **SQLite** — uses `COLLATE NOCASE`
+
+This is a cleaner alternative to manually using the `ilike` operator with `%` patterns.
 
 ### Number fields
 

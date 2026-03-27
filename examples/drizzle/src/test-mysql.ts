@@ -227,6 +227,27 @@ async function main() {
     console.log('  streamed:', user);
   }
 
+  // 6. count() bigint fix
+  const countResult = await r.users.count();
+  log('count: type check', { count: countResult, type: typeof countResult });
+
+  // 7. mode: 'insensitive'
+  log(
+    'findMany: mode insensitive contains',
+    await r.users.findMany({
+      select: { id: true, fullName: true },
+      where: { firstName: { contains: 'ih', mode: 'insensitive' } },
+    }),
+  );
+
+  // 8. $raw select
+  log(
+    'findFirst: $raw email returns string',
+    await r.users.findFirst({
+      select: { id: true, firstName: true, email: { $raw: true } },
+    }),
+  );
+
   await connection.end();
   console.log('\nMySQL example complete!');
 }

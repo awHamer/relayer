@@ -50,6 +50,28 @@ You can select:
 - **Derived fields** -- `{ postsCount: true }` or `{ orderSummary: { totalAmount: true } }`
 - **Relations** -- `{ posts: { id: true, title: true } }` (see [Relations](/relations/))
 
+### Raw select (`$raw`)
+
+Use `{ $raw: true }` to get a field as a raw string from the database, bypassing JS type coercion:
+
+```ts
+const user = await r.users.findFirst({
+  select: { id: true, createdAt: { $raw: true } },
+});
+// { id: 1, createdAt: '2025-01-15 10:30:00.157432' }
+// Without $raw: createdAt would be a JS Date (millisecond precision only)
+```
+
+Useful when you need:
+
+- **Full timestamp precision** -- PostgreSQL stores μs, JS Date truncates to ms
+- **Exact numeric values** -- bigint/decimal without JS number precision loss
+- **JSON as string** -- skip auto-parsing when you need the raw JSON text
+
+The return type is inferred as `string` when `$raw: true` is used.
+
+Uses dialect-specific casts: `::text` (PG), `CAST(col AS CHAR)` (MySQL), `CAST(col AS TEXT)` (SQLite).
+
 The result type is inferred from the select -- you only get the fields you ask for.
 
 ![select autocomplete showing scalar, computed, derived, and relation fields](/select-autocomplete.png)

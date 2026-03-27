@@ -126,6 +126,35 @@ async function main() {
     }),
   );
 
+  // 6. count() bigint fix — should return number, not string
+  const countResult = await r.users.count();
+  log('count: type check', { count: countResult, type: typeof countResult });
+
+  // 7. mode: 'insensitive' — case-insensitive contains/startsWith/endsWith
+  log(
+    'findMany: mode insensitive contains',
+    await r.users.findMany({
+      select: { id: true, fullName: true },
+      where: { firstName: { contains: 'ih', mode: 'insensitive' } },
+    }),
+  );
+
+  log(
+    'findMany: mode insensitive startsWith',
+    await r.users.findMany({
+      select: { id: true, fullName: true },
+      where: { firstName: { startsWith: 'IH', mode: 'insensitive' } },
+    }),
+  );
+
+  // 8. $raw select — returns raw DB string instead of JS type
+  log(
+    'findFirst: $raw createdAt returns string',
+    await r.users.findFirst({
+      select: { id: true, firstName: true, createdAt: { $raw: true } },
+    }),
+  );
+
   await client.end();
 }
 

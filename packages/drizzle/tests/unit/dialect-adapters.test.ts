@@ -101,6 +101,12 @@ describe('pgAdapter', () => {
     const sql = pgSql(fragment);
     expect(sql).toContain('::boolean');
   });
+
+  it('castToText produces ::text', () => {
+    const fragment = pgAdapter.castToText(users.createdAt);
+    const sql = pgSql(fragment);
+    expect(sql).toContain('::text');
+  });
 });
 
 describe('mysqlAdapter', () => {
@@ -155,6 +161,13 @@ describe('mysqlAdapter', () => {
     const sql = pgSql(fragment);
     expect(sql).toContain('UNSIGNED');
   });
+
+  it('castToText produces CAST AS CHAR', () => {
+    const fragment = mysqlAdapter.castToText(users.createdAt);
+    const sql = pgSql(fragment);
+    expect(sql).toContain('CAST');
+    expect(sql).toContain('CHAR');
+  });
 });
 
 describe('sqliteAdapter', () => {
@@ -204,5 +217,12 @@ describe('sqliteAdapter', () => {
     const sql = pgSql(fragment);
     expect(sql).toContain('CAST');
     expect(sql).toContain('REAL');
+  });
+
+  it('castToText produces CAST AS TEXT', () => {
+    const fragment = sqliteAdapter.castToText(users.createdAt);
+    const sql = pgSql(fragment);
+    expect(sql).toContain('CAST');
+    expect(sql).toContain('TEXT');
   });
 });

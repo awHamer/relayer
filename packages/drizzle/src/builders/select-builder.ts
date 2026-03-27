@@ -2,6 +2,7 @@ import type { Column, SQL, Table } from 'drizzle-orm';
 import { isObject } from '@relayerjs/core';
 import type { EntityMetadata } from '@relayerjs/core';
 
+import type { DialectAdapter } from '../dialect';
 import { getTableColumns } from '../utils';
 
 export interface SelectResult {
@@ -12,11 +13,16 @@ export interface SelectResult {
   requestedDerived: string[];
 }
 
+function isRawSelect(value: unknown): boolean {
+  return isObject(value) && (value as Record<string, unknown>).$raw === true;
+}
+
 export function buildSelect(
   select: Record<string, unknown> | undefined,
   table: Table,
   metadata: EntityMetadata,
   computedSqlMap: Map<string, SQL>,
+  adapter?: DialectAdapter,
 ): SelectResult {
   const columns: Record<string, Column | SQL> = {};
   const requestedRelations: string[] = [];
@@ -38,7 +44,9 @@ export function buildSelect(
 
     if (metadata.scalarFields.has(fieldName)) {
       const col = tableColumns[fieldName];
-      if (col) columns[fieldName] = col;
+      if (col) {
+        columns[fieldName] = isRawSelect(value) && adapter ? adapter.castToText(col) : col;
+      }
       continue;
     }
 

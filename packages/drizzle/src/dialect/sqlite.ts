@@ -37,6 +37,8 @@ export const sqliteAdapter: DialectAdapter = {
     return expr;
   },
 
+  castToText: (col) => sql`CAST(${col} AS TEXT)`,
+
   quoteIdent: (name) => `"${name}"`,
 
   buildLimitedRelationQuery: async (db, table, fkColumn, parentValues, limit) => {

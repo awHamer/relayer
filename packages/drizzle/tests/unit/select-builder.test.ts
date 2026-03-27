@@ -1,6 +1,7 @@
 import { sql, SQL } from 'drizzle-orm';
 
 import { buildSelect } from '../../src/builders/select-builder';
+import { mysqlAdapter, pgAdapter, sqliteAdapter } from '../../src/dialect';
 import { buildRegistry } from '../../src/introspect';
 import * as pgSchema from '../fixtures/pg-schema';
 import { posts, users } from '../fixtures/pg-schema';
@@ -116,5 +117,67 @@ describe('buildSelect', () => {
   it('requestedRelations is empty when no relations selected', () => {
     const result = buildSelect({ id: true, email: true }, users, usersMetadata, new Map());
     expect(result.requestedRelations).toEqual([]);
+  });
+
+  describe('$raw select modifier', () => {
+    it('$raw: true wraps column with castToText via PG adapter', () => {
+      const result = buildSelect(
+        { createdAt: { $raw: true } },
+        users,
+        usersMetadata,
+        new Map(),
+        pgAdapter,
+      );
+      expect(result.columns['createdAt']).toBeInstanceOf(SQL);
+      expect(Object.keys(result.columns)).toContain('createdAt');
+    });
+
+    it('$raw: true wraps column with castToText via MySQL adapter', () => {
+      const result = buildSelect(
+        { createdAt: { $raw: true } },
+        users,
+        usersMetadata,
+        new Map(),
+        mysqlAdapter,
+      );
+      expect(result.columns['createdAt']).toBeInstanceOf(SQL);
+    });
+
+    it('$raw: true wraps column with castToText via SQLite adapter', () => {
+      const result = buildSelect(
+        { createdAt: { $raw: true } },
+        users,
+        usersMetadata,
+        new Map(),
+        sqliteAdapter,
+      );
+      expect(result.columns['createdAt']).toBeInstanceOf(SQL);
+    });
+
+    it('boolean true still returns raw column (not SQL)', () => {
+      const result = buildSelect({ createdAt: true }, users, usersMetadata, new Map(), pgAdapter);
+      expect(result.columns['createdAt']).not.toBeInstanceOf(SQL);
+    });
+
+    it('$raw without adapter falls back to plain column', () => {
+      const result = buildSelect({ createdAt: { $raw: true } }, users, usersMetadata, new Map());
+      // No adapter passed -> no cast, just the plain column
+      expect(result.columns['createdAt']).toBeDefined();
+    });
+
+    it('$raw works alongside regular boolean selects', () => {
+      const result = buildSelect(
+        { id: true, createdAt: { $raw: true }, firstName: true },
+        users,
+        usersMetadata,
+        new Map(),
+        pgAdapter,
+      );
+      expect(Object.keys(result.columns)).toEqual(
+        expect.arrayContaining(['id', 'createdAt', 'firstName']),
+      );
+      expect(result.columns['createdAt']).toBeInstanceOf(SQL);
+      expect(result.columns['id']).not.toBeInstanceOf(SQL);
+    });
   });
 });

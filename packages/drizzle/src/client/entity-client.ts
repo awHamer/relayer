@@ -143,7 +143,7 @@ export function createEntityClient(config: EntityClientConfig) {
       let query = db.select({ count: sql<number>`count(*)` }).from(table);
       if (whereCondition) query = query.where(whereCondition);
       const rows = (await query) as { count: number }[];
-      return rows[0]?.count ?? 0;
+      return Number(rows[0]?.count ?? 0);
     },
 
     async aggregate(options: AggregateOptions = {}) {

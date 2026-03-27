@@ -147,21 +147,22 @@ const user = await r.users.findFirst({
 
 ### Operators
 
-| Operator         | Example                                          | Description                                         |
-| ---------------- | ------------------------------------------------ | --------------------------------------------------- |
-| eq               | `{ name: 'John' }` or `{ name: { eq: 'John' } }` | Equal                                               |
-| ne               | `{ name: { ne: 'John' } }`                       | Not equal                                           |
-| gt, gte, lt, lte | `{ age: { gt: 18 } }`                            | Comparison                                          |
-| in, notIn        | `{ id: { in: [1, 2, 3] } }`                      | Array membership                                    |
-| like, notLike    | `{ email: { like: '%@gmail%' } }`                | Pattern match                                       |
-| ilike, notIlike  | `{ name: { ilike: '%john%' } }`                  | Case-insensitive (PG native, MySQL/SQLite fallback) |
-| contains         | `{ email: { contains: 'gmail' } }`               | Contains substring                                  |
-| startsWith       | `{ name: { startsWith: 'Jo' } }`                 | Starts with                                         |
-| endsWith         | `{ email: { endsWith: '.com' } }`                | Ends with                                           |
-| isNull           | `{ deletedAt: { isNull: true } }`                | Is null                                             |
-| isNotNull        | `{ email: { isNotNull: true } }`                 | Is not null                                         |
-| arrayContains    | `{ tags: { arrayContains: ['ts'] } }`            | Array contains all (PG only)                        |
-| arrayOverlaps    | `{ tags: { arrayOverlaps: ['ts', 'js'] } }`      | Array overlaps (PG only)                            |
+| Operator         | Example                                             | Description                                         |
+| ---------------- | --------------------------------------------------- | --------------------------------------------------- |
+| eq               | `{ name: 'John' }` or `{ name: { eq: 'John' } }`    | Equal                                               |
+| ne               | `{ name: { ne: 'John' } }`                          | Not equal                                           |
+| gt, gte, lt, lte | `{ age: { gt: 18 } }`                               | Comparison                                          |
+| in, notIn        | `{ id: { in: [1, 2, 3] } }`                         | Array membership                                    |
+| like, notLike    | `{ email: { like: '%@gmail%' } }`                   | Pattern match                                       |
+| ilike, notIlike  | `{ name: { ilike: '%john%' } }`                     | Case-insensitive (PG native, MySQL/SQLite fallback) |
+| contains         | `{ email: { contains: 'gmail' } }`                  | Contains substring                                  |
+| startsWith       | `{ name: { startsWith: 'Jo' } }`                    | Starts with                                         |
+| endsWith         | `{ email: { endsWith: '.com' } }`                   | Ends with                                           |
+| mode             | `{ name: { contains: 'jo', mode: 'insensitive' } }` | Case-insensitive contains/startsWith/endsWith       |
+| isNull           | `{ deletedAt: { isNull: true } }`                   | Is null                                             |
+| isNotNull        | `{ email: { isNotNull: true } }`                    | Is not null                                         |
+| arrayContains    | `{ tags: { arrayContains: ['ts'] } }`               | Array contains all (PG only)                        |
+| arrayOverlaps    | `{ tags: { arrayOverlaps: ['ts', 'js'] } }`         | Array overlaps (PG only)                            |
 
 ### JSON Filtering
 
@@ -187,6 +188,17 @@ await r.users.findMany({
 await r.users.findMany({
   where: { profile: { exists: true } },
 });
+```
+
+### Raw Select (`$raw`)
+
+Get a field as a raw string, bypassing JS type coercion (useful for full timestamp precision, bigint, etc.):
+
+```ts
+const user = await r.users.findFirst({
+  select: { id: true, createdAt: { $raw: true } },
+});
+// { id: 1, createdAt: '2025-01-15 10:30:00.157432' } -- full μs precision
 ```
 
 ### AND / OR / NOT

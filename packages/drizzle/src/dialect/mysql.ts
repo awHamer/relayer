@@ -38,6 +38,8 @@ export const mysqlAdapter: DialectAdapter = {
     return expr;
   },
 
+  castToText: (col) => sql`CAST(${col} AS CHAR)`,
+
   quoteIdent: (name) => `\`${name}\``,
 
   buildLimitedRelationQuery: async (db, table, fkColumn, parentValues, limit) => {
