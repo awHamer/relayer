@@ -64,7 +64,7 @@ export function buildFindManyQuery(
     ? Object.keys(options.select).filter((k: string) => metadata.computedFields.has(k))
     : [...metadata.computedFields.keys()];
   const computedSqlMap = deps.getComputedSqlMap(context, requestedComputed);
-  const selectResult = buildSelect(options.select, table, metadata, computedSqlMap);
+  const selectResult = buildSelect(options.select, table, metadata, computedSqlMap, deps.adapter);
 
   const whereKeys = new Set(options.where ? Object.keys(options.where) : []);
   const orderByFields = new Set(

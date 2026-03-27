@@ -22,7 +22,13 @@ GET /posts?where={"AND":[{"published":true},{"authorId":1}]}
 GET /posts?where={"OR":[{"title":{"contains":"js"}},{"title":{"contains":"ts"}}]}
 ```
 
-Relayer supports 20+ operators: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `ilike`, `startsWith`, `isNull`, and more. See the [Operators reference](/operators) for the full list.
+Relayer supports 20+ operators: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `contains`, `ilike`, `startsWith`, `isNull`, and more. See the [Operators reference](/operators/) for the full list.
+
+Case-insensitive search without `ilike`:
+
+```
+GET /posts?where={"title":{"contains":"hello","mode":"insensitive"}}
+```
 
 ### Relation filters
 

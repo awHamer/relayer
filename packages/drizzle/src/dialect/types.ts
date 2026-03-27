@@ -51,6 +51,8 @@ export interface DialectAdapter {
     limit: number,
   ): Promise<Record<string, unknown>[] | null>;
 
+  castToText(column: Column | SQL): SQL;
+
   supportsReturning: boolean;
   executeInsert(db: DrizzleDatabase, table: Table, data: unknown): Promise<unknown[]>;
   executeInsertMany(db: DrizzleDatabase, table: Table, data: unknown[]): Promise<unknown[]>;

@@ -192,6 +192,62 @@ describe('applyOperators', () => {
       expect(params).toContain('%suf');
     });
 
+    it('contains with mode: insensitive uses ilike on PG', () => {
+      const result = applyOperators(
+        users.firstName,
+        { contains: 'sub', mode: 'insensitive' },
+        pgAdapter,
+      );
+      expect(result).toBeInstanceOf(SQL);
+      const { sql: query, params } = toSql(result!);
+      expect(query).toContain('ilike');
+      expect(params).toContain('%sub%');
+    });
+
+    it('startsWith with mode: insensitive uses ilike on PG', () => {
+      const result = applyOperators(
+        users.firstName,
+        { startsWith: 'pre', mode: 'insensitive' },
+        pgAdapter,
+      );
+      expect(result).toBeInstanceOf(SQL);
+      const { sql: query, params } = toSql(result!);
+      expect(query).toContain('ilike');
+      expect(params).toContain('pre%');
+    });
+
+    it('endsWith with mode: insensitive uses ilike on PG', () => {
+      const result = applyOperators(
+        users.firstName,
+        { endsWith: 'suf', mode: 'insensitive' },
+        pgAdapter,
+      );
+      expect(result).toBeInstanceOf(SQL);
+      const { sql: query, params } = toSql(result!);
+      expect(query).toContain('ilike');
+      expect(params).toContain('%suf');
+    });
+
+    it('contains without mode uses case-sensitive like', () => {
+      const result = applyOperators(users.firstName, { contains: 'sub' }, pgAdapter);
+      expect(result).toBeInstanceOf(SQL);
+      const { sql: query } = toSql(result!);
+      expect(query.toLowerCase()).toContain('like');
+      expect(query).not.toContain('ilike');
+    });
+
+    it('mode: default keeps case-sensitive like', () => {
+      const result = applyOperators(
+        users.firstName,
+        { contains: 'sub', mode: 'default' },
+        pgAdapter,
+      );
+      expect(result).toBeInstanceOf(SQL);
+      const { sql: query } = toSql(result!);
+      expect(query.toLowerCase()).toContain('like');
+      expect(query).not.toContain('ilike');
+    });
+
     it('isNull: true produces is null', () => {
       const result = applyOperators(users.firstName, { isNull: true }, pgAdapter);
       expect(result).toBeInstanceOf(SQL);

@@ -1,3 +1,5 @@
+import type { RawSelect } from '@relayerjs/core';
+
 import type {
   CustomFieldKeys,
   ModelInstance,
@@ -12,7 +14,9 @@ export type ModelSelect<
   TKey extends string,
 > =
   // Scalar columns
-  (TKey extends keyof TSchema ? { [K in TableColumnKeys<TSchema[TKey]>]?: boolean } : {}) &
+  (TKey extends keyof TSchema
+    ? { [K in TableColumnKeys<TSchema[TKey]>]?: boolean | RawSelect }
+    : {}) &
     // Custom fields (computed/derived)
     {
       [K in CustomFieldKeys<TSchema, TEntities, TKey>]?: NonNullable<

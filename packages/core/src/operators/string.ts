@@ -12,4 +12,5 @@ export interface StringOperators {
   endsWith?: string;
   isNull?: boolean;
   isNotNull?: boolean;
+  mode?: 'default' | 'insensitive';
 }

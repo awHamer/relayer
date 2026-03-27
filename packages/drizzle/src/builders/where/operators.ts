@@ -56,12 +56,26 @@ export function applyOperators(
   if (ops.notIlike !== undefined)
     conditions.push(adapter.notIlike(column as Column, ops.notIlike as string));
 
-  if (ops.contains !== undefined)
-    conditions.push(like(column as Column, `%${ops.contains as string}%`));
-  if (ops.startsWith !== undefined)
-    conditions.push(like(column as Column, `${ops.startsWith as string}%`));
-  if (ops.endsWith !== undefined)
-    conditions.push(like(column as Column, `%${ops.endsWith as string}`));
+  const insensitive = ops.mode === 'insensitive';
+
+  if (ops.contains !== undefined) {
+    const pattern = `%${ops.contains as string}%`;
+    conditions.push(
+      insensitive ? adapter.ilike(column as Column, pattern) : like(column as Column, pattern),
+    );
+  }
+  if (ops.startsWith !== undefined) {
+    const pattern = `${ops.startsWith as string}%`;
+    conditions.push(
+      insensitive ? adapter.ilike(column as Column, pattern) : like(column as Column, pattern),
+    );
+  }
+  if (ops.endsWith !== undefined) {
+    const pattern = `%${ops.endsWith as string}`;
+    conditions.push(
+      insensitive ? adapter.ilike(column as Column, pattern) : like(column as Column, pattern),
+    );
+  }
 
   if (ops.isNull === true) conditions.push(isNull(column as Column));
   if (ops.isNotNull === true) conditions.push(isNotNull(column as Column));

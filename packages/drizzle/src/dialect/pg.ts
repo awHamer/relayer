@@ -34,6 +34,8 @@ export const pgAdapter: DialectAdapter = {
     return expr;
   },
 
+  castToText: (col) => sql`(${col})::text`,
+
   quoteIdent: (name) => `"${name}"`,
 
   buildLimitedRelationQuery: async (db, table, fkColumn, parentValues, limit) => {
