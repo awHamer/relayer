@@ -1,5 +1,15 @@
 # @relayerjs/drizzle
 
+## 0.5.1
+
+### Patch Changes
+
+- 6d6cf36: - Fix count() returning string instead of number on PostgreSQL (bigint cast)
+  - Add `mode: 'insensitive'` for `contains`, `startsWith`, `endsWith` operators
+  - Add `$raw` select modifier for raw database values without JS type coercion
+- Updated dependencies [6d6cf36]
+  - @relayerjs/core@0.3.1
+
 ## 0.5.0
 
 ### Minor Changes
