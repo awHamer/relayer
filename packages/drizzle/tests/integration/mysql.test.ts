@@ -59,8 +59,33 @@ const usersRelations = relations(users, ({ many, one }) => ({
   profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),
 }));
 
-const postsRelations = relations(posts, ({ one }) => ({
+const tags = mysqlTable('tags', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+const postTags = mysqlTable('post_tags', {
+  id: serial('id').primaryKey(),
+  postId: int('post_id')
+    .notNull()
+    .references(() => posts.id),
+  tagId: int('tag_id')
+    .notNull()
+    .references(() => tags.id),
+});
+
+const postsRelations = relations(posts, ({ one, many }) => ({
   author: one(users, { fields: [posts.authorId], references: [users.id] }),
+  postTags: many(postTags),
+}));
+
+const tagsRelations = relations(tags, ({ many }) => ({
+  postTags: many(postTags),
+}));
+
+const postTagsRelations = relations(postTags, ({ one }) => ({
+  post: one(posts, { fields: [postTags.postId], references: [posts.id] }),
+  tag: one(tags, { fields: [postTags.tagId], references: [tags.id] }),
 }));
 
 const ordersRelations = relations(orders, ({ one }) => ({
@@ -76,10 +101,14 @@ const schema = {
   posts,
   orders,
   profiles,
+  tags,
+  postTags,
   usersRelations,
   postsRelations,
   ordersRelations,
   profilesRelations,
+  tagsRelations,
+  postTagsRelations,
 };
 
 const UserEntity = createRelayerEntity(schema, 'users');
@@ -119,7 +148,7 @@ beforeAll(async () => {
   db = drizzle(connection, { schema, mode: 'default', logger: false });
 
   await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-  await connection.query('DROP TABLE IF EXISTS profiles, orders, posts, users');
+  await connection.query('DROP TABLE IF EXISTS post_tags, tags, profiles, orders, posts, users');
   await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
   await connection.query(`
@@ -153,6 +182,21 @@ beforeAll(async () => {
       id SERIAL PRIMARY KEY,
       bio TEXT,
       user_id INT NOT NULL REFERENCES users(id)
+    )
+  `);
+  await connection.query(`
+    CREATE TABLE tags (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL
+    )
+  `);
+  await connection.query(`
+    CREATE TABLE post_tags (
+      id SERIAL PRIMARY KEY,
+      post_id BIGINT UNSIGNED NOT NULL,
+      tag_id BIGINT UNSIGNED NOT NULL,
+      FOREIGN KEY (post_id) REFERENCES posts(id),
+      FOREIGN KEY (tag_id) REFERENCES tags(id)
     )
   `);
 
@@ -192,6 +236,7 @@ beforeAll(async () => {
     { bio: 'Full-stack developer', userId: 1 },
     { bio: 'Backend engineer', userId: 2 },
   ]);
+  await db.insert(tags).values([{ name: 'typescript' }, { name: 'javascript' }, { name: 'rust' }]);
 
   r = createRelayerDrizzle({
     db,
@@ -498,5 +543,45 @@ describe('dialect-specific: mutations without RETURNING', () => {
     });
     const countAfter = await r.users.count();
     expect(Number(countAfter)).toBe(Number(countBefore) + 1);
+  });
+});
+
+describe('relation connect/disconnect', () => {
+  it('one() connect: reassign post author', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { author: { connect: 2 } },
+    });
+    const post = await r.posts.findFirst({ where: { id: 1 } });
+    expect(post.authorId).toBe(2);
+    await r.posts.update({ where: { id: 1 }, data: { author: { connect: 1 } } });
+  });
+
+  it('many() connect: link tags to post', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postTags: { connect: [1, 2] } },
+    });
+    const links = await r.postTags.findMany({ where: { postId: 1 } });
+    expect(links).toHaveLength(2);
+  });
+
+  it('many() disconnect: unlink tag', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postTags: { disconnect: [1] } },
+    });
+    const links = await r.postTags.findMany({ where: { postId: 1 } });
+    expect(links).toHaveLength(1);
+  });
+
+  it('many() set: replace all tags', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postTags: { set: [3] } },
+    });
+    const links = await r.postTags.findMany({ where: { postId: 1 } });
+    expect(links).toHaveLength(1);
+    expect((links[0] as any).tagId).toBe(3);
   });
 });

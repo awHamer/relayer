@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { Column, SQL } from 'drizzle-orm';
 import type { EntityMetadata } from '@relayerjs/core';
-import { EntityRegistry } from '@relayerjs/core';
+import { EntityRegistry, RelayerError } from '@relayerjs/core';
 
 import {
   buildAggregate,
@@ -15,10 +15,11 @@ import {
   hydrateAggregateResult,
 } from '../builders';
 import type { WhereBuilderContext } from '../builders';
+import { executeManyRelationOps, separateRelationData } from '../builders/relation-data';
 import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveComputedFields, resolveDerivedFields } from '../resolvers';
-import { buildDerivedAliasMap } from '../utils';
+import { buildDerivedAliasMap, getPrimaryKeyField } from '../utils';
 import { executeFindMany } from './find-many';
 import type { FindManyOptions } from './find-many';
 import { executeFindManyStream } from './find-many-stream';
@@ -200,21 +201,60 @@ export function createEntityClient(config: EntityClientConfig) {
       const computedSqlMap = getComputedSqlMap(undefined, []);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
-      return (await executeUpdate(
-        db,
-        table,
-        options.where,
-        options.data,
-        whereCtx,
-        adapter,
-      )) as Record<string, unknown>;
+      const updateCtx = { metadata, schema, tableInfo };
+
+      const runUpdate = async (txDb: DrizzleDatabase) => {
+        const { result, manyOps } = await executeUpdate(
+          txDb,
+          table,
+          options.where,
+          options.data,
+          whereCtx,
+          adapter,
+          updateCtx,
+        );
+
+        if (manyOps.size > 0) {
+          const pkField = getPrimaryKeyField(tableInfo);
+          const sourceId = pkField ? options.where[pkField] : undefined;
+          if (!sourceId) {
+            throw new RelayerError(
+              'connect/disconnect/set on many() relations requires a primary key in the where clause.',
+            );
+          }
+          await executeManyRelationOps(manyOps, {
+            db: txDb,
+            adapter,
+            schema,
+            metadata,
+            tableInfo,
+            allTables,
+            sourceId,
+          });
+        }
+
+        return result as Record<string, unknown>;
+      };
+
+      // Wrap in transaction when many() ops are present (PG/MySQL only).
+      // SQLite better-sqlite3 doesn't support async transaction callbacks,
+      // but is inherently serial within a single connection.
+      const { manyOps } = separateRelationData(options.data, metadata);
+      if (manyOps.size > 0 && adapter.dialect !== 'sqlite') {
+        return db.transaction(async (tx) => runUpdate(tx as DrizzleDatabase));
+      }
+      return runUpdate(db);
     },
 
     async updateMany(options: { where: Record<string, unknown>; data: Record<string, unknown> }) {
       const computedSqlMap = getComputedSqlMap(undefined, []);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
       const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
-      return executeUpdateMany(db, table, options.where, options.data, whereCtx, adapter);
+      return executeUpdateMany(db, table, options.where, options.data, whereCtx, adapter, {
+        metadata,
+        schema,
+        tableInfo,
+      });
     },
 
     async delete(options: { where: Record<string, unknown> }) {

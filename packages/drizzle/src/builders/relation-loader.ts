@@ -12,7 +12,7 @@ import type { DialectAdapter, DrizzleDatabase } from '../dialect';
 import type { TableInfo } from '../introspect';
 import { resolveComputedFields, resolveDerivedFields } from '../resolvers';
 import type { DerivedFieldResolution } from '../resolvers';
-import { derivedSubFieldKey, getTableColumns } from '../utils';
+import { derivedSubFieldKey, findColumnTsName, getTableColumns } from '../utils';
 import { resolveRelationFields } from './where/relations';
 
 export interface RelationLoadContext {
@@ -340,12 +340,4 @@ function buildNestedSelect(
   }
 
   return { columns, computedColumns, derivedResolutions, nestedRelationNames };
-}
-
-function findColumnTsName(column: Column): string | undefined {
-  const tableObj = getTableColumns(column.table as Table);
-  for (const [key, col] of Object.entries(tableObj)) {
-    if (col === column) return key;
-  }
-  return undefined;
 }

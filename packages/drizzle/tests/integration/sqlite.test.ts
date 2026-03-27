@@ -24,15 +24,49 @@ const posts = sqliteTable('posts', {
     .references(() => users.id),
 });
 
+const tags = sqliteTable('tags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+});
+
+const postTags = sqliteTable('post_tags', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  postId: integer('post_id')
+    .notNull()
+    .references(() => posts.id),
+  tagId: integer('tag_id')
+    .notNull()
+    .references(() => tags.id),
+});
+
 const usersRelations = relations(users, ({ many }) => ({
   posts: many(posts),
 }));
 
-const postsRelations = relations(posts, ({ one }) => ({
+const postsRelations = relations(posts, ({ one, many }) => ({
   author: one(users, { fields: [posts.authorId], references: [users.id] }),
+  postTags: many(postTags),
 }));
 
-const schema = { users, posts, usersRelations, postsRelations };
+const tagsRelations = relations(tags, ({ many }) => ({
+  postTags: many(postTags),
+}));
+
+const postTagsRelations = relations(postTags, ({ one }) => ({
+  post: one(posts, { fields: [postTags.postId], references: [posts.id] }),
+  tag: one(tags, { fields: [postTags.tagId], references: [tags.id] }),
+}));
+
+const schema = {
+  users,
+  posts,
+  tags,
+  postTags,
+  usersRelations,
+  postsRelations,
+  tagsRelations,
+  postTagsRelations,
+};
 
 const UserEntity = createRelayerEntity(schema, 'users');
 
@@ -87,6 +121,15 @@ beforeAll(() => {
       published INTEGER NOT NULL DEFAULT 0,
       author_id INTEGER NOT NULL REFERENCES users(id)
     );
+    CREATE TABLE tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL
+    );
+    CREATE TABLE post_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER NOT NULL REFERENCES posts(id),
+      tag_id INTEGER NOT NULL REFERENCES tags(id)
+    );
   `);
 
   db.insert(users)
@@ -118,6 +161,10 @@ beforeAll(() => {
       { title: 'TS Tips', content: 'TS is great', published: true, authorId: 1 },
       { title: 'Draft', content: 'WIP', published: false, authorId: 2 },
     ])
+    .run();
+
+  db.insert(tags)
+    .values([{ name: 'typescript' }, { name: 'javascript' }, { name: 'rust' }])
     .run();
 
   r = createRelayerDrizzle({
@@ -602,5 +649,46 @@ describe('relation limits', () => {
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results[0].posts).toHaveLength(2);
+  });
+});
+
+describe('relation connect/disconnect', () => {
+  it('one() connect: reassign post author', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { author: { connect: 2 } },
+    });
+    const post = await r.posts.findFirst({ where: { id: 1 } });
+    expect(post.authorId).toBe(2);
+    // Restore
+    await r.posts.update({ where: { id: 1 }, data: { author: { connect: 1 } } });
+  });
+
+  it('many() connect: link tags to post via join table', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postTags: { connect: [1, 2] } },
+    });
+    const links = await r.postTags.findMany({ where: { postId: 1 } });
+    expect(links).toHaveLength(2);
+  });
+
+  it('many() disconnect: unlink tag from post', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postTags: { disconnect: [1] } },
+    });
+    const links = await r.postTags.findMany({ where: { postId: 1 } });
+    expect(links).toHaveLength(1);
+  });
+
+  it('many() set: replace all tags', async () => {
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postTags: { set: [3] } },
+    });
+    const links = await r.postTags.findMany({ where: { postId: 1 } });
+    expect(links).toHaveLength(1);
+    expect((links[0] as any).tagId).toBe(3);
   });
 });

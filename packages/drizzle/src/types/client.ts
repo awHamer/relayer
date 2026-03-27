@@ -10,6 +10,7 @@ import type {
   ModelMeta,
 } from './helpers';
 import type { AggregateType, OrderByType, SelectType, WhereType } from './model';
+import type { UpdateData } from './update-data';
 
 type ResolvedModel<
   TSchema extends Record<string, unknown>,
@@ -93,11 +94,9 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
 
   update(options: {
     where: WhereType<TModel>;
-    data: Partial<
-      ExtractMeta<TModel> extends { schema: infer S; key: infer K }
-        ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
-        : Record<string, unknown>
-    >;
+    data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? UpdateData<S & Record<string, unknown>, K & string>
+      : Record<string, unknown>;
   }): Promise<
     ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
@@ -106,11 +105,9 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
 
   updateMany(options: {
     where: WhereType<TModel>;
-    data: Partial<
-      ExtractMeta<TModel> extends { schema: infer S; key: infer K }
-        ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
-        : Record<string, unknown>
-    >;
+    data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }
+      ? UpdateData<S & Record<string, unknown>, K & string>
+      : Record<string, unknown>;
   }): Promise<{ count: number }>;
 
   delete(options: {
