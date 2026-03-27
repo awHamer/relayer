@@ -1,5 +1,13 @@
 # @relayerjs/example-nestjs
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [3d4c0a7]
+  - @relayerjs/drizzle@0.6.0
+  - @relayerjs/nestjs-crud@1.0.0
+
 ## 0.0.3
 
 ### Patch Changes
