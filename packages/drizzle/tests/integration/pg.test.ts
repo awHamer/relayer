@@ -1207,6 +1207,121 @@ describe('mutations', () => {
     const count = await r.users.count();
     expect(Number(count)).toBe(4);
   });
+
+  it('update with connect: sets FK column', async () => {
+    // Post id=1 is authored by user 1. Reassign to user 2.
+    const updated = await r.posts.update({
+      where: { id: 1 },
+      data: { author: { connect: 2 } },
+    });
+    expect(updated.authorId).toBe(2);
+
+    // Verify
+    const post = await r.posts.findFirst({ where: { id: 1 } });
+    expect(post.authorId).toBe(2);
+  });
+
+  it('update with connect + scalar: updates both', async () => {
+    const updated = await r.posts.update({
+      where: { id: 1 },
+      data: { title: 'Reassigned', author: { connect: 3 } },
+    });
+    expect(updated.title).toBe('Reassigned');
+    expect(updated.authorId).toBe(3);
+  });
+
+  it('update with many() connect: inserts into join table', async () => {
+    // Create categories first
+    const cat1 = await r.categories.create({ data: { name: 'TypeScript' } });
+    const cat2 = await r.categories.create({ data: { name: 'JavaScript' } });
+
+    // Connect post 1 to categories via postCategories join table
+    await r.posts.update({
+      where: { id: 1 },
+      data: {
+        postCategories: { connect: [cat1.id, cat2.id] },
+      },
+    });
+
+    // Verify via join table
+    const links = await r.postCategories.findMany({ where: { postId: 1 } });
+    const categoryIds = links.map((l: any) => l.categoryId);
+    expect(categoryIds).toContain(cat1.id);
+    expect(categoryIds).toContain(cat2.id);
+  });
+
+  it('update with many() disconnect: removes from join table', async () => {
+    // Setup: connect first
+    const cat = await r.categories.create({ data: { name: 'ToRemove' } });
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postCategories: { connect: [cat.id] } },
+    });
+
+    // Disconnect
+    await r.posts.update({
+      where: { id: 1 },
+      data: { postCategories: { disconnect: [cat.id] } },
+    });
+
+    const links = await r.postCategories.findMany({
+      where: { postId: 1, categoryId: cat.id },
+    });
+    expect(links).toHaveLength(0);
+  });
+
+  it('update with many() set: replaces all links', async () => {
+    const cat1 = await r.categories.create({ data: { name: 'SetA' } });
+    const cat2 = await r.categories.create({ data: { name: 'SetB' } });
+    const cat3 = await r.categories.create({ data: { name: 'SetC' } });
+
+    // Connect two
+    await r.posts.update({
+      where: { id: 2 },
+      data: { postCategories: { connect: [cat1.id, cat2.id] } },
+    });
+
+    // Set replaces all with cat3 only
+    await r.posts.update({
+      where: { id: 2 },
+      data: { postCategories: { set: [cat3.id] } },
+    });
+
+    const links = await r.postCategories.findMany({ where: { postId: 2 } });
+    expect(links).toHaveLength(1);
+    expect((links[0] as any).categoryId).toBe(cat3.id);
+  });
+
+  it('update with many() connect + _id and extra fields', async () => {
+    const cat = await r.categories.create({ data: { name: 'WithExtra' } });
+
+    await r.posts.update({
+      where: { id: 3 },
+      data: {
+        postCategories: {
+          connect: [{ _id: cat.id, isPrimary: true }],
+        },
+      },
+    });
+
+    const links = await r.postCategories.findMany({
+      where: { postId: 3, categoryId: cat.id },
+    });
+    expect(links).toHaveLength(1);
+    expect((links[0] as any).isPrimary).toBe(true);
+  });
+
+  it('update with connect on comment: sets multiple FKs', async () => {
+    const comment = await r.comments.create({
+      data: { content: 'test', postId: 1, authorId: 1 },
+    });
+    const updated = await r.comments.update({
+      where: { id: comment.id },
+      data: { author: { connect: 2 }, post: { connect: 2 } },
+    });
+    expect(updated.authorId).toBe(2);
+    expect(updated.postId).toBe(2);
+  });
 });
 
 // ---------------------------------------------------------------------------
