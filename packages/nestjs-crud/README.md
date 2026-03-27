@@ -156,7 +156,7 @@ That's it. Seven routes are ready:
 
 > Full working example with entities, services, controllers, hooks, and DTO mapping is available in [examples/nestjs-crud](../../examples/nestjs-crud).
 
-> **[Read the full documentation](https://relayerjs.vercel.app/docs/nestjs/getting-started)**
+> **[Read the full documentation](https://relayerjs.vercel.app/nestjs/getting-started/)**
 
 ## Architecture
 
