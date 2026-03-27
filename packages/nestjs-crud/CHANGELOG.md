@@ -1,5 +1,11 @@
 # @relayerjs/nestjs-crud
 
+## 0.1.1
+
+### Patch Changes
+
+- 4361439: Fix documentation URL in README
+
 ## 1.0.0
 
 ### Minor Changes
