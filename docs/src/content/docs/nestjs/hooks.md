@@ -224,8 +224,10 @@ async afterAggregate(
 | `beforeCount`     | `(options: WhereOptions, ctx)`                |                        |
 | `beforeAggregate` | `(options: AggregateOptions, ctx)`            |                        |
 | `afterAggregate`  | `(result: unknown, ctx)`                      | Return modified result |
+| `beforeRelation`  | `(operation, relationName, ids, ctx)`         | Return modified ids    |
+| `afterRelation`   | `(operation, relationName, ids, ctx)`         |                        |
 
-All option types (`Where`, `ManyOptions`, `FirstOptions`, `WhereOptions`, `AggregateOptions`) are generic over `<TEntity, TEntities>`.
+All option types (`Where`, `ManyOptions`, `FirstOptions`, `WhereOptions`, `AggregateOptions`) are generic over `<TEntity, TEntities>`. Relation hooks use `RelationOperation`, `RelationKeys<TEntity, TEntities>`, and `RelationId[]`.
 
 ## Registration
 
@@ -247,3 +249,41 @@ export class PostsModule {}
 ```
 
 Hooks are resolved via NestJS DI -- constructor injection works.
+
+## Relation hooks
+
+`beforeRelation` and `afterRelation` fire for connect, disconnect, and set operations -- both from dedicated endpoints and inline PATCH:
+
+```ts
+import {
+  RelayerHooks,
+  type RelationId,
+  type RelationKeys,
+  type RelationOperation,
+  type RequestContext,
+} from '@relayerjs/nestjs-crud';
+
+@Injectable()
+export class PostHooks extends RelayerHooks<PostEntity, EM> {
+  beforeRelation(
+    operation: RelationOperation, // 'connect' | 'disconnect' | 'set'
+    relationName: RelationKeys<PostEntity, EM>, // e.g. 'postCategories'
+    ids: RelationId[], // [1, 2] or [{ _id: 1, isPrimary: true }]
+    ctx: RequestContext,
+  ) {
+    this.logger.log(`${operation} on ${relationName}: [${ids}]`);
+    // Return modified ids to override input, or void to pass through
+  }
+
+  afterRelation(
+    operation: RelationOperation,
+    relationName: RelationKeys<PostEntity, EM>,
+    ids: RelationId[],
+    ctx: RequestContext,
+  ) {
+    // Side effects after the relation was updated
+  }
+}
+```
+
+See [Relations](/nestjs/relations/) for the full guide.

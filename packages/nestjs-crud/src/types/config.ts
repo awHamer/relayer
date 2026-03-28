@@ -19,6 +19,20 @@ type ModelKeys<TEntity, TEntities extends Record<string, unknown>> = keyof Model
 > &
   string;
 
+export type RelationKeys<TEntity, TEntities extends Record<string, unknown>> = {
+  [K in keyof Model<TEntity, TEntities> & string]: NonNullable<
+    Model<TEntity, TEntities>[K]
+  > extends (infer Item)[]
+    ? Item extends Record<string, unknown>
+      ? K
+      : never
+    : NonNullable<Model<TEntity, TEntities>[K]> extends Record<string, unknown>
+      ? NonNullable<Model<TEntity, TEntities>[K]> extends Date
+        ? never
+        : K
+      : never;
+}[keyof Model<TEntity, TEntities> & string];
+
 export interface ZodLike {
   parse(data: unknown): unknown;
   safeParse?(data: unknown): { success: boolean; error?: { errors: unknown[] }; data?: unknown };
@@ -108,6 +122,16 @@ export interface MutationRouteConfig {
   schema?: ZodLike | Function;
 }
 
+export type RelationOperation = 'connect' | 'disconnect' | 'set';
+
+export type RelationId = string | number | ({ _id: string | number } & Record<string, unknown>);
+
+export interface RelationRouteConfig {
+  connect?: boolean;
+  disconnect?: boolean;
+  set?: boolean;
+}
+
 export interface CrudRoutes<
   TEntity,
   TEntities extends Record<string, unknown> = Record<string, never>,
@@ -119,6 +143,9 @@ export interface CrudRoutes<
   delete?: boolean;
   count?: boolean;
   aggregate?: boolean;
+  relations?: {
+    [K in RelationKeys<TEntity, TEntities>]?: boolean | RelationRouteConfig;
+  };
 }
 
 export interface DecoratorTargeted {

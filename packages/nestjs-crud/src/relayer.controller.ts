@@ -22,11 +22,25 @@ import type {
   ListRouteConfig,
   ManyOptions,
   MutationRouteConfig,
+  RelationErrorResponse,
+  RelationId,
+  RelationKeys,
+  RelationOperation,
+  RelationResponse,
   RequestContext,
   Where,
 } from './types';
 import { buildNextPageUrl, enforceAllowSelectLimits, getRouteConfig } from './utils';
 
+/**
+ * Base controller for auto-generated CRUD + relation endpoints.
+ * Extend this class and apply `@CrudController()` to get REST API routes.
+ *
+ * Override any `handle*` method to customize behavior while keeping other routes auto-generated.
+ *
+ * @typeParam TEntity - The entity class (e.g., PostEntity)
+ * @typeParam EM - Entity map for relation-aware types
+ */
 export class RelayerController<
   TEntity,
   EM extends Record<string, unknown> = Record<string, unknown>,
@@ -107,6 +121,14 @@ export class RelayerController<
     query.where = query.where ? { AND: [query.where, searchWhere] } : searchWhere;
   }
 
+  /**
+   * Handle GET / -- list entities with pagination.
+   *
+   * Supports offset and cursor pagination, default/client select/where/orderBy,
+   * search callback, relation loading, and `$limit` on nested relations.
+   *
+   * Override to customize list behavior while keeping other routes auto-generated.
+   */
   protected async handleList(request: {
     query: Record<string, string>;
     path?: string;
@@ -275,6 +297,13 @@ export class RelayerController<
     };
   }
 
+  /**
+   * Handle GET /:id -- find a single entity by primary key.
+   *
+   * Applies `findById.defaults.select` from config if present.
+   * Runs `beforeFindOne`/`afterFindOne` hooks and DtoMapper `toSingleItem`.
+   * Throws `NotFoundException` if entity not found.
+   */
   protected async handleFindById(id: string, request: unknown): Promise<unknown> {
     const parsedId = this.parseId(id);
     const config = this.getConfig();
@@ -312,6 +341,13 @@ export class RelayerController<
     return { data: transformed };
   }
 
+  /**
+   * Handle POST / -- create a new entity.
+   *
+   * Validates body against `create.schema` (Zod or class-validator).
+   * Runs `toCreateInput` from DtoMapper and `beforeCreate`/`afterCreate` hooks.
+   * Returns the created entity through `toSingleItem` if DtoMapper is configured.
+   */
   protected async handleCreate(body: Record<string, unknown>, request: unknown): Promise<unknown> {
     const config = this.getConfig();
     const createConfig = getRouteConfig(config.routes, 'create') as MutationRouteConfig | undefined;
@@ -343,6 +379,39 @@ export class RelayerController<
     return { data: transformed };
   }
 
+  private extractRelationOps(body: Record<string, unknown>): {
+    scalarBody: Record<string, unknown>;
+    relationOps: Record<string, unknown>;
+  } {
+    const config = this.getConfig();
+    const relationNames = config.routes?.relations
+      ? new Set(Object.keys(config.routes.relations))
+      : new Set<string>();
+
+    if (relationNames.size === 0) return { scalarBody: body, relationOps: {} };
+
+    const scalarBody: Record<string, unknown> = {};
+    const relationOps: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(body)) {
+      if (relationNames.has(key) && typeof value === 'object' && value !== null) {
+        relationOps[key] = value;
+      } else {
+        scalarBody[key] = value;
+      }
+    }
+
+    return { scalarBody, relationOps };
+  }
+
+  /**
+   * Handle PATCH /:id -- update an entity by primary key.
+   *
+   * Separates relation operations from scalar data before validation,
+   * so Zod/class-validator schemas don't need to account for relation fields.
+   * Runs `toUpdateInput` from DtoMapper and `beforeUpdate`/`afterUpdate` hooks.
+   * Supports inline relation ops: `{ title: "New", postCategories: { connect: [1] } }`.
+   */
   protected async handleUpdate(
     id: string,
     body: Record<string, unknown>,
@@ -357,7 +426,10 @@ export class RelayerController<
     const dtoMapper = this.getDtoMapper();
     const hooks = this.getHooks();
 
-    let data = (await validateBody(updateConfig?.schema, body)) as Record<string, unknown>;
+    const { scalarBody, relationOps } = this.extractRelationOps(body);
+
+    let data = (await validateBody(updateConfig?.schema, scalarBody)) as Record<string, unknown>;
+    data = { ...data, ...relationOps };
 
     if (dtoMapper?.toUpdateInput) {
       data = (await dtoMapper.toUpdateInput(data as Partial<TEntity>, ctx)) as Record<
@@ -378,16 +450,26 @@ export class RelayerController<
     const updated = (await this.service.update({
       where: where as Where<TEntity, EM>,
       data: data as Partial<TEntity>,
-    })) as TEntity;
+    })) as TEntity | undefined;
 
-    if (hooks?.afterUpdate) {
+    if (updated && hooks?.afterUpdate) {
       await hooks.afterUpdate(updated, ctx);
+    }
+
+    if (!updated) {
+      return { data: { success: true } };
     }
 
     const transformed = dtoMapper ? await dtoMapper.toSingleItem(updated, ctx) : updated;
     return { data: transformed };
   }
 
+  /**
+   * Handle DELETE /:id -- delete an entity by primary key.
+   *
+   * Runs `beforeDelete`/`afterDelete` hooks.
+   * Throws `NotFoundException` if entity not found.
+   */
   protected async handleDelete(id: string, request: unknown): Promise<unknown> {
     const parsedId = this.parseId(id);
     const config = this.getConfig();
@@ -413,6 +495,12 @@ export class RelayerController<
     return { data: deleted };
   }
 
+  /**
+   * Handle GET /count -- count entities matching the filter.
+   *
+   * Applies `defaults.where` from list config and search callback.
+   * Runs `beforeCount` hook.
+   */
   protected async handleCount(request: { query: Record<string, string> }): Promise<unknown> {
     const query = parseListQuery(request.query);
     const config = this.getConfig();
@@ -438,6 +526,12 @@ export class RelayerController<
     return { data: { count: Number(count) } };
   }
 
+  /**
+   * Handle GET /aggregate -- run aggregation queries.
+   *
+   * Parses `where`, `groupBy`, `_count`, `_sum`, `_avg`, `_min`, `_max`, `having` from query params.
+   * Runs `beforeAggregate`/`afterAggregate` hooks.
+   */
   protected async handleAggregate(request: { query: Record<string, string> }): Promise<unknown> {
     const raw = request.query;
     const ctx = this.buildContext(request);
@@ -474,5 +568,86 @@ export class RelayerController<
     }
 
     return { data: result };
+  }
+
+  private async handleRelationOp(
+    operation: RelationOperation,
+    id: string,
+    relationName: RelationKeys<TEntity, EM>,
+    body: Record<string, unknown>,
+    request: unknown,
+  ): Promise<RelationResponse | RelationErrorResponse> {
+    const parsedId = this.parseId(id);
+    const config = this.getConfig();
+    const idField = config.id?.field ?? 'id';
+    let ids = body.data as RelationId[];
+    if (!Array.isArray(ids)) {
+      return { error: { code: 'BAD_REQUEST', message: 'body.data must be an array' } };
+    }
+
+    const ctx = this.buildContext(request);
+    const hooks = this.getHooks();
+
+    if (hooks?.beforeRelation) {
+      const modified = await hooks.beforeRelation(operation, relationName, ids, ctx);
+      if (modified) ids = modified;
+    }
+
+    await this.service.update({
+      where: { [idField]: parsedId } as Where<TEntity, EM>,
+      data: { [relationName]: { [operation]: ids } } as Partial<TEntity>,
+    });
+
+    if (hooks?.afterRelation) {
+      await hooks.afterRelation(operation, relationName, ids, ctx);
+    }
+
+    return { data: { success: true } };
+  }
+
+  /**
+   * Handle POST /:id/relations/:name -- add links to a many-to-many relation.
+   *
+   * Body: `{ data: [1, 2] }` or `{ data: [{ _id: 1, isPrimary: true }] }`.
+   * Runs `beforeRelation`/`afterRelation` hooks with operation `'connect'`.
+   */
+  protected async handleRelationConnect(
+    id: string,
+    relationName: RelationKeys<TEntity, EM>,
+    body: Record<string, unknown>,
+    request: unknown = {},
+  ): Promise<RelationResponse | RelationErrorResponse> {
+    return this.handleRelationOp('connect', id, relationName, body, request);
+  }
+
+  /**
+   * Handle DELETE /:id/relations/:name -- remove links from a many-to-many relation.
+   *
+   * Body: `{ data: [1, 2] }`.
+   * Runs `beforeRelation`/`afterRelation` hooks with operation `'disconnect'`.
+   */
+  protected async handleRelationDisconnect(
+    id: string,
+    relationName: RelationKeys<TEntity, EM>,
+    body: Record<string, unknown>,
+    request: unknown = {},
+  ): Promise<RelationResponse | RelationErrorResponse> {
+    return this.handleRelationOp('disconnect', id, relationName, body, request);
+  }
+
+  /**
+   * Handle PUT /:id/relations/:name -- replace all links in a many-to-many relation.
+   *
+   * Deletes all existing links and creates the ones specified in body.
+   * Body: `{ data: [1, 2, 3] }`.
+   * Runs `beforeRelation`/`afterRelation` hooks with operation `'set'`.
+   */
+  protected async handleRelationSet(
+    id: string,
+    relationName: RelationKeys<TEntity, EM>,
+    body: Record<string, unknown>,
+    request: unknown = {},
+  ): Promise<RelationResponse | RelationErrorResponse> {
+    return this.handleRelationOp('set', id, relationName, body, request);
   }
 }

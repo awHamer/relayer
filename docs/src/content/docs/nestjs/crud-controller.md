@@ -40,11 +40,16 @@ Enable or disable individual routes:
     delete: true,      // DELETE /posts/:id
     count: true,       // GET /posts/count
     aggregate: true,   // GET /posts/aggregate
+    relations: {
+      postCategories: true,  // POST/DELETE/PUT /posts/:id/relations/postCategories
+    },
   },
 })
 ```
 
-Each route accepts `true` (enable with defaults), `false` (disable), or a config object. All routes are enabled by default.
+Each route accepts `true` (enable with defaults), `false` (disable), or a config object. CRUD routes are enabled by default; relation routes must be enabled explicitly.
+
+See [Relations](/nestjs/relations/) for the full relation endpoints guide.
 
 ## Pagination
 
@@ -187,7 +192,7 @@ Apply NestJS decorators to all or specific routes:
 })
 ```
 
-Route names: `'list'`, `'findById'`, `'create'`, `'update'`, `'delete'`, `'count'`, `'aggregate'`.
+Route names: `'list'`, `'findById'`, `'create'`, `'update'`, `'delete'`, `'count'`, `'aggregate'`, `'relationConnect'`, `'relationDisconnect'`, `'relationSet'`.
 
 ## DtoMapper and Hooks
 
@@ -201,7 +206,7 @@ Register via config properties. Both are resolved via NestJS DI:
 })
 ```
 
-See [Data Mapper](/nestjs/data-mapper) and [Hooks](/nestjs/hooks) for full API reference.
+See [Data Mapper](/nestjs/data-mapper) and [Hooks](/nestjs/hooks) for full API reference. Relation-specific hooks (`beforeRelation`, `afterRelation`) are covered in [Relations](/nestjs/relations/#hooks).
 
 ## Overriding handlers
 
@@ -260,6 +265,17 @@ export class PostsController extends RelayerController<PostEntity, EM> {
   protected async handleAggregate(request: { query: Record<string, string> }) {
     const result = await this.postsService.aggregate({ _count: true });
     return { data: result };
+  }
+
+  // Override relation connect
+  protected async handleRelationConnect(
+    id: string,
+    relationName: RelationKeys<PostEntity, EM>,
+    body: Record<string, unknown>,
+    request: unknown,
+  ) {
+    console.log(`Connecting ${relationName} to post ${id}`);
+    return super.handleRelationConnect(id, relationName, body, request);
   }
 }
 ```

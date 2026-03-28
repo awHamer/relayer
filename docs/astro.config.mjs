@@ -82,6 +82,7 @@ export default defineConfig({
               label: 'Usage',
               items: [
                 { label: 'Search & Filtering', slug: 'nestjs/search-and-filtering' },
+                { label: 'Relations', slug: 'nestjs/relations' },
                 { label: 'Aggregations', slug: 'nestjs/aggregations' },
                 { label: 'Validation', slug: 'nestjs/validation' },
               ],

@@ -155,6 +155,59 @@ export function CrudController<
       applyDecorators(proto, 'delete', 'delete', config.decorators);
     }
 
+    if (routes.relations) {
+      for (const [relationName, relationConfig] of Object.entries(routes.relations)) {
+        if (!relationConfig) continue;
+        const enableConnect = relationConfig === true || (relationConfig as any).connect !== false;
+        const enableDisconnect =
+          relationConfig === true || (relationConfig as any).disconnect !== false;
+        const enableSet = relationConfig === true || (relationConfig as any).set !== false;
+        const relationPath = `/:id/relations/${relationName}`;
+
+        if (enableConnect) {
+          const methodName = `relationConnect_${relationName}`;
+          proto[methodName] = function (id: string, body: unknown, _req: unknown) {
+            return this.handleRelationConnect(id, relationName, body);
+          };
+          setMethodMetadata(proto, methodName, RequestMethod.POST, relationPath);
+          setRouteArgs(proto, methodName, {
+            ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
+            ...createRouteArg(RouteParamtypes.BODY, 1),
+            ...createRouteArg(RouteParamtypes.REQUEST, 2),
+          });
+          applyDecorators(proto, methodName, 'relationConnect', config.decorators);
+        }
+
+        if (enableDisconnect) {
+          const methodName = `relationDisconnect_${relationName}`;
+          proto[methodName] = function (id: string, body: unknown, _req: unknown) {
+            return this.handleRelationDisconnect(id, relationName, body);
+          };
+          setMethodMetadata(proto, methodName, RequestMethod.DELETE, relationPath);
+          setRouteArgs(proto, methodName, {
+            ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
+            ...createRouteArg(RouteParamtypes.BODY, 1),
+            ...createRouteArg(RouteParamtypes.REQUEST, 2),
+          });
+          applyDecorators(proto, methodName, 'relationDisconnect', config.decorators);
+        }
+
+        if (enableSet) {
+          const methodName = `relationSet_${relationName}`;
+          proto[methodName] = function (id: string, body: unknown, _req: unknown) {
+            return this.handleRelationSet(id, relationName, body);
+          };
+          setMethodMetadata(proto, methodName, RequestMethod.PUT, relationPath);
+          setRouteArgs(proto, methodName, {
+            ...createRouteArg(RouteParamtypes.PARAM, 0, 'id'),
+            ...createRouteArg(RouteParamtypes.BODY, 1),
+            ...createRouteArg(RouteParamtypes.REQUEST, 2),
+          });
+          applyDecorators(proto, methodName, 'relationSet', config.decorators);
+        }
+      }
+    }
+
     Controller(path)(target as Type);
   };
 }
