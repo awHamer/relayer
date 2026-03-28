@@ -13,7 +13,7 @@ import { PostsService } from './posts.service';
   model: PostEntity,
   routes: {
     list: {
-      pagination: 'cursor_UNSTABLE',
+      pagination: 'cursor',
       defaults: {
         select: {
           id: true,

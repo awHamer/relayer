@@ -147,7 +147,7 @@ Response includes `nextPageUrl` for the next page:
 
 ### Cursor-based
 
-When configured with `pagination: 'cursor_UNSTABLE'`:
+When configured with `pagination: 'cursor'`:
 
 ```
 GET /posts?limit=20              -- page 1

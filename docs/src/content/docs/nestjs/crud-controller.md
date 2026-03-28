@@ -74,7 +74,7 @@ See [Relations](/nestjs/relations/) for the full relation endpoints guide.
   model: PostEntity,
   routes: {
     list: {
-      pagination: 'cursor_UNSTABLE',
+      pagination: 'cursor',
       defaults: { orderBy: { field: 'createdAt', order: 'desc' } },
       defaultLimit: 20,
     },
