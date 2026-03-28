@@ -5,7 +5,7 @@ Next.js App Router CRUD integration for [Relayer](https://github.com/awHamer/rel
 ## Installation
 
 ```bash
-npm install @relayerjs/next @relayerjs/drizzle drizzle-orm next
+npm install @relayerjs/next @relayerjs/core @relayerjs/drizzle drizzle-orm next
 ```
 
 ## Setup
