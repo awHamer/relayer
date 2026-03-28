@@ -1,5 +1,11 @@
 # @relayerjs/next
 
+## 0.1.3
+
+### Patch Changes
+
+- c2491e5: Move `@relayerjs/core` and `@relayerjs/drizzle` to peerDependencies with tilde ranges
+
 ## 1.0.0
 
 ### Patch Changes

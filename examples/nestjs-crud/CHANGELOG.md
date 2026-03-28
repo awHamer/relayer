@@ -1,5 +1,12 @@
 # @relayerjs/example-nestjs
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [c2491e5]
+  - @relayerjs/nestjs-crud@0.1.2
+
 ## 0.0.4
 
 ### Patch Changes
