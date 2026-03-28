@@ -1,6 +1,6 @@
 {
   "name": "@relayerjs/nestjs-crud",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "NestJS integration for Relayer — DI-native CRUD services and controllers",
   "license": "MIT",
   "repository": {
