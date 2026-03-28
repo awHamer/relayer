@@ -35,10 +35,10 @@ Full-featured CRUD for NestJS on top of [Relayer](https://github.com/awHamer/rel
 ## Installation
 
 ```bash
-npm install @relayerjs/nestjs-crud @relayerjs/drizzle drizzle-orm
+npm install @relayerjs/nestjs-crud @relayerjs/core @relayerjs/drizzle drizzle-orm
 ```
 
-Peer dependencies: `@nestjs/common`, `@nestjs/core`, `reflect-metadata`, `rxjs`.
+Peer dependencies: `@relayerjs/core`, `@relayerjs/drizzle`, `@nestjs/common`, `@nestjs/core`, `reflect-metadata`, `rxjs`.
 
 ## Quick Start
 

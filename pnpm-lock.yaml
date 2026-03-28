@@ -247,7 +247,7 @@ importers:
   packages/nestjs-crud:
     dependencies:
       '@relayerjs/core':
-        specifier: workspace:^
+        specifier: workspace:~
         version: link:../core
       zod:
         specifier: ^3.24.0
@@ -284,10 +284,10 @@ importers:
   packages/next:
     dependencies:
       '@relayerjs/core':
-        specifier: workspace:^
+        specifier: workspace:~
         version: link:../core
       '@relayerjs/drizzle':
-        specifier: workspace:^
+        specifier: workspace:~
         version: link:../drizzle
       next:
         specifier: '>=14.0.0'

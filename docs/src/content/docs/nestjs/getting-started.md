@@ -20,7 +20,7 @@ All type-safe, all configurable, all overridable.
 ## Installation
 
 ```bash
-npm install @relayerjs/nestjs-crud @relayerjs/drizzle drizzle-orm
+npm install @relayerjs/nestjs-crud @relayerjs/core @relayerjs/drizzle drizzle-orm
 ```
 
 Assumes you already have a NestJS project with `@nestjs/common`, `@nestjs/core`, etc.
