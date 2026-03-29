@@ -1166,3 +1166,154 @@ describe('handleAggregate', () => {
     expect(client.aggregate).toHaveBeenCalledWith(expect.objectContaining({ _count: true }));
   });
 });
+
+describe('handleRelationConnect/Disconnect/Set', () => {
+  let controller: any;
+  let client: ReturnType<typeof mockEntityClient>;
+
+  beforeEach(() => {
+    client = mockEntityClient({
+      update: vi.fn().mockResolvedValue({}),
+    });
+
+    @CrudController({
+      model: TestEntity as any,
+      routes: { relations: { tags: true } },
+    })
+    class RelController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
+        super(service);
+      }
+      connect(id: string, body: any) {
+        return this.handleRelationConnect(id, 'tags', body);
+      }
+      disconnect(id: string, body: any) {
+        return this.handleRelationDisconnect(id, 'tags', body);
+      }
+      set(id: string, body: any) {
+        return this.handleRelationSet(id, 'tags', body);
+      }
+    }
+
+    controller = createController(RelController, client, '');
+  });
+
+  it('connect calls service.update with connect', async () => {
+    await controller.connect('1', { data: [5, 6] });
+    expect(client.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { tags: { connect: [5, 6] } },
+    });
+  });
+
+  it('disconnect calls service.update with disconnect', async () => {
+    await controller.disconnect('1', { data: [3] });
+    expect(client.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { tags: { disconnect: [3] } },
+    });
+  });
+
+  it('set calls service.update with set', async () => {
+    await controller.set('1', { data: [1, 2, 3] });
+    expect(client.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { tags: { set: [1, 2, 3] } },
+    });
+  });
+
+  it('returns error when ids is not an array', async () => {
+    const result = await controller.connect('1', { data: 'not-an-array' });
+    expect(result.error).toBeDefined();
+    expect(result.error.code).toBe('BAD_REQUEST');
+  });
+
+  it('calls beforeRelation hook and uses modified ids', async () => {
+    const hookSpies = {
+      beforeRelation: vi.fn().mockReturnValue([10, 20]),
+      afterRelation: vi.fn(),
+    };
+    (controller as any).resolvedHooks = hookSpies;
+    (controller as any).hooksResolved = true;
+
+    await controller.connect('1', { data: [5, 6] });
+    expect(hookSpies.beforeRelation).toHaveBeenCalledWith(
+      'connect',
+      'tags',
+      [5, 6],
+      expect.anything(),
+    );
+    expect(client.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { tags: { connect: [10, 20] } },
+    });
+  });
+
+  it('calls afterRelation hook', async () => {
+    const hookSpies = {
+      afterRelation: vi.fn(),
+    };
+    (controller as any).resolvedHooks = hookSpies;
+    (controller as any).hooksResolved = true;
+
+    await controller.disconnect('1', { data: [3] });
+    expect(hookSpies.afterRelation).toHaveBeenCalledWith(
+      'disconnect',
+      'tags',
+      [3],
+      expect.anything(),
+    );
+  });
+});
+
+describe('handleUpdate with inline relation ops', () => {
+  let controller: any;
+  let client: ReturnType<typeof mockEntityClient>;
+
+  beforeEach(() => {
+    client = mockEntityClient({
+      update: vi.fn().mockResolvedValue({ id: 1, title: 'Updated' }),
+    });
+
+    @CrudController({
+      model: TestEntity as any,
+      routes: {
+        update: true,
+        relations: { tags: true },
+      },
+    })
+    class InlineRelController extends RelayerController<any, Record<string, unknown>> {
+      constructor(service: RelayerService<any, Record<string, unknown>>) {
+        super(service);
+      }
+      doUpdate(id: string, body: any, r: unknown) {
+        return this.handleUpdate(id, body, r);
+      }
+    }
+
+    controller = createController(InlineRelController, client, '');
+  });
+
+  it('separates relation ops from scalar data before update', async () => {
+    await controller.doUpdate('1', { title: 'New', tags: { connect: [5, 6] } }, {});
+    expect(client.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { title: 'New', tags: { connect: [5, 6] } },
+    });
+  });
+
+  it('handles relation-only body (no scalar data)', async () => {
+    (client.update as any).mockResolvedValue(undefined);
+    const result = (await controller.doUpdate('1', { tags: { connect: [1] } }, {})) as any;
+    expect(result.data).toEqual({ success: true });
+  });
+
+  it('returns entity data when mixed scalar + relation', async () => {
+    const result = (await controller.doUpdate(
+      '1',
+      { title: 'Mixed', tags: { set: [1, 2] } },
+      {},
+    )) as any;
+    expect(result.data.title).toBe('Updated');
+  });
+});

@@ -244,4 +244,61 @@ describe('CrudController decorator', () => {
 
     expect(spy).toHaveBeenCalledTimes(2);
   });
+
+  it('generates relation connect/disconnect/set routes', () => {
+    @CrudController({
+      model: TestEntity as any,
+      routes: { relations: { tags: true } },
+    })
+    class TestCtrl extends RelayerController<any> {
+      constructor() {
+        super(null as any);
+      }
+    }
+
+    const connectMeta = getMethodMeta(TestCtrl.prototype, 'relationConnect_tags');
+    expect(connectMeta).not.toBeNull();
+    expect(connectMeta!.httpMethod).toBe(RequestMethod.POST);
+    expect(connectMeta!.path).toBe('/:id/relations/tags');
+
+    const disconnectMeta = getMethodMeta(TestCtrl.prototype, 'relationDisconnect_tags');
+    expect(disconnectMeta).not.toBeNull();
+    expect(disconnectMeta!.httpMethod).toBe(RequestMethod.DELETE);
+    expect(disconnectMeta!.path).toBe('/:id/relations/tags');
+
+    const setMeta = getMethodMeta(TestCtrl.prototype, 'relationSet_tags');
+    expect(setMeta).not.toBeNull();
+    expect(setMeta!.httpMethod).toBe(RequestMethod.PUT);
+    expect(setMeta!.path).toBe('/:id/relations/tags');
+  });
+
+  it('respects disabled relation operations', () => {
+    @CrudController({
+      model: TestEntity as any,
+      routes: { relations: { tags: { connect: true, disconnect: false, set: false } } },
+    })
+    class TestCtrl extends RelayerController<any> {
+      constructor() {
+        super(null as any);
+      }
+    }
+
+    expect((TestCtrl.prototype as any).relationConnect_tags).toBeDefined();
+    expect((TestCtrl.prototype as any).relationDisconnect_tags).toBeUndefined();
+    expect((TestCtrl.prototype as any).relationSet_tags).toBeUndefined();
+  });
+
+  it('does not generate relation routes when not configured', () => {
+    @CrudController({
+      model: TestEntity as any,
+      routes: { list: true },
+    })
+    class TestCtrl extends RelayerController<any> {
+      constructor() {
+        super(null as any);
+      }
+    }
+
+    expect((TestCtrl.prototype as any).relationConnect_tags).toBeUndefined();
+  });
 });

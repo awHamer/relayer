@@ -9,6 +9,10 @@ export type {
   FindByIdRouteConfig,
   MutationRouteConfig,
   CrudRoutes,
+  RelationId,
+  RelationOperation,
+  RelationRouteConfig,
+  RelationKeys,
   DecoratorTargeted,
   DecoratorEntry,
   CrudControllerConfig,
@@ -34,4 +38,6 @@ export type {
   CountResponse,
   OffsetMeta,
   CursorMeta,
+  RelationResponse,
+  RelationErrorResponse,
 } from './response';

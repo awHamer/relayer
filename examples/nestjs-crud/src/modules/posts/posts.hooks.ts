@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RelayerHooks, type AggregateOptions, type FirstOptions } from '@relayerjs/nestjs-crud';
+import {
+  RelayerHooks,
+  type AggregateOptions,
+  type FirstOptions,
+  type RelationId,
+  type RelationKeys,
+  type RelationOperation,
+  type RequestContext,
+} from '@relayerjs/nestjs-crud';
 
 import { PostEntity, type EM } from '../../entities';
 
@@ -33,5 +41,23 @@ export class PostHooks extends RelayerHooks<PostEntity, EM> {
 
   afterAggregate(result: unknown) {
     this.logger.log(`Aggregated posts: ${JSON.stringify(result)}`);
+  }
+
+  beforeRelation(
+    operation: RelationOperation,
+    relationName: RelationKeys<PostEntity, EM>,
+    ids: RelationId[],
+    ctx: RequestContext,
+  ) {
+    this.logger.log(`Relation ${operation} on ${relationName}: [${ids.join(', ')}]`);
+  }
+
+  afterRelation(
+    operation: RelationOperation,
+    relationName: RelationKeys<PostEntity, EM>,
+    ids: RelationId[],
+    ctx: RequestContext,
+  ) {
+    this.logger.log(`Relation ${operation} on ${relationName} completed: [${ids.join(', ')}]`);
   }
 }

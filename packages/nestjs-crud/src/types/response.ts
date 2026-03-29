@@ -29,3 +29,11 @@ export interface DetailResponse<T> {
 export interface CountResponse {
   data: { count: number };
 }
+
+export interface RelationResponse {
+  data: { success: true };
+}
+
+export interface RelationErrorResponse {
+  error: { code: string; message: string };
+}

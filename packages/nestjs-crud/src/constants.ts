@@ -13,7 +13,10 @@ export type CrudRouteName =
   | 'update'
   | 'delete'
   | 'count'
-  | 'aggregate';
+  | 'aggregate'
+  | 'relationConnect'
+  | 'relationDisconnect'
+  | 'relationSet';
 
 export const CRUD_ROUTE_NAMES: CrudRouteName[] = [
   'list',

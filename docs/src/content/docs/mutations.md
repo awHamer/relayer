@@ -82,6 +82,106 @@ const result = await r.users.deleteMany({
 // { count: 8 }
 ```
 
+## Managing relations
+
+Use `connect`, `disconnect`, and `set` inside `update()` to manage relations without touching join tables directly.
+
+### Reassign a belongs-to relation
+
+```ts
+// Change the author of a post (sets authorId = 2)
+await r.posts.update({
+  where: { id: 1 },
+  data: { author: { connect: 2 } },
+});
+
+// Combine with scalar updates
+await r.posts.update({
+  where: { id: 1 },
+  data: { title: 'New title', author: { connect: 3 } },
+});
+
+// Unset a nullable FK
+await r.posts.update({
+  where: { id: 1 },
+  data: { reviewer: { disconnect: true } },
+});
+```
+
+For one-to-one and many-to-one relations where the FK column is on the current table, `connect` sets the FK and `disconnect` sets it to null.
+
+### Many-to-many via join table
+
+```ts
+// Add categories to a post
+await r.posts.update({
+  where: { id: 1 },
+  data: { postCategories: { connect: [5, 6] } },
+});
+
+// Remove specific categories
+await r.posts.update({
+  where: { id: 1 },
+  data: { postCategories: { disconnect: [5] } },
+});
+
+// Replace all -- deletes existing links and inserts new ones
+await r.posts.update({
+  where: { id: 1 },
+  data: { postCategories: { set: [7, 8, 9] } },
+});
+
+// Add and remove in a single call
+await r.posts.update({
+  where: { id: 1 },
+  data: {
+    postCategories: { connect: [10], disconnect: [7] },
+  },
+});
+```
+
+### Join tables with extra columns
+
+When the join table has columns beyond the two FKs, pass objects with `_id` for the target entity's primary key and any extra fields:
+
+```ts
+await r.posts.update({
+  where: { id: 1 },
+  data: {
+    postCategories: {
+      connect: [
+        { _id: 5, isPrimary: true },
+        { _id: 6, isPrimary: false },
+      ],
+    },
+  },
+});
+```
+
+`_id` maps to the target entity's FK on the join table. Other fields are passed through to the insert.
+
+### Transaction safety
+
+Many-to-many operations (connect, disconnect, set) are automatically wrapped in a transaction on PostgreSQL and MySQL. If any part fails, the entire operation rolls back -- including scalar updates in the same call.
+
+SQLite uses a single connection and is inherently serial, so no explicit transaction wrapping is needed.
+
+Parent transactions are respected: if you call `update()` inside `$transaction()`, the relation operations participate in the outer transaction.
+
+```ts
+await r.$transaction(async (tx) => {
+  await tx.posts.update({
+    where: { id: 1 },
+    data: {
+      title: 'Updated in tx',
+      postCategories: { set: [1, 2] },
+    },
+  });
+  // Both the title update and relation changes roll back if anything throws
+  throw new Error('rollback');
+});
+```
+
 ## RETURNING behavior
 
 The `create`, `update`, and `delete` methods return the affected row(s). This depends on dialect support:

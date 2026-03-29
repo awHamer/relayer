@@ -1,5 +1,5 @@
 import { Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
-import { CrudController, RelayerController } from '@relayerjs/nestjs-crud';
+import { CrudController, RelayerController, type RelationKeys } from '@relayerjs/nestjs-crud';
 
 import { AuthGuard } from '../../common/auth.guard';
 import { Roles } from '../../common/roles.decorator';
@@ -63,6 +63,9 @@ import { PostsService } from './posts.service';
     delete: true,
     count: true,
     aggregate: true,
+    relations: {
+      postCategories: true,
+    },
   },
   decorators: [
     UseGuards(AuthGuard),
