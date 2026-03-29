@@ -273,7 +273,7 @@ async getPostWithAuthor(id: number) {
 
   routes: {
     list: {
-      pagination: 'offset',          // 'offset' (default) | 'cursor_UNSTABLE'
+      pagination: 'offset',          // 'offset' (default) | 'cursor'
       defaults: {
         select: { id: true, title: true, author: { fullName: true } },
         where: { published: true },
