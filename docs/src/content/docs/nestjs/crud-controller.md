@@ -82,7 +82,7 @@ See [Relations](/nestjs/relations/) for the full relation endpoints guide.
 })
 ```
 
-See [Search & Filtering](/nestjs/search-and-filtering) for client-side usage and response formats. See [Known Limitations](/nestjs/limitations#cursor-pagination) for date precision workarounds.
+See [Search & Filtering](/nestjs/search-and-filtering) for client-side usage and response formats.
 
 ## Default selection
 
