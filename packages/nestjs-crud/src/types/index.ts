@@ -17,6 +17,8 @@ export type {
   DecoratorEntry,
   CrudControllerConfig,
   RelayerModuleOptions,
+  SwaggerConfig,
+  SwaggerRouteOverride,
   RelayerModuleAsyncOptions,
 } from './config';
 export type {

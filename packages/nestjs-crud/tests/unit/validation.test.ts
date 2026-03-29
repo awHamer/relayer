@@ -63,16 +63,14 @@ describe('validateBody', () => {
     expect(await validateBody('not-a-schema', data)).toBe(data);
   });
 
-  it('detects class-validator DTO (function with prototype)', async () => {
+  it('detects class-validator DTO and attempts validation', async () => {
     class TestDto {
       name!: string;
     }
 
-    // validateBody will try to load class-validator/class-transformer dynamically
-    // Since they're not installed, it should throw about missing deps
-    await expect(validateBody(TestDto, { name: 'test' })).rejects.toThrow(
-      'class-validator and class-transformer are required',
-    );
+    // class-validator is available -- validateBody detects class DTO and runs
+    // class-validator pipeline. Without decorators it throws 422, not "not installed".
+    await expect(validateBody(TestDto, { name: 'test' })).rejects.toThrow('Validation failed');
   });
 });
 

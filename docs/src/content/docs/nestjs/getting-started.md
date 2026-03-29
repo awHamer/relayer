@@ -14,6 +14,8 @@ Drop `@relayerjs/nestjs-crud` into a NestJS project and get a production-ready R
 - **Relations** -- load nested data: `?select={"comments":{"id":true}}`
 - **Validation** -- Zod or class-validator, unified error format
 - **Auth** -- guards and decorators per route
+- **Swagger** -- auto-generated OpenAPI docs, zero config
+- **Relation endpoints** -- connect/disconnect/set for m2m via dedicated REST routes
 
 All type-safe, all configurable, all overridable.
 

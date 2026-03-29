@@ -1,64 +1,12 @@
 import { Controller, type Type } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common/enums/request-method.enum';
 import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum';
 
-import { CRUD_CONTROLLER_METADATA, type CrudRouteName } from '../constants';
-import type { CrudControllerConfig, DecoratorEntry, DecoratorTargeted } from '../types';
+import { CRUD_CONTROLLER_METADATA } from '../constants';
+import type { CrudControllerConfig } from '../types';
 import { getEntityKey } from '../utils';
-
-function setMethodMetadata(
-  target: object,
-  methodName: string,
-  httpMethod: RequestMethod,
-  routePath: string,
-): void {
-  const descriptor = Object.getOwnPropertyDescriptor(target, methodName);
-  if (!descriptor) return;
-  Reflect.defineMetadata(PATH_METADATA, routePath, descriptor.value as object);
-  Reflect.defineMetadata(METHOD_METADATA, httpMethod, descriptor.value as object);
-}
-
-function setRouteArgs(target: object, methodName: string, args: Record<string, unknown>): void {
-  Reflect.defineMetadata(ROUTE_ARGS_METADATA, args, target.constructor, methodName);
-}
-
-function createRouteArg(paramType: RouteParamtypes, index: number, data?: string) {
-  const key = `${paramType}:${index}`;
-  return {
-    [key]: {
-      index,
-      data,
-      pipes: [],
-    },
-  };
-}
-
-function isDecoratorTargeted(entry: DecoratorEntry): entry is DecoratorTargeted {
-  return typeof entry === 'object' && 'apply' in entry;
-}
-
-function applyDecorators(
-  target: object,
-  methodName: string,
-  routeName: CrudRouteName,
-  decorators: DecoratorEntry[] | undefined,
-): void {
-  if (!decorators) return;
-  const descriptor = Object.getOwnPropertyDescriptor(target, methodName);
-  if (!descriptor) return;
-
-  for (const entry of decorators) {
-    if (isDecoratorTargeted(entry)) {
-      if (entry.for && !entry.for.includes(routeName)) continue;
-      for (const dec of entry.apply) {
-        dec(target, methodName, descriptor);
-      }
-    } else {
-      (entry as MethodDecorator)(target, methodName, descriptor);
-    }
-  }
-}
+import { applyDecorators, createRouteArg, setMethodMetadata, setRouteArgs } from './route-helpers';
+import { applySwagger } from './swagger';
 
 export function CrudController<
   TEntity,
@@ -158,10 +106,10 @@ export function CrudController<
     if (routes.relations) {
       for (const [relationName, relationConfig] of Object.entries(routes.relations)) {
         if (!relationConfig) continue;
-        const enableConnect = relationConfig === true || (relationConfig as any).connect !== false;
-        const enableDisconnect =
-          relationConfig === true || (relationConfig as any).disconnect !== false;
-        const enableSet = relationConfig === true || (relationConfig as any).set !== false;
+        const rc = relationConfig as Record<string, unknown>;
+        const enableConnect = relationConfig === true || rc.connect !== false;
+        const enableDisconnect = relationConfig === true || rc.disconnect !== false;
+        const enableSet = relationConfig === true || rc.set !== false;
         const relationPath = `/:id/relations/${relationName}`;
 
         if (enableConnect) {
@@ -206,6 +154,10 @@ export function CrudController<
           applyDecorators(proto, methodName, 'relationSet', config.decorators);
         }
       }
+    }
+
+    if (config.swagger !== false) {
+      applySwagger(proto, target, config, routes, path);
     }
 
     Controller(path)(target as Type);

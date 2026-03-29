@@ -1,12 +1,13 @@
 import { Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
-import { CrudController, RelayerController, type RelationKeys } from '@relayerjs/nestjs-crud';
+import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { CrudController, RelayerController } from '@relayerjs/nestjs-crud';
 
 import { AuthGuard } from '../../common/auth.guard';
 import { Roles } from '../../common/roles.decorator';
 import { EM, PostEntity } from '../../entities';
+import { CreatePostDto, UpdatePostDto } from './posts.dto';
 import { PostDtoMapper } from './posts.dto-mapper';
 import { PostHooks } from './posts.hooks';
-import { createPostSchema, updatePostSchema } from './posts.schema';
 import { PostsService } from './posts.service';
 
 @CrudController<PostEntity, EM>({
@@ -26,9 +27,7 @@ import { PostsService } from './posts.service';
       allow: {
         select: { title: false, comments: { $limit: 5 } },
         where: {
-          title: {
-            operators: ['contains', 'startsWith', 'endsWith', 'isNull', 'isNotNull'],
-          },
+          title: { operators: ['contains', 'startsWith', 'endsWith', 'isNull', 'isNotNull'] },
           published: true,
           authorId: true,
         },
@@ -55,10 +54,12 @@ import { PostsService } from './posts.service';
       },
     },
     create: {
-      schema: createPostSchema,
+      // class-validator
+      schema: CreatePostDto,
     },
     update: {
-      schema: updatePostSchema,
+      // zod + nest-zod
+      schema: UpdatePostDto,
     },
     delete: true,
     count: true,
@@ -79,27 +80,25 @@ export class PostsController extends RelayerController<PostEntity, EM, PostDtoMa
     super(postsService);
   }
 
-  // Override example — just override the parent methods: handleFindById, handleList etc
-  /*async handleFindById(id: string, request: Request) {
-    const item = await this.postsService.findFirst({
-      select: { id: true, title: true,  author: { id: true, fullName: true, postsCount: true } },
-      where: { id: parseInt(id, 10) },
-    });
-    return { msg: 'Overridden findById handler', id, item, headers: request.headers };
-  }*/
-
   @Get('custom-aggregation')
+  @ApiOperation({ summary: 'Custom aggregation', description: 'Custom posts aggregation query' })
+  @ApiResponse({ status: 200, description: 'Aggregation result' })
   customAggregation() {
     return this.postsService.customAggregate();
   }
 
   @Post(':id/publish')
   @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Publish post', description: 'Set post as published' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Published post' })
   async publish(@Param('id', ParseIntPipe) id: number) {
     return { data: await this.postsService.publish(id) };
   }
 
   @Get('published')
+  @ApiOperation({ summary: 'Get published posts' })
+  @ApiResponse({ status: 200, description: 'Published posts list' })
   async published() {
     return { data: await this.postsService.findPublished() };
   }

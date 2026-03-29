@@ -51,12 +51,22 @@
     "zod": "^3.24.0"
   },
   "peerDependencies": {
-    "@relayerjs/core": "workspace:~",
-    "@relayerjs/drizzle": "workspace:~",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
+    "@relayerjs/core": "workspace:~",
+    "@relayerjs/drizzle": "workspace:~",
     "reflect-metadata": ">=0.1.13",
-    "rxjs": ">=7.0.0"
+    "rxjs": ">=7.0.0",
+    "class-validator": ">=0.13.0",
+    "class-transformer": ">=0.5.0"
+  },
+  "peerDependenciesMeta": {
+    "class-validator": {
+      "optional": true
+    },
+    "class-transformer": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.3",
@@ -64,6 +74,7 @@
     "@nestjs/platform-express": "^11.1.3",
     "@nestjs/testing": "^11.1.3",
     "@relayerjs/drizzle": "workspace:*",
+    "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^3.2.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
