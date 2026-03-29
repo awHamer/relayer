@@ -34,11 +34,14 @@ export function encodeCursor(
     fields.push(field);
     const value = lastItem[field];
     if (value instanceof Date) {
-      values.push(value.getTime());
+      values.push(value.toISOString());
       types.push('d');
+    } else if (typeof value === 'number') {
+      values.push(value);
+      types.push('n');
     } else {
       values.push(value);
-      types.push(typeof value === 'number' ? 'n' : 's');
+      types.push('s');
     }
     directions.push(order);
   }
@@ -62,7 +65,8 @@ export function decodeCursor(cursor: string): CursorData {
     }
     const types = (parsed.t ?? []) as string[];
     const values = (parsed.v as unknown[]).map((v, i) => {
-      if (types[i] === 'd' && typeof v === 'number') return new Date(v);
+      if (types[i] === 'd' && typeof v === 'string') return new Date(v);
+      if (types[i] === 'n' && typeof v === 'string') return Number(v);
       return v;
     });
     return { v: values, f: parsed.f, d: parsed.d, t: types };
@@ -79,16 +83,15 @@ export function buildCursorWhere(cursor: CursorData): Record<string, unknown> {
     return { [fields[0]!]: { [op]: values[0] } };
   }
 
-  // Tuple comparison: (a, b) < (v1, v2)
-  // Expanded as: (a < v1) OR (a <= v1 AND b < v2)
-  // Using lte/gte instead of eq for intermediate fields
-  // to handle timestamp precision loss (JS ms vs PG microseconds)
+  // Tuple comparison: (a, b) > (v1, v2)
+  // Expanded as: (a > v1) OR (a <= v1 AND b > v2)
+  // Using lte/gte for intermediate fields to handle timestamp ms precision.
   const orBranches: Record<string, unknown>[] = [];
 
   for (let i = 0; i < fields.length; i++) {
     const branch: Record<string, unknown> = {};
     for (let j = 0; j < i; j++) {
-      const eqOp = directions[j] === 'desc' ? 'lte' : 'gte';
+      const eqOp = directions[j] === 'desc' ? 'gte' : 'lte';
       branch[fields[j]!] = { [eqOp]: values[j] };
     }
     const op = directions[i] === 'desc' ? 'lt' : 'gt';

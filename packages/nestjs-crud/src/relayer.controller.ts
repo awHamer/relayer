@@ -167,7 +167,7 @@ export class RelayerController<
       listConfig?.maxLimit ?? 100,
     );
 
-    if (paginationMode === 'cursor_UNSTABLE') {
+    if (paginationMode === 'cursor' || paginationMode === 'cursor_UNSTABLE') {
       return this.handleCursorList(request, query, limit, idField, listConfig);
     }
 

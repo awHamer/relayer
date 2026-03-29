@@ -56,75 +56,9 @@ SQLite (better-sqlite3) always uses JS-level limiting regardless of field types,
 
 ## Cursor pagination
 
-Cursor pagination (`pagination: 'cursor_UNSTABLE'`) has a known issue with timestamp precision.
+Cursor pagination (`pagination: 'cursor'`) fetches order fields with `$raw` to preserve full database precision. This avoids the JS `Date` millisecond truncation that previously caused skipped or duplicated items with high-precision timestamps.
 
-### The problem
-
-PostgreSQL stores timestamps with microsecond precision (6 decimal places):
-
-```
-2025-01-15 10:30:00.157432
-```
-
-JavaScript `Date` only supports millisecond precision (3 decimal places):
-
-```
-2025-01-15T10:30:00.157Z   (lost: 432)
-```
-
-When the cursor stores a `Date` value and uses it for equality comparison on the next page request, the comparison can fail:
-
-```sql
--- Cursor value (from JS Date, ms precision)
-WHERE "created_at" = '2025-01-15 10:30:00.157000'
-
--- Actual value in PG (μs precision)
--- '2025-01-15 10:30:00.157432'
--- These are NOT equal -> rows skipped
-```
-
-### When it matters
-
-This only affects cursor pagination when:
-
-1. Sorting by a timestamp field (e.g., `createdAt`)
-2. Multiple records share the same millisecond-precision timestamp
-3. The cursor lands exactly on such a record
-
-In practice, the ID tiebreaker (always added automatically) makes this rare -- two records must have the exact same millisecond timestamp AND be adjacent in sort order.
-
-### When it doesn't matter
-
-- Sorting by numeric or string fields (IDs, titles, etc.)
-- Timestamps with `timestamp(3)` precision in your schema (max 3 decimal places = ms precision)
-- Tables where records rarely share the same millisecond timestamp
-
-### Workaround
-
-Add a computed field that extracts the timestamp as a text string with full precision, and sort by it:
-
-```ts
-const PostBase = createRelayerEntity(schema, 'posts');
-
-export class PostEntity extends PostBase {
-  @PostBase.computed({
-    resolve: ({ table, sql }) => sql`${table.createdAt}::text`,
-  })
-  createdAtRaw!: string;
-}
-```
-
-```ts
-defaults: {
-  orderBy: { field: 'createdAtRaw', order: 'desc' },
-}
-```
-
-String comparison preserves full PostgreSQL precision. The cursor stores and compares strings, avoiding the JS Date precision loss entirely.
-
-### Future fix
-
-This will be resolved when cursor logic moves to Relayer core (ORM level), where it has access to Drizzle's `sql` template and can extract cursor values with full database precision.
+No workaround is needed -- cursor fields are automatically fetched as raw strings and stored in the cursor token with full precision.
 
 ## Entity types and relations
 

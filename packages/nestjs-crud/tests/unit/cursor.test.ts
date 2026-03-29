@@ -110,12 +110,12 @@ describe('buildCursorWhere', () => {
     expect(result).toEqual({
       OR: [
         { createdAt: { lt: '2025-01-01' } },
-        { createdAt: { lte: '2025-01-01' }, id: { lt: 5 } },
+        { createdAt: { gte: '2025-01-01' }, id: { lt: 5 } },
       ],
     });
   });
 
-  it('multi-field asc uses gt/gte', () => {
+  it('multi-field asc uses gt/lte', () => {
     const result = buildCursorWhere({
       v: ['A', 1],
       f: ['title', 'id'],
@@ -123,7 +123,7 @@ describe('buildCursorWhere', () => {
       t: ['s', 'n'],
     });
     expect(result).toEqual({
-      OR: [{ title: { gt: 'A' } }, { title: { gte: 'A' }, id: { gt: 1 } }],
+      OR: [{ title: { gt: 'A' } }, { title: { lte: 'A' }, id: { gt: 1 } }],
     });
   });
 });

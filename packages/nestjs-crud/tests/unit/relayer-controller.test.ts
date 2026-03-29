@@ -662,7 +662,7 @@ describe('RelayerController cursor pagination', () => {
       model: TestEntity as any,
       routes: {
         list: {
-          pagination: 'cursor_UNSTABLE' as any,
+          pagination: 'cursor',
           defaultLimit: 2,
         },
       },

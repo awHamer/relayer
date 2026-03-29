@@ -68,16 +68,13 @@ export type WhereConfig<
 > = Partial<Record<ModelKeys<TEntity, TEntities>, boolean | { operators: OperatorName[] }>>;
 
 /**
- * 'offset' — standard offset/limit pagination with total count
- * 'cursor_UNSTABLE' — cursor-based pagination (no total count, uses limit+1 for hasMore).
- *   Limitations:
- *   - Requires orderBy (falls back to id asc if not provided)
- *   - Date fields in cursor lose microsecond precision (JS Date = ms, PG = μs),
- *     may cause skipped/duplicated items when sorting by high-precision timestamps.
- *     Works reliably with: numeric IDs, string IDs, dates with ≤ms precision.
- *   - Will be stabilized when cursor logic moves to Relayer core (ORM level)
+ * 'offset' — standard offset/limit pagination with total count.
+ * 'cursor' — cursor-based pagination (no total count, uses limit+1 for hasMore).
+ *   Order fields are fetched with `$raw` for full DB precision.
+ *   Falls back to id asc if no orderBy provided.
+ * 'cursor_UNSTABLE' — deprecated alias for 'cursor', kept for backward compatibility.
  */
-export type PaginationMode = 'offset' | 'cursor_UNSTABLE';
+export type PaginationMode = 'offset' | 'cursor' | 'cursor_UNSTABLE';
 
 export interface ListRouteConfig<
   TEntity,
@@ -86,9 +83,8 @@ export interface ListRouteConfig<
   schema?: ZodLike;
   /**
    * 'offset' (default) — standard offset/limit with total count.
-   * 'cursor_UNSTABLE' — cursor-based, no total count, limit+1 for hasMore.
-   *   Limitations: date fields lose μs precision (JS Date = ms, PG = μs).
-   *   Works reliably with numeric/string IDs and dates with ≤ms precision.
+   * 'cursor' — cursor-based, no total count, limit+1 for hasMore.
+   *   Order fields use $raw for full DB precision.
    */
   pagination?: PaginationMode;
   defaults?: {
