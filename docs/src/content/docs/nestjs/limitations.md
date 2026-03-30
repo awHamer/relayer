@@ -54,12 +54,6 @@ select: {
 
 SQLite (better-sqlite3) always uses JS-level limiting regardless of field types, because the driver lacks async `execute()` support for raw SQL.
 
-## Cursor pagination
-
-Cursor pagination (`pagination: 'cursor'`) fetches order fields with `$raw` to preserve full database precision. This avoids the JS `Date` millisecond truncation that previously caused skipped or duplicated items with high-precision timestamps.
-
-No workaround is needed -- cursor fields are automatically fetched as raw strings and stored in the cursor token with full precision.
-
 ## Entity types and relations
 
 Entity classes created with `createRelayerEntity(schema, 'posts')` include scalar and computed/derived fields but not relation fields by default.
@@ -81,7 +75,4 @@ class PostsService extends RelayerService<PostEntity, EM> { ... }
 
 ## Roadmap
 
-- Stable cursor pagination (requires `@relayerjs/drizzle` patch)
-- Swagger for API documentation
-- API endpoints for linking m2m, one2m relations
 - Better integration with Relayer context object

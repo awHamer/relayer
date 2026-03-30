@@ -85,6 +85,7 @@ export default defineConfig({
                 { label: 'Relations', slug: 'nestjs/relations' },
                 { label: 'Aggregations', slug: 'nestjs/aggregations' },
                 { label: 'Validation', slug: 'nestjs/validation' },
+                { label: 'Swagger / OpenAPI', slug: 'nestjs/swagger' },
               ],
             },
             { label: 'Known Limitations', slug: 'nestjs/limitations' },

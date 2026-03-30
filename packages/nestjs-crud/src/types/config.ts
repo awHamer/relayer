@@ -144,6 +144,23 @@ export interface CrudRoutes<
   };
 }
 
+export interface SwaggerRouteOverride {
+  summary?: string;
+  description?: string;
+}
+
+export interface SwaggerConfig {
+  tag?: string;
+  enabled?: boolean;
+  list?: SwaggerRouteOverride;
+  findById?: SwaggerRouteOverride;
+  create?: SwaggerRouteOverride;
+  update?: SwaggerRouteOverride;
+  delete?: SwaggerRouteOverride;
+  count?: SwaggerRouteOverride;
+  aggregate?: SwaggerRouteOverride;
+}
+
 export interface DecoratorTargeted {
   apply: MethodDecorator[];
   for?: CrudRouteName[];
@@ -167,8 +184,7 @@ export interface CrudControllerConfig<
   dtoMapper?: new (...args: any[]) => DtoMapper<any, any, any>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   hooks?: new (...args: any[]) => RelayerHooks<TEntity, TEntities>;
-  // todo: implement?
-  swagger?: Record<string, unknown>;
+  swagger?: SwaggerConfig | false;
   params?: Record<string, { field: string; type: 'number' | 'string' }>;
 }
 

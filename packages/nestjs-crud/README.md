@@ -28,6 +28,8 @@ Full-featured CRUD for NestJS on top of [Relayer](https://github.com/awHamer/rel
 - [Query DSL](#query-dsl)
 - [Aggregation](#aggregation)
 - [Response Types](#response-types)
+- [Relation Endpoints](#relation-endpoints)
+- [Swagger](#swagger)
 - [Validation](#validation)
 - [Error Handling](#error-handling)
 - [Dependency Injection](#dependency-injection)
@@ -144,15 +146,18 @@ export class PostsController extends RelayerController<PostEntity, EM> {
 
 That's it. Seven routes are ready:
 
-| Method                 | Path                                             | Description |
-| ---------------------- | ------------------------------------------------ | ----------- |
-| `GET /posts`           | List with pagination, filtering, sorting, search |
-| `GET /posts/:id`       | Find by ID                                       |
-| `POST /posts`          | Create                                           |
-| `PATCH /posts/:id`     | Update                                           |
-| `DELETE /posts/:id`    | Delete                                           |
-| `GET /posts/count`     | Count matching records                           |
-| `GET /posts/aggregate` | Aggregation with groupBy                         |
+| Method                              | Path                                             | Description |
+| ----------------------------------- | ------------------------------------------------ | ----------- |
+| `GET /posts`                        | List with pagination, filtering, sorting, search |
+| `GET /posts/:id`                    | Find by ID                                       |
+| `POST /posts`                       | Create                                           |
+| `PATCH /posts/:id`                  | Update                                           |
+| `DELETE /posts/:id`                 | Delete                                           |
+| `GET /posts/count`                  | Count matching records                           |
+| `GET /posts/aggregate`              | Aggregation with groupBy                         |
+| `POST /posts/:id/relations/:name`   | Connect relation                                 |
+| `DELETE /posts/:id/relations/:name` | Disconnect relation                              |
+| `PUT /posts/:id/relations/:name`    | Set (replace) relation                           |
 
 > Full working example with entities, services, controllers, hooks, and DTO mapping is available in [examples/nestjs-crud](../../examples/nestjs-crud).
 
@@ -426,21 +431,23 @@ Register in the controller config:
 @CrudController({ model: PostEntity, hooks: PostHooks })
 ```
 
-| Hook              | Arguments            | Can modify result?     |
-| ----------------- | -------------------- | ---------------------- |
-| `beforeCreate`    | `(data, ctx)`        | Return modified data   |
-| `afterCreate`     | `(entity, ctx)`      |                        |
-| `beforeUpdate`    | `(data, where, ctx)` | Return modified data   |
-| `afterUpdate`     | `(entity, ctx)`      |                        |
-| `beforeDelete`    | `(where, ctx)`       |                        |
-| `afterDelete`     | `(entity, ctx)`      |                        |
-| `beforeFind`      | `(options, ctx)`     |                        |
-| `afterFind`       | `(entities, ctx)`    | Return modified list   |
-| `beforeFindOne`   | `(options, ctx)`     |                        |
-| `afterFindOne`    | `(entity, ctx)`      | Return modified entity |
-| `beforeCount`     | `(options, ctx)`     |                        |
-| `beforeAggregate` | `(options, ctx)`     |                        |
-| `afterAggregate`  | `(result, ctx)`      | Return modified result |
+| Hook              | Arguments              | Can modify result?     |
+| ----------------- | ---------------------- | ---------------------- |
+| `beforeCreate`    | `(data, ctx)`          | Return modified data   |
+| `afterCreate`     | `(entity, ctx)`        |                        |
+| `beforeUpdate`    | `(data, where, ctx)`   | Return modified data   |
+| `afterUpdate`     | `(entity, ctx)`        |                        |
+| `beforeDelete`    | `(where, ctx)`         |                        |
+| `afterDelete`     | `(entity, ctx)`        |                        |
+| `beforeFind`      | `(options, ctx)`       |                        |
+| `afterFind`       | `(entities, ctx)`      | Return modified list   |
+| `beforeFindOne`   | `(options, ctx)`       |                        |
+| `afterFindOne`    | `(entity, ctx)`        | Return modified entity |
+| `beforeCount`     | `(options, ctx)`       |                        |
+| `beforeAggregate` | `(options, ctx)`       |                        |
+| `afterAggregate`  | `(result, ctx)`        | Return modified result |
+| `beforeRelation`  | `(op, name, ids, ctx)` | Return modified ids    |
+| `afterRelation`   | `(op, name, ids, ctx)` |                        |
 
 ## Query DSL
 
@@ -509,6 +516,56 @@ CursorListResponse<T>; // { data: T[], meta: { limit, hasMore, nextCursor?, next
 DetailResponse<T>; // { data: T }
 CountResponse; // { data: { count: number } }
 ```
+
+## Relation Endpoints
+
+Enable dedicated REST endpoints for managing many-to-many and belongs-to relations:
+
+```ts
+@CrudController<PostEntity, EM>({
+  model: PostEntity,
+  routes: {
+    relations: {
+      postCategories: true,
+    },
+  },
+})
+```
+
+This generates three endpoints per relation:
+
+| Method | Path                                  | Action        |
+| ------ | ------------------------------------- | ------------- |
+| POST   | `/posts/:id/relations/postCategories` | Connect       |
+| DELETE | `/posts/:id/relations/postCategories` | Disconnect    |
+| PUT    | `/posts/:id/relations/postCategories` | Set (replace) |
+
+Request body: `{ "data": [1, 2, 3] }` or `{ "data": [{ "_id": 1, "isPrimary": true }] }` for join tables with extra columns.
+
+Relations can also be managed inline via PATCH: `{ "postCategories": { "connect": [1, 2] } }`.
+
+Relation hooks fire for all operations:
+
+| Hook             | Arguments                             | Can modify?         |
+| ---------------- | ------------------------------------- | ------------------- |
+| `beforeRelation` | `(operation, relationName, ids, ctx)` | Return modified ids |
+| `afterRelation`  | `(operation, relationName, ids, ctx)` |                     |
+
+## Swagger
+
+All auto-generated routes include OpenAPI metadata. Install `@nestjs/swagger` and add `SwaggerModule.setup()` — every route is documented with summaries, query parameter examples, body schemas, and response codes.
+
+```ts
+@CrudController<PostEntity, EM>({
+  model: PostEntity,
+  swagger: {
+    tag: 'Blog Posts',
+    list: { summary: 'Search blog posts' },
+  },
+})
+```
+
+Set `swagger: false` to disable. Pass class DTOs (with `@ApiProperty`) or nestjs-zod DTOs as `schema` for body documentation.
 
 ## Validation
 
@@ -592,9 +649,6 @@ constructor(@InjectQueryService(PostEntity) service: RelayerService<PostEntity, 
 
 ## Roadmap
 
-- Stable cursor pagination (requires `@relayerjs/drizzle` patch)
-- Swagger for API documentation
-- API endpoints for linking m2m, one2m relations
 - Better integration with Relayer context object
 
 ## License

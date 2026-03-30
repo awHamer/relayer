@@ -15,6 +15,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['**/dist/**', '**/node_modules/**', 'examples/**', '**/tests/**'],
+    ignores: ['docs/.astro', '**/dist/**', '**/node_modules/**', 'examples/**', '**/tests/**'],
   },
 );

@@ -18,12 +18,28 @@ interface ClassValidatorError {
 }
 
 function isZodSchema(schema: unknown): schema is ZodLike {
-  return (
+  // Direct Zod schema: z.object({...})
+  if (
     typeof schema === 'object' &&
     schema !== null &&
     'parse' in schema &&
     typeof (schema as Record<string, unknown>).parse === 'function'
-  );
+  ) {
+    return true;
+  }
+  // nestjs-zod DTO: class with static .schema that has .parse()
+  if (typeof schema === 'function') {
+    const s = (schema as unknown as Record<string, unknown>).schema;
+    if (
+      s &&
+      typeof s === 'object' &&
+      'parse' in s &&
+      typeof (s as Record<string, unknown>).parse === 'function'
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 type DtoConstructor = new (...args: unknown[]) => object;
@@ -63,8 +79,13 @@ function createValidationException(errors: ValidationError[]): HttpException {
 }
 
 export function validateWithZod(schema: ZodLike, data: unknown): unknown {
+  // Support nestjs-zod DTOs: class with static .schema
+  const zodSchema =
+    typeof schema === 'function' && (schema as unknown as Record<string, unknown>).schema
+      ? ((schema as unknown as Record<string, unknown>).schema as ZodLike)
+      : schema;
   try {
-    return schema.parse(data);
+    return zodSchema.parse(data);
   } catch (e: unknown) {
     const zodError = e as ZodError;
     if (zodError.errors) {

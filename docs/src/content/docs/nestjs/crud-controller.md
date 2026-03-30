@@ -208,6 +208,23 @@ Register via config properties. Both are resolved via NestJS DI:
 
 See [Data Mapper](/nestjs/data-mapper) and [Hooks](/nestjs/hooks) for full API reference. Relation-specific hooks (`beforeRelation`, `afterRelation`) are covered in [Relations](/nestjs/relations/#hooks).
 
+## Swagger
+
+All auto-generated routes include OpenAPI metadata -- summaries, query parameters with examples, request body schemas, response codes. Install `@nestjs/swagger` and it just works. Customize per-route via `swagger` config:
+
+```ts
+@CrudController<PostEntity, EM>({
+  model: PostEntity,
+  swagger: {
+    tag: 'Blog Posts',
+    list: { summary: 'Search blog posts' },
+    create: { description: 'Publish a new post with tags' },
+  },
+})
+```
+
+Set `swagger: false` to disable. See [Swagger / OpenAPI](/nestjs/swagger/) for the full guide.
+
 ## Overriding handlers
 
 Override any handler method directly in your controller class. Other handlers remain auto-generated:
