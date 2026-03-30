@@ -122,9 +122,36 @@ export async function loadRelations(
         if (sqlResult) {
           usedSqlLimit = true;
           relatedRows = sqlResult;
+          // Raw SQL fetches all columns; strip unrequested ones (keep FK for grouping)
+          // Empty effectiveSelect means "all fields" (e.g. comments: true with only $limit enforced)
+          const hasExplicitFields = Object.keys(effectiveSelect).length > 0;
+          if (hasExplicitFields) {
+            if (!(targetColName in effectiveSelect)) {
+              internalKeys.add(targetColName);
+            }
+            for (const row of relatedRows) {
+              for (const key of Object.keys(row)) {
+                if (key !== targetColName && !(key in effectiveSelect)) {
+                  delete row[key];
+                }
+              }
+            }
+          }
         }
       }
       if (!usedSqlLimit) {
+        // Empty effectiveSelect means "all fields" (e.g. comments: true with only $limit enforced)
+        const hasExplicitFields = Object.keys(effectiveSelect).length > 0;
+        if (!hasExplicitFields) {
+          const tableColumns = getTableColumns(targetInfo.table);
+          for (const [fieldName] of targetInfo.scalarFields) {
+            if (!columns[fieldName]) {
+              const col = tableColumns[fieldName];
+              if (col) columns[fieldName] = col;
+            }
+          }
+        }
+
         // Always include FK column for grouping
         if (!columns[targetColName]) {
           columns[targetColName] = getTableColumns(targetInfo.table)[targetColName]!;
@@ -132,7 +159,7 @@ export async function loadRelations(
         }
 
         for (const key of Object.keys(columns)) {
-          if (!(key in effectiveSelect)) internalKeys.add(key);
+          if (!(key in effectiveSelect) && hasExplicitFields) internalKeys.add(key);
         }
 
         // Merge computed SQL expressions into select

@@ -30,8 +30,10 @@ export async function buildRowNumberQuery(
     const rawRows = (await db.execute(query)) as unknown as Record<string, unknown>[];
 
     const dbToTs = new Map<string, string>();
+    const tsNameToCol = new Map<string, Column>();
     for (const [tsName, col] of columnEntries) {
       dbToTs.set(col.name, tsName);
+      tsNameToCol.set(tsName, col);
     }
 
     return rawRows.map((row) => {
@@ -39,7 +41,8 @@ export async function buildRowNumberQuery(
       for (const [key, value] of Object.entries(row)) {
         if (key === '__rn') continue;
         const tsKey = dbToTs.get(key) ?? key;
-        mapped[tsKey] = value;
+        const col = tsNameToCol.get(tsKey);
+        mapped[tsKey] = col && value != null ? col.mapFromDriverValue(value) : value;
       }
       return mapped;
     });

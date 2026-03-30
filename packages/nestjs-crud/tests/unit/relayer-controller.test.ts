@@ -95,10 +95,11 @@ describe('RelayerController', () => {
   });
 
   describe('handleList (offset)', () => {
-    it('returns data and meta', async () => {
+    it('returns exact response shape with data and meta', async () => {
       const result = (await controller.list(req())) as any;
+      expect(Object.keys(result).sort()).toEqual(['data', 'meta']);
       expect(result.data).toEqual([{ id: 1 }, { id: 2 }]);
-      expect(result.meta).toEqual(expect.objectContaining({ total: 2, limit: 20, offset: 0 }));
+      expect(result.meta).toEqual({ total: 2, limit: 20, offset: 0 });
     });
 
     it('uses defaultLimit from config', async () => {
@@ -135,17 +136,20 @@ describe('RelayerController', () => {
       expect(client.findMany).toHaveBeenCalledWith(expect.objectContaining({ offset: 10 }));
     });
 
-    it('generates nextPageUrl when more results', async () => {
+    it('generates nextPageUrl in meta when more results', async () => {
       (client.count as any).mockResolvedValue(100);
       const result = (await controller.list(req())) as any;
       expect(result.meta.nextPageUrl).toContain('offset=20');
       expect(result.meta.nextPageUrl).toContain('limit=20');
+      expect(Object.keys(result.meta).sort()).toEqual(
+        ['limit', 'nextPageUrl', 'offset', 'total'].sort(),
+      );
     });
 
-    it('no nextPageUrl when at end', async () => {
+    it('no nextPageUrl in meta when at end', async () => {
       (client.count as any).mockResolvedValue(2);
       const result = (await controller.list(req())) as any;
-      expect(result.meta.nextPageUrl).toBeUndefined();
+      expect(result.meta).toEqual({ total: 2, limit: 20, offset: 0 });
     });
 
     it('applies where from query', async () => {
@@ -169,9 +173,12 @@ describe('RelayerController', () => {
   });
 
   describe('handleFindById', () => {
-    it('returns { data } for found entity', async () => {
+    it('returns exact { data } shape for found entity', async () => {
       const result = (await controller.findOne('1', {})) as any;
+      expect(Object.keys(result)).toEqual(['data']);
       expect(result.data).toEqual({ id: 1, title: 'Test' });
+      expect(typeof result.data.id).toBe('number');
+      expect(typeof result.data.title).toBe('string');
     });
 
     it('throws NotFoundException when not found', async () => {
@@ -186,8 +193,9 @@ describe('RelayerController', () => {
   });
 
   describe('handleCreate', () => {
-    it('returns { data } with created entity', async () => {
+    it('returns exact { data } shape with created entity', async () => {
       const result = (await controller.doCreate({ title: 'New' }, {})) as any;
+      expect(Object.keys(result)).toEqual(['data']);
       expect(result.data).toEqual({ id: 3, title: 'New' });
     });
 
@@ -198,8 +206,9 @@ describe('RelayerController', () => {
   });
 
   describe('handleUpdate', () => {
-    it('returns { data } with updated entity', async () => {
+    it('returns exact { data } shape with updated entity', async () => {
       const result = (await controller.doUpdate('1', { title: 'Updated' }, {})) as any;
+      expect(Object.keys(result)).toEqual(['data']);
       expect(result.data).toEqual({ id: 1, title: 'Updated' });
     });
 
@@ -213,8 +222,9 @@ describe('RelayerController', () => {
   });
 
   describe('handleDelete', () => {
-    it('returns { data } with deleted entity', async () => {
+    it('returns exact { data } shape with deleted entity', async () => {
       const result = (await controller.doDelete('1', {})) as any;
+      expect(Object.keys(result)).toEqual(['data']);
       expect(result.data).toEqual({ id: 1 });
     });
 
@@ -230,9 +240,11 @@ describe('RelayerController', () => {
   });
 
   describe('handleCount', () => {
-    it('returns { data: { count } }', async () => {
+    it('returns exact { data: { count } } shape with number type', async () => {
       const result = (await controller.doCount(req())) as any;
+      expect(Object.keys(result)).toEqual(['data']);
       expect(result.data).toEqual({ count: 2 });
+      expect(typeof result.data.count).toBe('number');
     });
 
     it('applies where from query', async () => {
@@ -679,29 +691,29 @@ describe('RelayerController cursor pagination', () => {
     controller = createController(CursorController, client);
   });
 
-  it('returns hasMore=true when more results than limit', async () => {
+  it('returns exact response shape with hasMore=true', async () => {
     const result = (await controller.list(req())) as any;
-    expect(result.meta.hasMore).toBe(true);
     expect(result.data).toHaveLength(2);
+    expect(result.data).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(result.meta.hasMore).toBe(true);
+    expect(typeof result.meta.nextCursor).toBe('string');
+    expect(result.meta.nextPageUrl).toContain('cursor=');
+    expect(result.meta.nextPageUrl).toContain('limit=2');
+    expect(result.meta.limit).toBe(2);
+    expect(Object.keys(result)).toEqual(['data', 'meta']);
+    expect(Object.keys(result.meta).sort()).toEqual(
+      ['hasMore', 'limit', 'nextCursor', 'nextPageUrl'].sort(),
+    );
   });
 
-  it('returns hasMore=false when no more results', async () => {
+  it('returns exact response shape with hasMore=false', async () => {
     (client.findMany as any).mockResolvedValue([{ id: 1 }]);
     const result = (await controller.list(req())) as any;
     expect(result.meta.hasMore).toBe(false);
     expect(result.data).toEqual([{ id: 1 }]);
-  });
-
-  it('returns nextCursor when hasMore', async () => {
-    const result = (await controller.list(req())) as any;
-    expect(result.meta.nextCursor).toBeDefined();
-    expect(typeof result.meta.nextCursor).toBe('string');
-  });
-
-  it('no nextCursor when not hasMore', async () => {
-    (client.findMany as any).mockResolvedValue([{ id: 1 }]);
-    const result = (await controller.list(req())) as any;
     expect(result.meta.nextCursor).toBeUndefined();
+    expect(result.meta.nextPageUrl).toBeUndefined();
+    expect(Object.keys(result.meta).sort()).toEqual(['hasMore', 'limit'].sort());
   });
 
   it('fetches limit+1 to detect hasMore', async () => {
@@ -735,22 +747,57 @@ describe('RelayerController cursor pagination', () => {
     );
   });
 
-  it('nextPageUrl includes cursor and limit', async () => {
-    const result = (await controller.list(req())) as any;
-    expect(result.meta.nextPageUrl).toContain('cursor=');
-    expect(result.meta.nextPageUrl).toContain('limit=2');
-  });
-
-  it('ensures cursor fields are added to select', async () => {
-    await controller.list(
+  it('adds cursor fields to select for query but strips them from response', async () => {
+    (client.findMany as any).mockResolvedValue([
+      { id: 1, title: 'A', createdAt: new Date('2025-01-01') },
+      { id: 2, title: 'B', createdAt: new Date('2025-01-02') },
+      { id: 3, title: 'C', createdAt: new Date('2025-01-03') },
+    ]);
+    const result = (await controller.list(
       req({
         select: '{"title":true}',
         orderBy: '{"field":"createdAt","order":"desc"}',
       }),
-    );
+    )) as any;
+    // Internal fields added for cursor building must be in the query
     const callArgs = (client.findMany as any).mock.calls[0][0];
     expect(callArgs.select.createdAt).toBe(true);
     expect(callArgs.select.id).toBe(true);
+    // But stripped from response — only user-requested fields remain
+    expect(result.data).toHaveLength(2);
+    for (const item of result.data) {
+      expect(Object.keys(item)).toEqual(['title']);
+      expect(typeof item.title).toBe('string');
+    }
+    // Cursor still works despite stripping
+    expect(typeof result.meta.nextCursor).toBe('string');
+  });
+
+  it('keeps user-requested cursor fields in response', async () => {
+    (client.findMany as any).mockResolvedValue([
+      { id: 1, title: 'A', createdAt: new Date('2025-01-01') },
+      { id: 2, title: 'B', createdAt: new Date('2025-01-02') },
+      { id: 3, title: 'C', createdAt: new Date('2025-01-03') },
+    ]);
+    const result = (await controller.list(
+      req({
+        select: '{"title":true,"createdAt":true,"id":true}',
+        orderBy: '{"field":"createdAt","order":"desc"}',
+      }),
+    )) as any;
+    // User explicitly requested these — they must stay
+    for (const item of result.data) {
+      expect(item).toHaveProperty('title');
+      expect(item).toHaveProperty('createdAt');
+      expect(item).toHaveProperty('id');
+      expect(Object.keys(item).sort()).toEqual(['createdAt', 'id', 'title']);
+    }
+  });
+
+  it('does not strip fields when no select filter', async () => {
+    const result = (await controller.list(req())) as any;
+    // Without select, all fields are returned as-is
+    expect(result.data).toEqual([{ id: 1 }, { id: 2 }]);
   });
 
   it('calls beforeFind hook in cursor mode', async () => {
@@ -762,25 +809,23 @@ describe('RelayerController cursor pagination', () => {
     expect(hookSpies.beforeFind).toHaveBeenCalled();
   });
 
-  it('applies dtoMapper.toListItem in cursor mode', async () => {
+  it('applies dtoMapper.toListItem and returns mapped shape', async () => {
     const mapperSpies = {
-      toListItem: vi.fn((entity: any) => ({ ...entity, mapped: true })),
+      toListItem: vi.fn((entity: any) => ({ mappedId: entity.id })),
       toResponse: vi.fn(),
     };
     (controller as any).resolvedDtoMapper = mapperSpies;
     (controller as any).dtoMapperResolved = true;
 
     const result = (await controller.list(req())) as any;
-    expect(mapperSpies.toListItem).toHaveBeenCalled();
-    expect(result.data[0]).toHaveProperty('mapped', true);
+    expect(mapperSpies.toListItem).toHaveBeenCalledTimes(2);
+    expect(result.data).toEqual([{ mappedId: 1 }, { mappedId: 2 }]);
   });
 
   it('merges cursor where with existing where', async () => {
-    // First get a cursor from a normal request
     const first = (await controller.list(req())) as any;
     const cursor = first.meta.nextCursor;
 
-    // Then use cursor + where
     (client.findMany as any).mockResolvedValue([{ id: 10 }]);
     await controller.list(req({ cursor, where: '{"published":true}' }));
     const callArgs = (client.findMany as any).mock.calls[1][0];
