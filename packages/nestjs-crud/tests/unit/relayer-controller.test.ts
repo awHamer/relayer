@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
@@ -176,7 +176,11 @@ describe('RelayerController', () => {
 
     it('throws NotFoundException when not found', async () => {
       (client.findFirst as any).mockResolvedValue(null);
-      await expect(controller.findOne('1', {})).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne('9999', {})).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException for out-of-range numeric id', async () => {
+      await expect(controller.findOne('9999999999', {})).rejects.toThrow(BadRequestException);
     });
 
     it('parses numeric id by default', async () => {
@@ -210,6 +214,19 @@ describe('RelayerController', () => {
         data: { title: 'X' },
       });
     });
+
+    it('throws NotFoundException when entity not found', async () => {
+      (client.update as any).mockResolvedValue(null);
+      await expect(controller.doUpdate('9999', { title: 'X' }, {})).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws BadRequestException for out-of-range numeric id', async () => {
+      await expect(controller.doUpdate('9999999999', { title: 'X' }, {})).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   describe('handleDelete', () => {
@@ -218,9 +235,13 @@ describe('RelayerController', () => {
       expect(result.data).toEqual({ id: 1 });
     });
 
-    it('throws NotFoundException when delete returns falsy', async () => {
+    it('throws NotFoundException when entity not found', async () => {
       (client.delete as any).mockResolvedValue(null);
-      await expect(controller.doDelete('1', {})).rejects.toThrow(NotFoundException);
+      await expect(controller.doDelete('9999', {})).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException for out-of-range numeric id', async () => {
+      await expect(controller.doDelete('9999999999', {})).rejects.toThrow(BadRequestException);
     });
 
     it('passes parsed id as where', async () => {

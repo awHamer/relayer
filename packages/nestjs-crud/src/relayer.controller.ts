@@ -457,7 +457,10 @@ export class RelayerController<
     }
 
     if (!updated) {
-      return { data: { success: true } };
+      if (Object.keys(relationOps).length > 0) {
+        return { data: { success: true } };
+      }
+      throw new NotFoundException('Entity not found');
     }
 
     const transformed = dtoMapper ? await dtoMapper.toSingleItem(updated, ctx) : updated;
