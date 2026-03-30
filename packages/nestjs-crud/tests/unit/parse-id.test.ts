@@ -11,8 +11,28 @@ describe('ParseIdPipe', () => {
       expect(pipe.transform('123')).toBe(123);
     });
 
-    it('throws BadRequestException on non-numeric string', () => {
+    it('parses max valid int32', () => {
+      expect(pipe.transform('2147483647')).toBe(2147483647);
+    });
+
+    it('throws on non-numeric string', () => {
       expect(() => pipe.transform('abc')).toThrow(BadRequestException);
+    });
+
+    it('throws on out-of-range integer (> int32 max)', () => {
+      expect(() => pipe.transform('9999999999')).toThrow(BadRequestException);
+    });
+
+    it('throws on zero', () => {
+      expect(() => pipe.transform('0')).toThrow(BadRequestException);
+    });
+
+    it('throws on negative', () => {
+      expect(() => pipe.transform('-1')).toThrow(BadRequestException);
+    });
+
+    it('throws on float', () => {
+      expect(() => pipe.transform('1.5')).toThrow(BadRequestException);
     });
   });
 

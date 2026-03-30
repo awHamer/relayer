@@ -5,8 +5,8 @@ export class ParseIdPipe implements PipeTransform {
 
   transform(value: string): string | number {
     if (this.idType === 'number') {
-      const num = parseInt(value, 10);
-      if (isNaN(num)) {
+      const num = Number(value);
+      if (!Number.isInteger(num) || num < 1 || num > 2147483647) {
         throw new BadRequestException(`Invalid ID: "${value}" is not a valid number`);
       }
       return num;
