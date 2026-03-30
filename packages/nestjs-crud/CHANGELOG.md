@@ -1,5 +1,21 @@
 # @relayerjs/nestjs-crud
 
+## 0.2.0
+
+### Minor Changes
+
+- 26602a3: - Add relation endpoints POST/DELETE/PUT `/:id/relations/:name` for connect/disconnect/set
+  - Extended hooks for relations: `beforeRelation`, `afterRelation`
+  - Swagger auto-generation for all CRUD and relation routes
+  - Stable cursor pagination: `'cursor'` mode, deprecate `'cursor_UNSTABLE'`
+
+### Patch Changes
+
+- 44d2758: - Fix ParseIdPipe: validate int32 range (1..2147483647), reject floats, zero, negative
+  - Fix handleUpdate: throw NotFoundException when entity not found (was returning `{ success: true }`)
+- Updated dependencies [87e41f5]
+  - @relayerjs/drizzle@0.6.1
+
 ## 0.1.2
 
 ### Patch Changes
