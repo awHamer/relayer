@@ -11,26 +11,18 @@ const usersMetadata = registry.get('users')!;
 const postsMetadata = registry.get('posts')!;
 
 describe('buildSelect', () => {
-  it('undefined select returns all scalar columns', () => {
+  it('undefined select returns exactly all scalar columns', () => {
     const result = buildSelect(undefined, users, usersMetadata, new Map());
-    const columnNames = Object.keys(result.columns);
-    expect(columnNames).toContain('id');
-    expect(columnNames).toContain('firstName');
-    expect(columnNames).toContain('lastName');
-    expect(columnNames).toContain('email');
-    expect(columnNames).toContain('metadata');
-    expect(columnNames).toContain('createdAt');
+    const columnNames = Object.keys(result.columns).sort();
+    expect(columnNames).toEqual(['createdAt', 'email', 'firstName', 'id', 'lastName', 'metadata']);
+    expect(result.requestedRelations).toEqual([]);
+    expect(result.requestedComputed).toEqual([]);
+    expect(result.requestedDerived).toEqual([]);
   });
 
-  it('selective true picks only specified columns', () => {
+  it('selective true picks exactly specified columns, nothing else', () => {
     const result = buildSelect({ id: true, firstName: true }, users, usersMetadata, new Map());
-    const columnNames = Object.keys(result.columns);
-    expect(columnNames).toContain('id');
-    expect(columnNames).toContain('firstName');
-    expect(columnNames).not.toContain('lastName');
-    expect(columnNames).not.toContain('email');
-    expect(columnNames).not.toContain('metadata');
-    expect(columnNames).not.toContain('createdAt');
+    expect(Object.keys(result.columns).sort()).toEqual(['firstName', 'id']);
   });
 
   it('false value excludes field', () => {
@@ -101,12 +93,9 @@ describe('buildSelect', () => {
     expect(postsSelect).toEqual({ id: true, title: true });
   });
 
-  it('mix of scalar fields returns only selected ones when no relations', () => {
+  it('mix of scalar fields returns exactly selected ones', () => {
     const result = buildSelect({ id: true, firstName: true }, users, usersMetadata, new Map());
-    const columnNames = Object.keys(result.columns);
-    expect(columnNames).toEqual(expect.arrayContaining(['id', 'firstName']));
-    expect(columnNames).not.toContain('lastName');
-    expect(columnNames).not.toContain('email');
+    expect(Object.keys(result.columns).sort()).toEqual(['firstName', 'id']);
   });
 
   it('requestedComputed is empty when no computed fields selected', () => {
@@ -165,7 +154,7 @@ describe('buildSelect', () => {
       expect(result.columns['createdAt']).toBeDefined();
     });
 
-    it('$raw works alongside regular boolean selects', () => {
+    it('$raw works alongside regular boolean selects, exact columns', () => {
       const result = buildSelect(
         { id: true, createdAt: { $raw: true }, firstName: true },
         users,
@@ -173,9 +162,7 @@ describe('buildSelect', () => {
         new Map(),
         pgAdapter,
       );
-      expect(Object.keys(result.columns)).toEqual(
-        expect.arrayContaining(['id', 'createdAt', 'firstName']),
-      );
+      expect(Object.keys(result.columns).sort()).toEqual(['createdAt', 'firstName', 'id']);
       expect(result.columns['createdAt']).toBeInstanceOf(SQL);
       expect(result.columns['id']).not.toBeInstanceOf(SQL);
     });

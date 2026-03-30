@@ -237,12 +237,19 @@ export class RelayerController<
           { field: idField, order: (baseOrderBy[0]?.order ?? 'asc') as 'asc' | 'desc' },
         ];
 
-    // Ensure cursor fields are in select
+    // Ensure cursor fields are in select (track internally-added ones for later stripping)
+    const cursorInternalFields: string[] = [];
     if (query.select) {
       for (const { field } of orderBy) {
-        if (!(field in query.select)) query.select[field] = true;
+        if (!(field in query.select)) {
+          query.select[field] = true;
+          cursorInternalFields.push(field);
+        }
       }
-      if (!(idField in query.select)) query.select[idField] = true;
+      if (!(idField in query.select)) {
+        query.select[idField] = true;
+        cursorInternalFields.push(idField);
+      }
     }
 
     if (query.cursor) {
@@ -285,6 +292,14 @@ export class RelayerController<
     const nextCursor = hasMore
       ? encodeCursor(results[results.length - 1] as Record<string, unknown>, orderBy, idField)
       : null;
+
+    if (cursorInternalFields.length > 0) {
+      for (const item of items) {
+        for (const field of cursorInternalFields) {
+          delete (item as Record<string, unknown>)[field];
+        }
+      }
+    }
 
     const basePath = this.getBasePath();
     const nextPageUrl = nextCursor

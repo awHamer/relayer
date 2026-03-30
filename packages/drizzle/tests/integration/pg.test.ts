@@ -25,24 +25,33 @@ afterAll(async () => {
 // findMany basics
 // ---------------------------------------------------------------------------
 describe('findMany basics', () => {
-  it('returns all users with default select', async () => {
-    const results = await r.users.findMany();
+  it('returns all users with exact fields and correct types', async () => {
+    const results = await r.users.findMany({ orderBy: { field: 'id', order: 'asc' } });
     expect(results).toHaveLength(4);
-    const keys = Object.keys(results[0]);
-    expect(keys).toEqual(
-      expect.arrayContaining(['id', 'firstName', 'lastName', 'email', 'metadata', 'createdAt']),
-    );
+    const expectedKeys = ['id', 'firstName', 'lastName', 'email', 'metadata', 'createdAt'];
+    for (const row of results) {
+      expect(Object.keys(row).sort()).toEqual(expectedKeys.sort());
+      expect(typeof row.id).toBe('number');
+      expect(typeof row.firstName).toBe('string');
+      expect(typeof row.lastName).toBe('string');
+      expect(typeof row.email).toBe('string');
+      expect(row.createdAt).toBeInstanceOf(Date);
+    }
+    expect(results[0].firstName).toBe('Ihor');
+    expect(typeof results[0].metadata).toBe('object');
   });
 
-  it('returns subset with explicit select', async () => {
+  it('returns only requested fields, nothing extra', async () => {
     const results = await r.users.findMany({ select: { id: true, firstName: true } });
     expect(results).toHaveLength(4);
-    const keys = Object.keys(results[0]);
-    expect(keys).toEqual(expect.arrayContaining(['id', 'firstName']));
-    expect(keys).not.toEqual(expect.arrayContaining(['email', 'lastName']));
+    for (const row of results) {
+      expect(Object.keys(row).sort()).toEqual(['firstName', 'id']);
+      expect(typeof row.id).toBe('number');
+      expect(typeof row.firstName).toBe('string');
+    }
   });
 
-  it('limit: 2 returns 2 results', async () => {
+  it('limit: 2 returns exactly 2 results', async () => {
     const results = await r.users.findMany({ limit: 2 });
     expect(results).toHaveLength(2);
   });
@@ -66,7 +75,6 @@ describe('findMany basics', () => {
 
   it('empty result with non-matching where', async () => {
     const results = await r.users.findMany({ where: { firstName: 'nonexistent' } });
-    expect(results).toHaveLength(0);
     expect(results).toEqual([]);
   });
 });
@@ -75,10 +83,14 @@ describe('findMany basics', () => {
 // findFirst
 // ---------------------------------------------------------------------------
 describe('findFirst', () => {
-  it('returns first match', async () => {
-    const result = await r.users.findFirst();
+  it('returns first match with all fields and correct types', async () => {
+    const result = await r.users.findFirst({ orderBy: { field: 'id', order: 'asc' } });
     expect(result).not.toBeNull();
-    expect(result.id).toBeDefined();
+    const expectedKeys = ['id', 'firstName', 'lastName', 'email', 'metadata', 'createdAt'];
+    expect(Object.keys(result).sort()).toEqual(expectedKeys.sort());
+    expect(typeof result.id).toBe('number');
+    expect(typeof result.firstName).toBe('string');
+    expect(result.createdAt).toBeInstanceOf(Date);
   });
 
   it('returns null when no match', async () => {
@@ -86,19 +98,26 @@ describe('findFirst', () => {
     expect(result).toBeNull();
   });
 
-  it('respects where', async () => {
-    const result = await r.users.findFirst({ where: { firstName: 'Ihor' } });
+  it('respects where and returns correct data', async () => {
+    const result = await r.users.findFirst({
+      select: { id: true, firstName: true },
+      where: { firstName: 'Ihor' },
+    });
     expect(result).not.toBeNull();
+    expect(Object.keys(result).sort()).toEqual(['firstName', 'id']);
     expect(result.firstName).toBe('Ihor');
+    expect(typeof result.id).toBe('number');
   });
 
-  it('respects orderBy desc', async () => {
+  it('respects select and orderBy, returns only requested fields', async () => {
     const result = await r.users.findFirst({
       select: { id: true, firstName: true },
       orderBy: { field: 'id', order: 'desc' },
     });
     expect(result).not.toBeNull();
+    expect(Object.keys(result).sort()).toEqual(['firstName', 'id']);
     expect(result.id).toBe(4);
+    expect(result.firstName).toBe('NullRole');
   });
 });
 
@@ -705,36 +724,56 @@ describe('select: derived', () => {
 // select: relations
 // ---------------------------------------------------------------------------
 describe('select: relations', () => {
-  it('one-to-many: users with posts', async () => {
+  it('one-to-many: users with posts — exact fields, correct types', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true, posts: { id: true, title: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(4);
+    for (const user of results) {
+      expect(Object.keys(user).sort()).toEqual(['firstName', 'id', 'posts']);
+      expect(typeof user.id).toBe('number');
+      expect(typeof user.firstName).toBe('string');
+      expect(Array.isArray(user.posts)).toBe(true);
+      for (const post of user.posts as any[]) {
+        expect(Object.keys(post).sort()).toEqual(['id', 'title']);
+        expect(typeof post.id).toBe('number');
+        expect(typeof post.title).toBe('string');
+      }
+    }
     // Ihor has 2 posts
     expect(results[0].posts).toHaveLength(2);
-    expect(results[0].posts[0]).toHaveProperty('title');
-    expect(results[0].posts[0]).toHaveProperty('id');
   });
 
-  it('many-to-one: posts with author', async () => {
+  it('many-to-one: posts with author — exact fields, no FK leak', async () => {
     const results = await r.posts.findMany({
       select: { id: true, title: true, author: { firstName: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(4);
-    expect(results[0].author).toBeDefined();
+    for (const post of results) {
+      expect(Object.keys(post).sort()).toEqual(['author', 'id', 'title']);
+      expect(typeof post.id).toBe('number');
+      expect(typeof post.title).toBe('string');
+      expect(post.author).not.toBeNull();
+      expect(Object.keys(post.author)).toEqual(['firstName']);
+      expect(typeof post.author.firstName).toBe('string');
+    }
     expect(results[0].author.firstName).toBe('Ihor');
   });
 
-  it('one-to-one: users with profile', async () => {
+  it('one-to-one: users with profile — exact fields', async () => {
     const results = await r.users.findMany({
       select: { id: true, profile: { bio: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(4);
+    for (const user of results) {
+      expect(Object.keys(user).sort()).toEqual(['id', 'profile']);
+    }
     // User 1 has profile
     expect(results[0].profile).not.toBeNull();
+    expect(Object.keys(results[0].profile)).toEqual(['bio']);
     expect(results[0].profile.bio).toBe('Full-stack developer');
     // User 2 has profile
     expect(results[1].profile).not.toBeNull();
@@ -747,6 +786,7 @@ describe('select: relations', () => {
       where: { id: 3 },
     });
     expect(results).toHaveLength(1);
+    expect(Object.keys(results[0]).sort()).toEqual(['id', 'profile']);
     expect(results[0].profile).toBeNull();
   });
 
@@ -756,28 +796,69 @@ describe('select: relations', () => {
       where: { id: 4 },
     });
     expect(results).toHaveLength(1);
+    expect(Object.keys(results[0]).sort()).toEqual(['id', 'posts']);
     expect(results[0].posts).toEqual([]);
   });
 
-  it('deep nesting: users -> posts -> comments', async () => {
+  it('deep nesting: users -> posts -> comments — exact fields at every level', async () => {
     const results = await r.users.findMany({
       select: { id: true, posts: { id: true, comments: { content: true } } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(4);
-    // User 1 (Ihor) has 2 posts
+    for (const user of results) {
+      expect(Object.keys(user).sort()).toEqual(['id', 'posts']);
+      for (const post of user.posts as any[]) {
+        expect(Object.keys(post).sort()).toEqual(['comments', 'id']);
+        for (const comment of post.comments as any[]) {
+          expect(Object.keys(comment)).toEqual(['content']);
+          expect(typeof comment.content).toBe('string');
+        }
+      }
+    }
+    // Ihor has 2 posts, Post 1 has 2 comments
     const ihorPosts = results[0].posts;
     expect(ihorPosts).toHaveLength(2);
-    // Post 1 (Hello World) has 2 comments
     const post1 = ihorPosts.find((p: any) => p.id === 1);
-    expect(post1).toBeDefined();
     expect(post1.comments).toHaveLength(2);
-    expect(post1.comments[0]).toHaveProperty('content');
+  });
+
+  it('relation: true returns all scalar columns with correct types', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, comments: true },
+      where: { id: 1 },
+    });
+    expect(results).toHaveLength(1);
+    expect(Object.keys(results[0]).sort()).toEqual(['comments', 'id']);
+    expect(results[0].comments).toHaveLength(2);
+    const expectedKeys = ['id', 'content', 'postId', 'authorId', 'createdAt'];
+    for (const comment of results[0].comments as any[]) {
+      expect(Object.keys(comment).sort()).toEqual(expectedKeys.sort());
+      expect(typeof comment.id).toBe('number');
+      expect(typeof comment.content).toBe('string');
+      expect(typeof comment.postId).toBe('number');
+      expect(typeof comment.authorId).toBe('number');
+      expect(comment.createdAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it('relation: true with one-to-one returns all fields', async () => {
+    const results = await r.users.findMany({
+      select: { id: true, profile: true },
+      where: { id: 1 },
+    });
+    expect(results).toHaveLength(1);
+    expect(Object.keys(results[0]).sort()).toEqual(['id', 'profile']);
+    expect(results[0].profile).not.toBeNull();
+    const expectedKeys = ['id', 'bio', 'userId'];
+    expect(Object.keys(results[0].profile).sort()).toEqual(expectedKeys.sort());
+    expect(typeof results[0].profile.id).toBe('number');
+    expect(results[0].profile.bio).toBe('Full-stack developer');
   });
 });
 
 describe('defaultRelationLimit', () => {
-  it('limits many-type relations to specified count', async () => {
+  it('limits many-type relations with exact fields', async () => {
     const limited: any = createRelayerDrizzle({
       db: pg.db,
       schema: pgSchema,
@@ -789,10 +870,14 @@ describe('defaultRelationLimit', () => {
       orderBy: { field: 'id', order: 'asc' },
     });
     // Ihor has 2 posts but limit is 1
-    expect(results[0].posts.length).toBeLessThanOrEqual(1);
+    expect(results[0].posts).toHaveLength(1);
+    expect(Object.keys(results[0]).sort()).toEqual(['id', 'posts']);
+    expect(Object.keys(results[0].posts[0]).sort()).toEqual(['id', 'title']);
+    expect(typeof results[0].posts[0].id).toBe('number');
+    expect(typeof results[0].posts[0].title).toBe('string');
   });
 
-  it('does not limit one-type relations', async () => {
+  it('does not limit one-type relations, returns exact fields', async () => {
     const limited: any = createRelayerDrizzle({
       db: pg.db,
       schema: pgSchema,
@@ -803,12 +888,13 @@ describe('defaultRelationLimit', () => {
       select: { id: true, author: { firstName: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
-    // one-to-one relation should still resolve
-    expect(results[0].author).toBeDefined();
+    expect(results[0].author).not.toBeNull();
+    expect(Object.keys(results[0]).sort()).toEqual(['author', 'id']);
+    expect(Object.keys(results[0].author)).toEqual(['firstName']);
     expect(results[0].author.firstName).toBe('Ihor');
   });
 
-  it('applies limit to nested many-type relations', async () => {
+  it('applies limit to nested many-type relations with exact fields', async () => {
     const limited: any = createRelayerDrizzle({
       db: pg.db,
       schema: pgSchema,
@@ -819,36 +905,47 @@ describe('defaultRelationLimit', () => {
       select: { id: true, posts: { id: true, comments: { content: true } } },
       orderBy: { field: 'id', order: 'asc' },
     });
-    // posts limited to 1
-    expect(results[0].posts.length).toBeLessThanOrEqual(1);
-    // comments on that post also limited to 1
-    if (results[0].posts.length > 0 && results[0].posts[0].comments.length > 0) {
-      expect(results[0].posts[0].comments.length).toBeLessThanOrEqual(1);
+    expect(results[0].posts).toHaveLength(1);
+    expect(Object.keys(results[0].posts[0]).sort()).toEqual(['comments', 'id']);
+    if (results[0].posts[0].comments.length > 0) {
+      expect(results[0].posts[0].comments).toHaveLength(1);
+      expect(Object.keys(results[0].posts[0].comments[0])).toEqual(['content']);
     }
   });
 
-  it('no limit when defaultRelationLimit is not set', async () => {
+  it('no limit when defaultRelationLimit is not set, exact fields only', async () => {
     const results = await r.users.findMany({
       select: { id: true, posts: { id: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     // Ihor has 2 posts, no limit applied
     expect(results[0].posts).toHaveLength(2);
+    expect(Object.keys(results[0]).sort()).toEqual(['id', 'posts']);
+    for (const post of results[0].posts as any[]) {
+      expect(Object.keys(post)).toEqual(['id']);
+      expect(typeof post.id).toBe('number');
+    }
   });
 });
 
 describe('$limit in select', () => {
-  it('limits relation with $limit', async () => {
+  it('limits relation and returns only requested fields with correct types', async () => {
     const results = await r.users.findMany({
       select: { id: true, posts: { $limit: 1, id: true, title: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     // Ihor has 2 posts but $limit: 1
-    expect(results[0].posts.length).toBeLessThanOrEqual(1);
-    expect(results[0].posts[0]).toHaveProperty('title');
+    expect(results[0].posts).toHaveLength(1);
+    // Only requested fields, nothing extra
+    expect(Object.keys(results[0])).toEqual(expect.arrayContaining(['id', 'posts']));
+    expect(Object.keys(results[0])).toHaveLength(2);
+    const post = results[0].posts[0];
+    expect(Object.keys(post).sort()).toEqual(['id', 'title']);
+    expect(typeof post.id).toBe('number');
+    expect(typeof post.title).toBe('string');
   });
 
-  it('$limit overrides defaultRelationLimit', async () => {
+  it('$limit overrides defaultRelationLimit and returns only requested fields', async () => {
     const limited: any = createRelayerDrizzle({
       db: pg.db,
       schema: pgSchema,
@@ -861,19 +958,25 @@ describe('$limit in select', () => {
     });
     // $limit: 10 overrides defaultRelationLimit: 1, Ihor has 2 posts
     expect(results[0].posts).toHaveLength(2);
+    expect(Object.keys(results[0].posts[0])).toEqual(['id']);
+    expect(typeof results[0].posts[0].id).toBe('number');
   });
 
-  it('$limit does not appear in result fields', async () => {
+  it('returns no $limit, no FK columns, no unrequested fields in results', async () => {
     const results = await r.users.findMany({
       select: { id: true, posts: { $limit: 1, id: true, title: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
-    if (results[0].posts.length > 0) {
-      expect(results[0].posts[0]).not.toHaveProperty('$limit');
-    }
+    const post = results[0].posts[0];
+    expect(post).not.toHaveProperty('$limit');
+    expect(post).not.toHaveProperty('authorId');
+    expect(post).not.toHaveProperty('createdAt');
+    expect(post).not.toHaveProperty('content');
+    expect(post).not.toHaveProperty('published');
+    expect(post).not.toHaveProperty('tags');
   });
 
-  it('$limit applies per parent, not globally', async () => {
+  it('$limit applies per parent, not globally, with exact fields', async () => {
     // Post 1 has 2 comments, Post 2 has 1 comment
     const results = await r.posts.findMany({
       select: { id: true, comments: { $limit: 1, id: true, content: true } },
@@ -882,13 +985,34 @@ describe('$limit in select', () => {
     });
     const post1 = results.find((p: any) => p.id === 1);
     const post2 = results.find((p: any) => p.id === 2);
-    // Post 1: 2 comments -> limited to 1
     expect(post1.comments).toHaveLength(1);
-    // Post 2: 1 comment -> still gets its own comment (not stolen by post 1)
     expect(post2.comments).toHaveLength(1);
+    // Only requested fields
+    expect(Object.keys(post1.comments[0]).sort()).toEqual(['content', 'id']);
+    expect(typeof post1.comments[0].id).toBe('number');
+    expect(typeof post1.comments[0].content).toBe('string');
+    // No leaked FK or timestamp columns
+    expect(post1.comments[0]).not.toHaveProperty('postId');
+    expect(post1.comments[0]).not.toHaveProperty('authorId');
+    expect(post1.comments[0]).not.toHaveProperty('createdAt');
   });
 
-  it('works on nested relations', async () => {
+  it('timestamp fields are Date objects when requested with $limit', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, comments: { $limit: 2, id: true, createdAt: true } },
+      where: { id: { in: [1, 2] } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    for (const post of results) {
+      for (const comment of post.comments as any[]) {
+        expect(Object.keys(comment).sort()).toEqual(['createdAt', 'id']);
+        expect(typeof comment.id).toBe('number');
+        expect(comment.createdAt).toBeInstanceOf(Date);
+      }
+    }
+  });
+
+  it('works on nested relations with exact field validation', async () => {
     const results = await r.users.findMany({
       select: {
         id: true,
@@ -897,13 +1021,34 @@ describe('$limit in select', () => {
       orderBy: { field: 'id', order: 'asc' },
     });
     for (const user of results) {
+      expect(Object.keys(user).sort()).toEqual(['id', 'posts']);
       for (const post of user.posts as any[]) {
+        expect(Object.keys(post).sort()).toEqual(['comments', 'id']);
         expect(post.comments.length).toBeLessThanOrEqual(1);
         if (post.comments.length > 0) {
-          expect(post.comments[0]).toHaveProperty('content');
+          expect(Object.keys(post.comments[0])).toEqual(['content']);
+          expect(typeof post.comments[0].content).toBe('string');
         }
       }
     }
+  });
+
+  it('$limit without explicit fields returns all scalar columns with correct types', async () => {
+    const results = await r.posts.findMany({
+      select: { id: true, comments: { $limit: 2 } },
+      where: { id: { in: [1, 2] } },
+      orderBy: { field: 'id', order: 'asc' },
+    });
+    const post1 = results.find((p: any) => p.id === 1);
+    expect(post1.comments.length).toBeGreaterThan(0);
+    const comment = post1.comments[0];
+    const expectedKeys = ['id', 'content', 'postId', 'authorId', 'createdAt'];
+    expect(Object.keys(comment).sort()).toEqual(expectedKeys.sort());
+    expect(typeof comment.id).toBe('number');
+    expect(typeof comment.content).toBe('string');
+    expect(typeof comment.postId).toBe('number');
+    expect(typeof comment.authorId).toBe('number');
+    expect(comment.createdAt).toBeInstanceOf(Date);
   });
 });
 

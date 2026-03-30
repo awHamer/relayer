@@ -232,17 +232,24 @@ describe('dialect-specific: JSON', () => {
 // core: findMany
 // ---------------------------------------------------------------------------
 describe('core: findMany', () => {
-  it('returns all users', async () => {
-    const results = await r.users.findMany();
+  it('returns all users with exact fields and types', async () => {
+    const results = await r.users.findMany({ orderBy: { field: 'id', order: 'asc' } });
     expect(results).toHaveLength(3);
+    const expectedKeys = ['id', 'firstName', 'lastName', 'email', 'metadata'];
+    for (const row of results) {
+      expect(Object.keys(row).sort()).toEqual(expectedKeys.sort());
+      expect(typeof row.id).toBe('number');
+      expect(typeof row.firstName).toBe('string');
+    }
   });
 
-  it('filters with where: firstName = Ihor', async () => {
+  it('returns only requested fields, nothing extra', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true },
       where: { firstName: 'Ihor' },
     });
     expect(results).toHaveLength(1);
+    expect(Object.keys(results[0]).sort()).toEqual(['firstName', 'id']);
     expect(results[0].firstName).toBe('Ihor');
   });
 });
@@ -251,12 +258,17 @@ describe('core: findMany', () => {
 // core: computed field
 // ---------------------------------------------------------------------------
 describe('core: computed field', () => {
-  it('select fullName returns concatenated value', async () => {
+  it('select fullName returns concatenated value with exact fields', async () => {
     const results = await r.users.findMany({
       select: { id: true, fullName: true },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(3);
+    for (const row of results) {
+      expect(Object.keys(row).sort()).toEqual(['fullName', 'id']);
+      expect(typeof row.id).toBe('number');
+      expect(typeof row.fullName).toBe('string');
+    }
     expect(results[0].fullName).toBe('Ihor Ivanov');
     expect(results[1].fullName).toBe('John Doe');
     expect(results[2].fullName).toBe('Jane Smith');
@@ -267,28 +279,38 @@ describe('core: computed field', () => {
 // core: relations
 // ---------------------------------------------------------------------------
 describe('core: relations', () => {
-  it('one-to-many: users with posts', async () => {
+  it('one-to-many: users with posts — exact fields, no extra', async () => {
     const results = await r.users.findMany({
       select: { id: true, firstName: true, posts: { title: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(3);
-    // Ihor has 2 posts
+    for (const user of results) {
+      expect(Object.keys(user).sort()).toEqual(['firstName', 'id', 'posts']);
+      expect(Array.isArray(user.posts)).toBe(true);
+      for (const post of user.posts as any[]) {
+        expect(Object.keys(post)).toEqual(['title']);
+        expect(typeof post.title).toBe('string');
+      }
+    }
     expect(results[0].posts).toHaveLength(2);
     expect(results[0].posts.map((p: any) => p.title).sort()).toEqual(['Hello World', 'TS Tips']);
-    // John has 1 post
     expect(results[1].posts).toHaveLength(1);
-    // Jane has 0 posts
     expect(results[2].posts).toEqual([]);
   });
 
-  it('many-to-one: posts with author', async () => {
+  it('many-to-one: posts with author — exact fields, no FK leak', async () => {
     const results = await r.posts.findMany({
       select: { id: true, author: { firstName: true } },
       orderBy: { field: 'id', order: 'asc' },
     });
     expect(results).toHaveLength(3);
-    expect(results[0].author).toBeDefined();
+    for (const post of results) {
+      expect(Object.keys(post).sort()).toEqual(['author', 'id']);
+      expect(post.author).not.toBeNull();
+      expect(Object.keys(post.author)).toEqual(['firstName']);
+      expect(typeof post.author.firstName).toBe('string');
+    }
     expect(results[0].author.firstName).toBe('Ihor');
     expect(results[2].author.firstName).toBe('John');
   });
@@ -308,15 +330,17 @@ describe('core: count', () => {
 // core: mutations
 // ---------------------------------------------------------------------------
 describe('core: mutations', () => {
-  it('create returns with RETURNING (id present)', async () => {
+  it('create returns entity with all fields and correct types', async () => {
     const created = await r.users.create({
       data: { firstName: 'New', lastName: 'U', email: 'new@t.com' },
     });
-    expect(created).toBeDefined();
-    expect(created.id).toBeDefined();
+    expect(created).not.toBeNull();
+    expect(typeof created.id).toBe('number');
     expect(created.firstName).toBe('New');
     expect(created.lastName).toBe('U');
     expect(created.email).toBe('new@t.com');
+    const expectedKeys = ['id', 'firstName', 'lastName', 'email', 'metadata'];
+    expect(Object.keys(created).sort()).toEqual(expectedKeys.sort());
   });
 });
 
