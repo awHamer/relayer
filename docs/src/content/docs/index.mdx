@@ -3,7 +3,7 @@ title: Relayer
 description: Type-safe repository layer for ORMs with computed fields, derived fields, and a powerful query DSL.
 template: splash
 hero:
-  tagline: Type-safe repository layer for ORMs with class-based entity models, computed fields, derived fields, and a powerful query DSL. Currently supports Drizzle ORM.
+  tagline: Type-safe repository layer that sits between your ORM and your API. Computed fields, derived fields, Prisma-like query DSL, and framework integrations for Next.js and NestJS.
   actions:
     - text: Get Started
       link: /getting-started/
@@ -18,84 +18,68 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## Why Relayer?
 
-Over the years, across many projects, the same pattern kept appearing: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model, with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
+Relayer makes dynamic fields (computed, derived, JSON) a first-class part of your data model — filterable, sortable, selectable, and aggregatable on equal terms with regular columns. Not through raw SQL escape hatches, but as a core design principle. The query DSL is a plain JSON-serializable object, ready to wire up as REST or GraphQL filters.
 
-Relayer is that pattern extracted into a library. Built with **API integration in mind** from day one.
+Currently ships with a [Drizzle ORM](https://orm.drizzle.team) adapter. Adapters for Kysely, TypeORM, and other ORMs are planned.
 
-## Key Features
+## Core Features
 
 <CardGrid>
-  <Card title="Class-Based Entities" icon="document">
-    Define computed and derived fields with decorators on entity classes. The class is the single
-    source of truth for your data model.
+  <Card title="First-Class Dynamic Fields" icon="puzzle">
+    Computed, derived, and JSON fields are type-safe, filterable, sortable, and selectable — treated
+    equally to regular columns.
   </Card>
-  <Card title="Query DSL" icon="magnifier">
-    Prisma-like `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain
-    JSON-serializable object, making it trivial to wire up as REST/GraphQL filters.
+  <Card title="Complex Filtering" icon="magnifier">
+    AND, OR, NOT, relation filters (some, every, none), custom SQL in where, 20+ operators. All as a
+    JSON-serializable DSL.
   </Card>
-  <Card title="Computed Fields" icon="puzzle">
-    Virtual SQL expressions evaluated at SELECT time. No raw queries, no post-processing: just
-    declare and use.
-  </Card>
-  <Card title="Derived Fields" icon="rocket">
-    Automatic subquery JOINs with full filtering and sorting support. Scalar and object-type values
-    with type-safe dot notation.
-  </Card>
-  <Card title="JSON Filtering" icon="list-format">
-    Transparent nested path queries on JSON columns with auto type casting for numeric and boolean
-    comparisons.
-  </Card>
-  <Card title="Relation Filters" icon="random">
-    `exists`, `some`, `every`, `none`: filter parent records based on related data via EXISTS
-    subqueries.
+  <Card title="Relations" icon="random">
+    Batch loading without N+1, per-relation row limits, connect/disconnect/set for managing
+    relations in mutations.
   </Card>
   <Card title="Aggregations" icon="bars">
-    `_count`, `_sum`, `_avg`, `_min`, `_max` with `groupBy` and dot-notation for cross-table
-    grouping via automatic LEFT JOIN.
+    \_count, \_sum, \_avg, \_min, \_max with groupBy and having. Full support for computed, derived,
+    and JSON fields.
+  </Card>
+  <Card title="Type-Safe Autocomplete" icon="rocket">
+    Full inference for own fields, nested relations, and even nested derived fields across entities.
   </Card>
   <Card title="Multi-Dialect" icon="translate">
-    PostgreSQL, MySQL, and SQLite. Dialect-specific SQL is handled automatically: `ILIKE`, array
-    operators, JSON paths, `RETURNING`.
+    PostgreSQL, MySQL, SQLite with dialect-aware optimizations for ILIKE, array operators, JSON
+    paths, RETURNING.
+  </Card>
+</CardGrid>
+
+## Framework Integrations
+
+<CardGrid>
+  <Card title="Next.js" icon="right-arrow">
+    Type-safe App Router route handlers with validation, lifecycle hooks, SSR direct calls, and
+    configurable field whitelists. [Learn more →](/next/getting-started/)
+  </Card>
+  <Card title="NestJS" icon="setting">
+    Full-featured REST CRUD with DI-native services, lifecycle hooks, DTO mapping, complex filters,
+    pagination, and Swagger auto-docs. [Learn more →](/nestjs/getting-started/)
   </Card>
 </CardGrid>
 
 ## Packages
 
-| Package              | Description                           |
-| -------------------- | ------------------------------------- |
-| `@relayerjs/drizzle` | Drizzle ORM adapter, the main package |
-| `@relayerjs/core`    | ORM-agnostic types and contracts      |
-| `@relayerjs/next`    | Next.js App Router integration        |
+| Package                  | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `@relayerjs/drizzle`     | Drizzle ORM adapter — main package              |
+| `@relayerjs/core`        | ORM-agnostic types and contracts                |
+| `@relayerjs/next`        | Next.js App Router CRUD integration             |
+| `@relayerjs/nestjs-crud` | NestJS CRUD controllers with DI, hooks, Swagger |
 
 ## Quick Example
 
 ```ts
-import { relations } from 'drizzle-orm';
-import { integer, jsonb, pgTable, serial, text } from 'drizzle-orm/pg-core';
 import { createRelayerDrizzle, createRelayerEntity } from '@relayerjs/drizzle';
 
-// Schema
-const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  metadata: jsonb('metadata').$type<{ role: string; level: number }>(),
-});
+import * as schema from './schema'; // your Drizzle schema
 
-const posts = pgTable('posts', {
-  id: serial('id').primaryKey(),
-  title: text('title').notNull(),
-  authorId: integer('author_id')
-    .notNull()
-    .references(() => users.id),
-});
-
-const usersRelations = relations(users, ({ many }) => ({ posts: many(posts) }));
-const postsRelations = relations(posts, ({ one }) => ({
-  author: one(users, { fields: [posts.authorId], references: [users.id] }),
-}));
-const schema = { users, posts, usersRelations, postsRelations };
-
-// Entity model
+// Entity model with computed and derived fields
 const UserEntity = createRelayerEntity(schema, 'users');
 
 class User extends UserEntity {
@@ -105,55 +89,38 @@ class User extends UserEntity {
   displayName!: string;
 
   @UserEntity.derived({
-    shape: { postsCount: 'number', latestTitle: 'string' },
     query: ({ db, schema: s, sql, field }) =>
       db
-        .select({
-          [field('postsCount')]: sql<number>`count(*)::int`,
-          [field('latestTitle')]: sql<string>`max(${s.posts.title})`,
-          authorId: s.posts.authorId,
-        })
+        .select({ [field()]: sql<number>`count(*)::int`, authorId: s.posts.authorId })
         .from(s.posts)
         .groupBy(s.posts.authorId),
     on: ({ parent, derived, eq }) => eq(parent.id, derived.authorId),
   })
-  stats!: { postsCount: number; latestTitle: string };
+  postsCount!: number;
 }
 
-// Relayer client
-const r = createRelayerDrizzle({
-  db,
-  schema,
-  entities: { users: User },
-});
+const r = createRelayerDrizzle({ db, schema, entities: { users: User } });
 
 // Query: everything is fully type-safe
 const result = await r.users.findMany({
   select: {
     id: true,
     displayName: true,
-    stats: { postsCount: true },
-    posts: { id: true, title: true },
+    postsCount: true,
+    posts: { $limit: 5, id: true, title: true },
   },
   where: {
     metadata: { role: 'admin' },
     posts: { some: { title: { contains: 'Relayer' } } },
   },
-  orderBy: [
-    { field: 'metadata.level', order: 'desc' },
-    { field: 'stats.postsCount', order: 'desc' },
-  ],
+  orderBy: { field: 'postsCount', order: 'desc' },
   limit: 10,
 });
 
-// Aggregation
+// Aggregation with full computed/derived/JSON support
 const stats = await r.posts.aggregate({
   groupBy: ['author.name'],
   _count: true,
   _max: { title: true },
 });
 ```
-
-## Inspiration
-
-Relayer is inspired by Prisma query API, Hasura GraphQL filters, nestjs-query, and many other tools that make database access feel effortless.
