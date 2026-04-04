@@ -1,42 +1,71 @@
-# Relayer
-
-Type-safe repository layer for ORMs with computed fields, derived fields, and a powerful query DSL. Currently supports [Drizzle ORM](https://orm.drizzle.team).
+<div align="center">
+  <h1>⚡ Relayer</h1>
+  <p><strong>Type-safe repository layer for ORMs.</strong><br/>
+  Computed fields, derived fields, Prisma-like query DSL, and framework integrations.</p>
 
 [![npm version](https://img.shields.io/npm/v/@relayerjs/drizzle.svg)](https://www.npmjs.com/package/@relayerjs/drizzle)
 [![npm downloads](https://img.shields.io/npm/dm/@relayerjs/drizzle.svg)](https://www.npmjs.com/package/@relayerjs/drizzle)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
+</div>
+
+## Packages
+
+| Package                                          | Description                                     |
+| ------------------------------------------------ | ----------------------------------------------- |
+| [@relayerjs/drizzle](./packages/drizzle)         | Drizzle ORM adapter — main package              |
+| [@relayerjs/core](./packages/core)               | ORM-agnostic types and contracts                |
+| [@relayerjs/next](./packages/next)               | Next.js App Router CRUD integration             |
+| [@relayerjs/nestjs-crud](./packages/nestjs-crud) | NestJS CRUD controllers with DI, hooks, Swagger |
+
+## Table of Contents
+
+- [Why Relayer?](#why-relayer)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Next.js Integration](#nextjs-integration)
+- [NestJS Integration](#nestjs-integration)
+- [Documentation](#documentation)
+- [Examples](#examples)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Why Relayer?
 
-Over the years, across many projects, we kept reimplementing the same pattern: a repository layer that brings database queries closer to API filters and makes dynamic fields (computed, derived) a first-class part of the data model, with full support for filtering, sorting, and aggregation. Not as an afterthought, not through raw SQL escape hatches, but as a core design principle.
+Relayer is a repository layer that sits between your ORM and your API. It makes dynamic fields (computed, derived) a first-class part of the data model with full support for filtering, sorting, and aggregation — not through raw SQL escape hatches, but as a core design principle. The query DSL is a plain JSON-serializable object, making it trivial to wire up as REST or GraphQL filters.
 
-Relayer is that pattern extracted into a library. Built with **API integration in mind** from day one:
-
-- **Class-based entity model** with decorator-driven computed and derived fields
-- **API-friendly query DSL**: `findMany`, `where`, `select`, `orderBy` with 20+ operators. The DSL is a plain JSON-serializable object, making it trivial to wire up as REST/GraphQL filters
-- **Computed fields**: virtual SQL expressions, no raw queries
-- **Derived fields**: automatic subquery JOINs with full filtering and sorting support
-- **First-class JSON filtering**: nested path queries with full comparison operators
-- **Typed context**: pass per-request data (current user, tenant, etc.) to field resolvers
+Currently ships with a [Drizzle ORM](https://orm.drizzle.team) adapter and framework integrations for [Next.js](./packages/next) and [NestJS](./packages/nestjs-crud). The project is in active development — adapters for Kysely, TypeORM, and other ORMs are planned.
 
 ## Features
 
-- **Class-based entities**: define computed and derived fields with decorators on entity classes
-- **Query DSL**: select, where, orderBy, limit, offset
-- **Computed fields**: virtual columns defined as SQL expressions
-- **Derived fields**: automatic subquery JOINs (scalar and object types)
-- **First-class JSON integration**: transparent nested filtering with auto type casting
-- **20+ filter operators**: eq, ne, gt, gte, lt, lte, in, contains, ilike, isNull, and more
-- **Array operators**: arrayContains, arrayContained, arrayOverlaps (PostgreSQL)
-- **Relation filters**: exists, some, every, none
-- **Nested relation fields**: computed and derived fields on relations with cross-entity type propagation
-- **Aggregations**: \_count, \_sum, \_avg, \_min, \_max with groupBy and dot-notation
-- **Typed context**: pass per-query context to computed/derived resolvers
-- **Transactions**: $transaction with automatic client scoping
-- **Multi-dialect**: PostgreSQL, MySQL, SQLite
-- **Full TypeScript inference**: select, where, orderBy, aggregate result, and return type narrowing
+### Core / Drizzle
 
-Currently only [Drizzle ORM](https://orm.drizzle.team) (`>=0.38.0`) is supported. Future plans include adapters for TypeORM, Kysely, MikroORM, and others. The goal is a single unified query interface regardless of the underlying ORM. Contributions are always welcome.
+- **First-class dynamic fields** — computed, derived, and JSON fields are type-safe, filterable, sortable, and selectable — treated equally to regular columns
+- **Complex filtering** — AND, OR, NOT, relation filters (some, every, none), custom SQL in where, 20+ operators
+- **Relations** — batch loading without N+1, per-relation row limits (`$limit`), connect/disconnect/set for managing relations in mutations
+- **Aggregations** — \_count, \_sum, \_avg, \_min, \_max with groupBy and having — full support for computed, derived, and JSON fields
+- **Type-safe autocomplete** — full inference for own fields, nested relations, and even nested derived fields across entities
+- **Prisma-like query DSL** — findMany, findFirst, where, select, orderBy — JSON-serializable, ready for REST/GraphQL
+- **Transactions** — `$transaction` with automatic wrapping for relation operations
+- **Typed context** — pass per-request data (user, tenant) to field resolvers for row-level logic
+- **Multi-dialect** — PostgreSQL, MySQL, SQLite with dialect-aware optimizations
+
+### Next.js
+
+- **Type-safe App Router route handlers** (GET, POST, PATCH, DELETE)
+- **Built-in validation** (Zod) and lifecycle hooks
+- **SSR direct calls** — same Relayer client, no HTTP roundtrip
+- **Configurable field whitelists**, operator restrictions, and pagination limits
+
+### NestJS
+
+- **Full-featured REST CRUD** — services, controllers, and route generation out of the box
+- **Lifecycle hooks** and **DTO mapping** for full control over request/response pipeline
+- **Complex filters** — AND, OR, relations, JSON fields, computed/derived fields, search
+- **Cursor and offset pagination** with configurable limits
+- **Swagger/OpenAPI** auto-documentation
 
 ## Quick Start
 
@@ -44,44 +73,13 @@ Currently only [Drizzle ORM](https://orm.drizzle.team) (`>=0.38.0`) is supported
 npm install @relayerjs/drizzle drizzle-orm
 ```
 
-### Define your Drizzle schema
-
-```ts
-import { relations } from 'drizzle-orm';
-import { integer, jsonb, pgTable, serial, text } from 'drizzle-orm/pg-core';
-
-const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  email: text('email').notNull(),
-  metadata: jsonb('metadata').$type<{ role: string; level: number }>(),
-});
-
-const posts = pgTable('posts', {
-  id: serial('id').primaryKey(),
-  title: text('title').notNull(),
-  published: boolean('published').default(false).notNull(),
-  authorId: integer('author_id')
-    .notNull()
-    .references(() => users.id),
-});
-
-const usersRelations = relations(users, ({ many }) => ({
-  posts: many(posts),
-}));
-
-const postsRelations = relations(posts, ({ one }) => ({
-  author: one(users, { fields: [posts.authorId], references: [users.id] }),
-}));
-
-const schema = { users, posts, usersRelations, postsRelations };
-```
-
-### Define entity models
+### Define entities
 
 ```ts
 import { createRelayerDrizzle, createRelayerEntity } from '@relayerjs/drizzle';
+
+import { db } from './db';
+import * as schema from './schema'; // your Drizzle schema
 
 const UserEntity = createRelayerEntity(schema, 'users');
 
@@ -101,89 +99,153 @@ class User extends UserEntity {
   })
   postsCount!: number;
 }
-```
 
-### Create the Relayer client
-
-```ts
 const r = createRelayerDrizzle({
-  db, // your drizzle instance
+  db,
   schema,
   entities: { users: User },
-  maxRelationDepth: 3, // max nesting depth for relations (default: 3)
-  defaultRelationLimit: 20, // max rows per many-type relation (default: unlimited)
 });
 ```
 
-### Query with Prisma-like DSL
+### Query
 
 ```ts
-// Select + filter + order
-const results = await r.users.findMany({
-  select: { id: true, firstName: true, fullName: true, postsCount: true },
+const users = await r.users.findMany({
+  select: { id: true, fullName: true, postsCount: true },
   where: { email: { contains: '@example.com' } },
-  orderBy: { field: 'firstName', order: 'asc' },
+  orderBy: { field: 'postsCount', order: 'desc' },
   limit: 10,
 });
 
-// JSON filtering: transparent nested queries
+// JSON filtering
 const admins = await r.users.findMany({
   where: { metadata: { role: 'admin', level: { gte: 5 } } },
 });
 
-// Load relations (with per-relation row limit)
+// Relations with per-relation row limit
 const usersWithPosts = await r.users.findMany({
-  select: { id: true, firstName: true, posts: { $limit: 5, title: true } },
+  select: { id: true, fullName: true, posts: { $limit: 5, title: true } },
 });
 
-// Relation filters
-const activeAuthors = await r.users.findMany({
-  where: { posts: { some: { published: true } } },
-});
-
-// Aggregations: typed result inferred from options
+// Aggregations
 const stats = await r.orders.aggregate({
   groupBy: ['status'],
   _count: true,
   _sum: { total: true },
-  _avg: { total: true },
 });
-// stats: { status: string; _count: number; _sum: { total: number | null }; _avg: { total: number | null } }[]
-
-// Group by relation field (auto LEFT JOIN)
-const ordersByUser = await r.orders.aggregate({
-  groupBy: ['user.firstName'],
-  _count: true,
-});
-// ordersByUser: { user: { firstName: string }; _count: number }[]
 ```
 
-## Packages
+> For the full API reference (mutations, transactions, relations, type utilities), see the [@relayerjs/drizzle README](./packages/drizzle/README.md).
 
-| Package                                          | Description                       |
-| ------------------------------------------------ | --------------------------------- |
-| [@relayerjs/drizzle](./packages/drizzle)         | Drizzle ORM adapter, main package |
-| [@relayerjs/core](./packages/core)               | ORM-agnostic types and contracts  |
-| [@relayerjs/next](./packages/next)               | Next.js App Router integration    |
-| [@relayerjs/nestjs-crud](./packages/nestjs-crud) | NestJS CRUD controllers           |
+## Next.js Integration
+
+[@relayerjs/next](./packages/next) turns your Relayer entities into type-safe App Router route handlers with validation, hooks, and SSR support.
+
+```bash
+npm install @relayerjs/next @relayerjs/core @relayerjs/drizzle drizzle-orm next
+```
+
+```ts
+// lib/routes.ts
+import { createRelayerRoute } from '@relayerjs/next';
+
+export const userRoutes = createRelayerRoute(r, 'users', {
+  allowWhere: { email: { operators: ['eq', 'contains'] } },
+  allowOrderBy: ['name', 'createdAt', 'postsCount'],
+  maxLimit: 100,
+});
+
+// app/api/users/route.ts
+export const GET = userRoutes.list({
+  defaultSelect: { id: true, name: true, postsCount: true },
+  defaultOrderBy: { field: 'createdAt', order: 'desc' },
+});
+export const POST = userRoutes.create();
+
+// app/api/users/[id]/route.ts
+export const { GET, PATCH, DELETE } = userRoutes.detailHandlers();
+```
+
+> Full documentation: [@relayerjs/next README](./packages/next/README.md)
+
+## NestJS Integration
+
+[@relayerjs/nestjs-crud](./packages/nestjs-crud) provides DI-native services and auto-generated CRUD controllers with lifecycle hooks, DTO mapping, Swagger, and cursor/offset pagination.
+
+```bash
+npm install @relayerjs/nestjs-crud @relayerjs/core @relayerjs/drizzle drizzle-orm
+```
+
+```ts
+@Injectable()
+export class PostsService extends RelayerService<PostEntity, EM> {
+  constructor(@InjectRelayer() r: RelayerInstance<EM>) {
+    super(r, PostEntity);
+  }
+}
+
+@CrudController<PostEntity, EM>({
+  model: PostEntity,
+  routes: {
+    list: {
+      defaults: { orderBy: { field: 'createdAt', order: 'desc' } },
+      maxLimit: 50,
+      defaultLimit: 20,
+    },
+    create: { schema: createPostSchema },
+    update: { schema: updatePostSchema },
+  },
+})
+export class PostsController extends RelayerController<PostEntity, EM> {
+  constructor(postsService: PostsService) {
+    super(postsService);
+  }
+}
+```
+
+Auto-generated routes:
+
+| Method   | Path                         | Description                                      |
+| -------- | ---------------------------- | ------------------------------------------------ |
+| `GET`    | `/posts`                     | List with pagination, filtering, sorting, search |
+| `GET`    | `/posts/:id`                 | Find by ID                                       |
+| `POST`   | `/posts`                     | Create (validated)                               |
+| `PATCH`  | `/posts/:id`                 | Update (validated)                               |
+| `DELETE` | `/posts/:id`                 | Delete                                           |
+| `GET`    | `/posts/count`               | Count matching records                           |
+| `GET`    | `/posts/aggregate`           | Aggregation with groupBy                         |
+| `POST`   | `/posts/:id/relations/:name` | Connect relation                                 |
+| `DELETE` | `/posts/:id/relations/:name` | Disconnect relation                              |
+
+> Full documentation: [@relayerjs/nestjs-crud README](./packages/nestjs-crud/README.md)
 
 ## Documentation
 
 Full documentation is available at **[relayerjs.vercel.app](https://relayerjs.vercel.app)**
 
-See also the [Drizzle adapter README](./packages/drizzle/README.md) for a quick API reference.
+| Topic               | Link                                                               |
+| ------------------- | ------------------------------------------------------------------ |
+| Drizzle adapter     | [packages/drizzle/README.md](./packages/drizzle/README.md)         |
+| Next.js integration | [packages/next/README.md](./packages/next/README.md)               |
+| NestJS CRUD         | [packages/nestjs-crud/README.md](./packages/nestjs-crud/README.md) |
 
 ## Examples
 
-See the [examples/drizzle](./examples/drizzle) directory for runnable examples with PostgreSQL, MySQL, and SQLite.
+| Example                             | Directory                                      |
+| ----------------------------------- | ---------------------------------------------- |
+| Drizzle (PostgreSQL, MySQL, SQLite) | [examples/drizzle](./examples/drizzle)         |
+| NestJS CRUD                         | [examples/nestjs-crud](./examples/nestjs-crud) |
+| Next.js App Router                  | [examples/next](./examples/next)               |
 
 ## Roadmap
 
 Relayer is in early development. Planned packages:
 
-- **@relayerjs/rest**: auto-generate REST CRUD endpoints (Express, Fastify, Hono)
+- **@relayerjs/rest**: auto-generate REST CRUD endpoints (Express, Fastify)
 - **@relayerjs/nestjs-graphql**: NestJS GraphQL resolvers with auto-generated schemas
 - **@relayerjs/react**: React client with hooks for querying Relayer endpoints
+
+Contributions are always welcome.
 
 ## Contributing
 
@@ -202,7 +264,8 @@ pnpm install
 pnpm build
 ```
 
-### Run examples
+<details>
+<summary>Run examples</summary>
 
 ```bash
 cd examples
@@ -214,26 +277,32 @@ npx tsx src/test-mysql.ts   # run MySQL example
 npx tsx src/test-sqlite.ts  # run SQLite example
 ```
 
-### Run tests
+</details>
+
+<details>
+<summary>Run tests</summary>
 
 ```bash
-pnpm --filter @relayerjs/drizzle test        # all tests
-pnpm --filter @relayerjs/drizzle test:unit   # unit tests only (no DB)
-pnpm --filter @relayerjs/drizzle test:pg     # PostgreSQL integration
-pnpm --filter @relayerjs/drizzle test:mysql  # MySQL integration
-pnpm --filter @relayerjs/drizzle test:sqlite # SQLite integration (in-memory)
+pnpm -r test                                   # all packages (requires Docker for integration tests)
+pnpm --filter @relayerjs/drizzle test:unit     # drizzle unit tests only (no DB)
+pnpm --filter @relayerjs/drizzle test:pg       # drizzle PostgreSQL integration
+pnpm --filter @relayerjs/drizzle test:mysql    # drizzle MySQL integration
+pnpm --filter @relayerjs/drizzle test:sqlite   # drizzle SQLite integration (in-memory)
+pnpm --filter @relayerjs/nestjs-crud test      # nestjs-crud
+pnpm --filter @relayerjs/next test             # next
 ```
 
-### Run docs locally
+</details>
+
+<details>
+<summary>Run docs locally</summary>
 
 ```bash
 pnpm docs:dev    # start dev server at localhost:4321
 pnpm docs:build  # production build
 ```
 
-## Inspiration
-
-Relayer is inspired by Prisma query API, Hasura GraphQL filters, nestjs-query, and many other tools that make database access feel effortless.
+</details>
 
 ## License
 
