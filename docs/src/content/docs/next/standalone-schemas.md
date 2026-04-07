@@ -3,8 +3,6 @@ title: Standalone Schemas
 description: Get Zod validation schemas for custom endpoints.
 ---
 
-## Overview
-
 Sometimes you need the validation logic without the full route handler — for a custom endpoint, middleware, or server action. `@relayerjs/next` exports standalone schema generators.
 
 ## createWhereSchema

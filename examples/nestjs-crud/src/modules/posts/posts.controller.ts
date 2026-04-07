@@ -2,6 +2,7 @@ import { Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { CrudController, RelayerController } from '@relayerjs/nestjs-crud';
 
+import type { AppContext, AppQueryContext, AppUser } from '../../common/app-context';
 import { AuthGuard } from '../../common/auth.guard';
 import { Roles } from '../../common/roles.decorator';
 import { EM, PostEntity } from '../../entities';
@@ -20,6 +21,7 @@ import { PostsService } from './posts.service';
           id: true,
           title: true,
           published: true,
+          tags: true,
           comments: { $limit: 5, id: true, content: true, author: { id: true, fullName: true } },
         },
         orderBy: { field: 'createdAt', order: 'desc' },
@@ -75,9 +77,28 @@ import { PostsService } from './posts.service';
   dtoMapper: PostDtoMapper,
   hooks: PostHooks,
 })
-export class PostsController extends RelayerController<PostEntity, EM, PostDtoMapper> {
+export class PostsController extends RelayerController<
+  PostEntity,
+  EM,
+  PostDtoMapper,
+  AppContext,
+  AppQueryContext
+> {
   constructor(private readonly postsService: PostsService) {
     super(postsService);
+  }
+
+  // request-scoped context
+  protected buildContext(request: unknown): AppContext {
+    const user = (request as { user?: AppUser }).user ?? { id: 0, role: 'user' };
+    return { request, currentUser: user };
+  }
+
+  protected buildQueryContext(ctx: AppContext): AppQueryContext {
+    return {
+      currentUserId: ctx.currentUser.id,
+      isAdmin: ctx.currentUser.role === 'admin',
+    };
   }
 
   @Get('custom-aggregation')

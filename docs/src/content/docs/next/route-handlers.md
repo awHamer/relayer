@@ -3,8 +3,6 @@ title: Route Handlers
 description: All 7 route handlers — list, findById, create, update, remove, count, aggregate.
 ---
 
-## Overview
-
 `createRelayerRoute()` returns a route factory with 7 handler methods. Each returns a Next.js-compatible route handler function.
 
 ```ts

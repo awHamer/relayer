@@ -3,13 +3,11 @@ title: 'NestJS: Hooks'
 description: Lifecycle hooks for side effects in CRUD operations.
 ---
 
-## Overview
-
 Hooks handle side effects around CRUD operations -- notifications, cache invalidation, audit logging, data enrichment. For business logic use service overrides, for response transformation use [Data Mapper](/nestjs/data-mapper).
 
 ## Creating hooks
 
-Extend `RelayerHooks<TEntity, TEntities>`. All hook methods are optional, support sync and async, and receive fully typed arguments:
+Extend `RelayerHooks<TEntity, TEntities, TCtx?>`. The optional third generic narrows the `ctx` argument across every hook method. By default `TCtx` is `RequestContext`; pass your own to get a fully typed app context — see [Typed context](#typed-context) below. All hook methods are optional and support sync and async.
 
 ```ts
 import { Injectable, Logger } from '@nestjs/common';
@@ -228,6 +226,39 @@ async afterAggregate(
 | `afterRelation`   | `(operation, relationName, ids, ctx)`         |                        |
 
 All option types (`Where`, `ManyOptions`, `FirstOptions`, `WhereOptions`, `AggregateOptions`) are generic over `<TEntity, TEntities>`. Relation hooks use `RelationOperation`, `RelationKeys<TEntity, TEntities>`, and `RelationId[]`.
+
+## Typed context
+
+`RelayerHooks` accepts a third generic `TCtx` which narrows the `ctx` argument across **every** hook method. Pair it with the matching controller override (`buildContext` from [CRUD Controller > Typed context](/nestjs/crud-controller/#typed-context)) and your hooks receive a fully typed app context — no `as` casts.
+
+```ts
+import { Injectable, Logger } from '@nestjs/common';
+import { RelayerHooks } from '@relayerjs/nestjs-crud';
+
+import type { AppContext } from '../../common/app-context';
+import { PostEntity, type EM } from '../entities';
+
+@Injectable()
+export class PostHooks extends RelayerHooks<PostEntity, EM, AppContext> {
+  private readonly logger = new Logger(PostHooks.name);
+
+  async afterCreate(entity: PostEntity, ctx: AppContext): Promise<void> {
+    this.logger.log(`Post ${entity.id} created by user ${ctx.currentUser.id}`);
+  }
+
+  async beforeUpdate(
+    data: Partial<PostEntity>,
+    where: Where<PostEntity, EM>,
+    ctx: AppContext,
+  ): Promise<Partial<PostEntity>> {
+    return { ...data, updatedBy: ctx.currentUser.id };
+  }
+}
+```
+
+`ctx` is now typed as `AppContext` everywhere — `beforeCreate`, `afterCreate`, `beforeUpdate`, `afterUpdate`, `beforeDelete`, `afterDelete`, `beforeFind`, `afterFind`, `beforeFindOne`, `afterFindOne`, `beforeCount`, `beforeAggregate`, `afterAggregate`, `beforeRelation`, `afterRelation`. Wrong field accesses become compile errors.
+
+The matching `RelayerController` must declare the same `TCtx` as its 4th generic and override `buildContext(request)` to produce it — see [CRUD Controller > Typed context](/nestjs/crud-controller/#typed-context) for the request → context flow.
 
 ## Registration
 

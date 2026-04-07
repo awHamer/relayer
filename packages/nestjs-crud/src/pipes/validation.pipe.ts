@@ -125,7 +125,8 @@ export async function validateWithClassValidator(
   data: unknown,
 ): Promise<unknown> {
   const { plainToInstance, validate } = await loadClassValidator();
-  const instance = plainToInstance(DtoClass, data);
+  const normalized = data && typeof data === 'object' ? data : {};
+  const instance = plainToInstance(DtoClass, normalized);
   const errors = (await validate(instance)) as ClassValidatorError[];
 
   if (errors.length > 0) {
@@ -138,13 +139,15 @@ export async function validateWithClassValidator(
 export async function validateBody(schema: unknown, data: unknown): Promise<unknown> {
   if (!schema) return data;
 
+  const safeData = data && typeof data === 'object' ? data : {};
+
   if (isZodSchema(schema)) {
-    return validateWithZod(schema, data);
+    return validateWithZod(schema, safeData);
   }
 
   if (isClassValidatorDto(schema)) {
-    return validateWithClassValidator(schema, data);
+    return validateWithClassValidator(schema, safeData);
   }
 
-  return data;
+  return safeData;
 }

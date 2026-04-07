@@ -569,6 +569,24 @@ describe('computed: context passing', () => {
     expect(results[0].isTargetUser).toBe(true);
     expect(results[1].isTargetUser).toBe(false);
   });
+
+  // Smoke tests: verify that read methods accept the context option without error.
+  // computed/derived field resolution at runtime is covered by the test above.
+  it('count accepts context option', async () => {
+    const result = await r.users.count({
+      where: { firstName: 'Ihor' },
+      context: { tenantId: 'acme' },
+    });
+    expect(Number(result)).toBe(1);
+  });
+
+  it('aggregate accepts context option', async () => {
+    const result: any = await r.users.aggregate({
+      _count: true,
+      context: { tenantId: 'acme' },
+    });
+    expect(Number(result._count)).toBe(4);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1587,5 +1605,84 @@ describe('field stripping', () => {
     expect(keys).toEqual(
       expect.arrayContaining(['id', 'firstName', 'lastName', 'email', 'metadata', 'createdAt']),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mutations: context option (smoke tests with reseed before AND after)
+// ---------------------------------------------------------------------------
+// Verifies that mutation methods accept the new `context` option without
+// error after the typed-context fix in entity-client.ts. The actual context
+// value reaches getComputedSqlMap and is available for SQL resolvers when
+// computed fields are referenced — but computed-in-where on mutations is a
+// separate adapter limitation tracked elsewhere. The end-to-end flow is
+// covered by nestjs-crud unit tests where `getDefaultWhere(upstream, ctx)`
+// consumes context to build a scoped where.
+//
+// Located at the end of the file because mutation tests dirty the DB and we
+// don't want them to leak into the read-only describe blocks above.
+describe('mutations: context option', () => {
+  beforeEach(async () => {
+    await pg.reseed();
+  });
+
+  afterAll(async () => {
+    await pg.reseed();
+  });
+
+  it('update accepts context option', async () => {
+    const updated = await r.users.update({
+      where: { id: 1 },
+      data: { firstName: 'Updated' },
+      context: { tenantId: 'acme' },
+    });
+    expect(updated.firstName).toBe('Updated');
+  });
+
+  it('updateMany accepts context option', async () => {
+    const result = await r.users.updateMany({
+      where: { lastName: 'Ivanov' },
+      data: { lastName: 'K' },
+      context: { tenantId: 'acme' },
+    });
+    expect(result.count).toBe(1);
+  });
+
+  it('delete accepts context option', async () => {
+    const deleted = await r.users.delete({
+      where: { id: 4 },
+      context: { tenantId: 'acme' },
+    });
+    expect(deleted.id).toBe(4);
+  });
+
+  it('deleteMany accepts context option', async () => {
+    await r.users.create({
+      data: { firstName: 'Tmp', lastName: 'CtxOnly', email: 'tmp@test.com' },
+    });
+    const result = await r.users.deleteMany({
+      where: { lastName: 'CtxOnly' },
+      context: { tenantId: 'acme' },
+    });
+    expect(result.count).toBe(1);
+  });
+
+  it('create accepts context option', async () => {
+    const created = await r.users.create({
+      data: { firstName: 'Ctx', lastName: 'Aware', email: 'ctx@test.com' },
+      context: { tenantId: 'acme' },
+    });
+    expect(created.firstName).toBe('Ctx');
+  });
+
+  it('createMany accepts context option', async () => {
+    const created = await r.users.createMany({
+      data: [
+        { firstName: 'CtxA', lastName: 'Many', email: 'ctxa@test.com' },
+        { firstName: 'CtxB', lastName: 'Many', email: 'ctxb@test.com' },
+      ],
+      context: { tenantId: 'acme' },
+    });
+    expect(created).toHaveLength(2);
   });
 });

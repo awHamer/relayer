@@ -45,6 +45,7 @@ interface AggregateOptions {
   _min?: Record<string, boolean>;
   _max?: Record<string, boolean>;
   having?: Record<string, unknown>;
+  context?: unknown;
 }
 
 export function createEntityClient(config: EntityClientConfig) {
@@ -138,7 +139,7 @@ export function createEntityClient(config: EntityClientConfig) {
         : [];
       const computedSqlMap = getComputedSqlMap(options.context, whereComputed);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
-      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
+      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
       const whereCondition = options.where ? buildWhere(options.where, whereCtx) : undefined;
 
       let query = db.select({ count: sql<number>`count(*)` }).from(table);
@@ -166,9 +167,12 @@ export function createEntityClient(config: EntityClientConfig) {
       }
 
       if (options.where) {
-        const computedSqlMap = getComputedSqlMap(undefined, []);
+        const whereComputed = Object.keys(options.where).filter((k: string) =>
+          metadata.computedFields.has(k),
+        );
+        const computedSqlMap = getComputedSqlMap(options.context, whereComputed);
         const derivedAliasMap = new Map<string, { column: Column | SQL }>();
-        const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
+        const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
         const whereCondition = buildWhere(options.where, whereCtx);
         if (whereCondition) query = query.where(whereCondition);
       }
@@ -186,21 +190,28 @@ export function createEntityClient(config: EntityClientConfig) {
       return aggResult.groupByColumns.length > 0 ? hydrated : (hydrated[0] ?? null);
     },
 
-    async create(options: { data: Record<string, unknown> }) {
+    async create(options: { data: Record<string, unknown>; context?: unknown }) {
       return (await executeCreate(db, table, options.data, adapter)) as Record<string, unknown>;
     },
 
-    async createMany(options: { data: Record<string, unknown>[] }) {
+    async createMany(options: { data: Record<string, unknown>[]; context?: unknown }) {
       return (await executeCreateMany(db, table, options.data, adapter)) as Record<
         string,
         unknown
       >[];
     },
 
-    async update(options: { where: Record<string, unknown>; data: Record<string, unknown> }) {
-      const computedSqlMap = getComputedSqlMap(undefined, []);
+    async update(options: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+      context?: unknown;
+    }) {
+      const whereComputed = Object.keys(options.where).filter((k: string) =>
+        metadata.computedFields.has(k),
+      );
+      const computedSqlMap = getComputedSqlMap(options.context, whereComputed);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
-      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
+      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
       const updateCtx = { metadata, schema, tableInfo };
 
       const runUpdate = async (txDb: DrizzleDatabase) => {
@@ -246,10 +257,17 @@ export function createEntityClient(config: EntityClientConfig) {
       return runUpdate(db);
     },
 
-    async updateMany(options: { where: Record<string, unknown>; data: Record<string, unknown> }) {
-      const computedSqlMap = getComputedSqlMap(undefined, []);
+    async updateMany(options: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+      context?: unknown;
+    }) {
+      const whereComputed = Object.keys(options.where).filter((k: string) =>
+        metadata.computedFields.has(k),
+      );
+      const computedSqlMap = getComputedSqlMap(options.context, whereComputed);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
-      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
+      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
       return executeUpdateMany(db, table, options.where, options.data, whereCtx, adapter, {
         metadata,
         schema,
@@ -257,20 +275,26 @@ export function createEntityClient(config: EntityClientConfig) {
       });
     },
 
-    async delete(options: { where: Record<string, unknown> }) {
-      const computedSqlMap = getComputedSqlMap(undefined, []);
+    async delete(options: { where: Record<string, unknown>; context?: unknown }) {
+      const whereComputed = Object.keys(options.where).filter((k: string) =>
+        metadata.computedFields.has(k),
+      );
+      const computedSqlMap = getComputedSqlMap(options.context, whereComputed);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
-      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
+      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
       return (await executeDelete(db, table, options.where, whereCtx, adapter)) as Record<
         string,
         unknown
       >;
     },
 
-    async deleteMany(options: { where: Record<string, unknown> }) {
-      const computedSqlMap = getComputedSqlMap(undefined, []);
+    async deleteMany(options: { where: Record<string, unknown>; context?: unknown }) {
+      const whereComputed = Object.keys(options.where).filter((k: string) =>
+        metadata.computedFields.has(k),
+      );
+      const computedSqlMap = getComputedSqlMap(options.context, whereComputed);
       const derivedAliasMap = new Map<string, { column: Column | SQL }>();
-      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap);
+      const whereCtx = makeWhereCtx(computedSqlMap, derivedAliasMap, options.context);
       return executeDeleteMany(db, table, options.where, whereCtx, adapter);
     },
   };

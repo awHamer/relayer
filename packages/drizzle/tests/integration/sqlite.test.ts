@@ -605,6 +605,17 @@ describe('where: relation derived field', () => {
     // John's post should come first
     expect(results[0].id).toBe(3);
   });
+
+  it('aggregate accepts context option', async () => {
+    // Smoke test: verify the new context option is accepted on aggregate.
+    // computed-in-where on aggregate is a separate adapter limitation; runtime
+    // context propagation is covered by the existing findMany context test.
+    const result: any = await r.users.aggregate({
+      _count: true,
+      context: { tenantId: 'acme' },
+    });
+    expect(Number(result._count)).toBeGreaterThan(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -364,6 +364,128 @@ By default, the ID field is auto-detected from the Drizzle table primary key. Ov
 
 Types: `'number'` (default), `'string'`, `'uuid'`. This affects how the `:id` path parameter is parsed.
 
+## Typed context
+
+`RelayerController` accepts two extra generics — `TCtx` (the request-scoped context that hooks receive) and `TQueryCtx` (the slim context the service consumes). Override `buildContext` to extract data from the request, and `buildQueryContext` to derive the query-scope context from it. Both are auto-wired into every handler.
+
+The typed flow:
+
+```
+HTTP request
+  -> buildContext(request)        -> AppContext         (passed to hooks)
+  -> buildQueryContext(appCtx)    -> AppQueryContext    (passed to service.* { context })
+       -> getDefaultWhere(_, ctx) is called with AppQueryContext for row-level scoping
+```
+
+### Defining the contexts
+
+Two interfaces — one for hooks (request-rich) and one for the service (slim, SQL-bound):
+
+```ts
+// common/app-context.ts
+import type { RequestContext } from '@relayerjs/nestjs-crud';
+
+export interface AppUser {
+  id: number;
+  role: 'admin' | 'user';
+}
+
+// Full request-scoped context. Used by NestJS lifecycle hooks.
+export interface AppContext extends RequestContext {
+  currentUser: AppUser;
+}
+
+// Slimmer query context. Flows into service.findMany / computed / derived resolvers.
+export interface AppQueryContext {
+  currentUserId: number;
+  isAdmin: boolean;
+}
+```
+
+### Typing the controller
+
+Pass `AppContext` and `AppQueryContext` as the 4th and 5th generics, then override the two builders:
+
+```ts
+import { CrudController, RelayerController } from '@relayerjs/nestjs-crud';
+
+import type { AppContext, AppQueryContext, AppUser } from '../../common/app-context';
+import { PostEntity, type EM } from '../entities';
+import { PostDtoMapper } from './posts.dto-mapper';
+import { PostHooks } from './posts.hooks';
+import { PostsService } from './posts.service';
+
+@CrudController<PostEntity, EM>({
+  model: PostEntity,
+  routes: { list: true, create: true, update: true, delete: true },
+  hooks: PostHooks,
+  dtoMapper: PostDtoMapper,
+})
+export class PostsController extends RelayerController<
+  PostEntity,
+  EM,
+  PostDtoMapper,
+  AppContext,
+  AppQueryContext
+> {
+  constructor(private readonly postsService: PostsService) {
+    super(postsService);
+  }
+
+  protected buildContext(request: unknown): AppContext {
+    const user = (request as { user?: AppUser }).user ?? { id: 0, role: 'user' };
+    return { request, currentUser: user };
+  }
+
+  protected buildQueryContext(ctx: AppContext): AppQueryContext {
+    return {
+      currentUserId: ctx.currentUser.id,
+      isAdmin: ctx.currentUser.role === 'admin',
+    };
+  }
+}
+```
+
+### How it propagates
+
+For every auto-generated route the controller automatically:
+
+1. Calls `buildContext(request)` to produce `AppContext`
+2. Passes `AppContext` to all matching lifecycle hooks (`beforeFind`, `afterCreate`, `beforeRelation`, etc.)
+3. Calls `buildQueryContext(ctx)` to produce `AppQueryContext`
+4. Forwards `AppQueryContext` to the service via `{ context: queryCtx }` on every read AND write call
+
+The service then uses it inside `getDefaultWhere(upstream, ctx)` for row-level filtering — see [Query Service > Typed context](/nestjs/query-service/#typed-context).
+
+### Why two contexts
+
+`AppContext` is rich and request-bound (carries the raw request, headers, full user object) — perfect for hooks doing logging, metrics, or cache invalidation. `AppQueryContext` is slim and serializable — only the fields the SQL layer actually needs. Keeping them separate makes hook code expressive and SQL-resolver code minimal.
+
+If you don't need the split, set both generics to the same interface and return `ctx` from `buildQueryContext`.
+
+### Hook types
+
+Update `PostHooks` to take advantage of the typed `AppContext`:
+
+```ts
+import { Injectable, Logger } from '@nestjs/common';
+import { RelayerHooks } from '@relayerjs/nestjs-crud';
+
+import type { AppContext } from '../../common/app-context';
+import { PostEntity, type EM } from '../entities';
+
+@Injectable()
+export class PostHooks extends RelayerHooks<PostEntity, EM, AppContext> {
+  private readonly logger = new Logger(PostHooks.name);
+
+  async afterCreate(entity: PostEntity, ctx: AppContext): Promise<void> {
+    this.logger.log(`Post ${entity.id} created by user ${ctx.currentUser.id}`);
+  }
+}
+```
+
+`ctx.currentUser` is fully typed — no casts.
+
 ## Full example
 
 See the [complete controller example](https://github.com/awHamer/relayer/tree/main/examples/nestjs-crud/src/modules/posts/posts.controller.ts) in the repository.

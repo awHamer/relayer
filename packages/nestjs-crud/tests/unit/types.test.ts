@@ -7,9 +7,10 @@ import type {
   RelayerInstance,
   RequestContext,
 } from '../../src';
+import { RelayerController } from '../../src/relayer.controller';
 import type { DtoMapper } from '../../src/relayer.dto-mapper';
-import type { RelayerHooks } from '../../src/relayer.hooks';
-import type { RelayerService } from '../../src/relayer.service';
+import { RelayerHooks } from '../../src/relayer.hooks';
+import { RelayerService } from '../../src/relayer.service';
 
 // Use Record<string, unknown> compatible type via intersection
 type TestEntities = Record<string, unknown> & {
@@ -188,5 +189,232 @@ describe('Config types', () => {
     expectTypeOf<Config>().toHaveProperty('maxLimit');
     expectTypeOf<Config>().toHaveProperty('defaultLimit');
     expectTypeOf<Config>().toHaveProperty('search');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// typed context: type-level assertions
+// ---------------------------------------------------------------------------
+// Verifies that the TContext / TCtx / TQueryCtx generics narrow correctly
+// across RelayerService, RelayerHooks, RelayerController, and that the
+// default `unknown`/`RequestContext` behavior is preserved when generics
+// are not provided.
+
+interface TenantContext {
+  tenantId: string;
+}
+
+interface AppCtx extends RequestContext {
+  currentUser: { id: number; role: 'admin' | 'user' };
+}
+
+interface AppQueryCtx {
+  currentUserId: number;
+  isAdmin: boolean;
+}
+
+describe('RelayerService typed context', () => {
+  it('default TContext is unknown', () => {
+    type DefaultService = RelayerService<PostEntity, TestEntities>;
+    type FindManyParam = Parameters<DefaultService['findMany']>[0];
+    // context should be optional and unknown
+    expectTypeOf<NonNullable<FindManyParam>['context']>().toEqualTypeOf<unknown>();
+  });
+
+  it('TContext narrows context option in findMany', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type FindManyParam = Parameters<ScopedService['findMany']>[0];
+    expectTypeOf<NonNullable<FindManyParam>['context']>().toEqualTypeOf<
+      TenantContext | undefined
+    >();
+  });
+
+  it('TContext narrows context option in findFirst', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['findFirst']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in count', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['count']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in update (new)', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['update']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in updateMany (new)', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['updateMany']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in delete (new)', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['delete']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in deleteMany (new)', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['deleteMany']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in create (new)', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['create']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  it('TContext narrows context option in createMany (new)', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    type Param = Parameters<ScopedService['createMany']>[0];
+    expectTypeOf<NonNullable<Param>['context']>().toEqualTypeOf<TenantContext | undefined>();
+  });
+
+  // Negative type-level test: passing a wrong context shape must error
+  it('rejects wrong context type at compile time', () => {
+    type ScopedService = RelayerService<PostEntity, TestEntities, TenantContext>;
+    // The line below is a compile-time assertion: TS would error if uncommented
+    // because { unrelated: 'x' } is not assignable to TenantContext.
+    type Call = (svc: ScopedService) => Promise<unknown>;
+    const _ok: Call = (svc) => svc.findMany({ context: { tenantId: 'x' } });
+    // @ts-expect-error - context shape does not match TenantContext
+    const _bad: Call = (svc) => svc.findMany({ context: { unrelated: 'x' } });
+    expectTypeOf<Call>().toBeFunction();
+    void _ok;
+    void _bad;
+  });
+});
+
+describe('RelayerHooks typed context', () => {
+  it('default TCtx is RequestContext', () => {
+    type DefaultHooks = RelayerHooks<PostEntity, TestEntities>;
+    type BeforeCreate = NonNullable<DefaultHooks['beforeCreate']>;
+    expectTypeOf<Parameters<BeforeCreate>[1]>().toMatchTypeOf<RequestContext>();
+  });
+
+  it('TCtx narrows beforeCreate ctx', () => {
+    type AppHooks = RelayerHooks<PostEntity, TestEntities, AppCtx>;
+    type BeforeCreate = NonNullable<AppHooks['beforeCreate']>;
+    expectTypeOf<Parameters<BeforeCreate>[1]>().toEqualTypeOf<AppCtx>();
+  });
+
+  it('TCtx narrows ctx for ALL hook methods', () => {
+    type AppHooks = RelayerHooks<PostEntity, TestEntities, AppCtx>;
+
+    // Read hooks
+    type BeforeFind = NonNullable<AppHooks['beforeFind']>;
+    type AfterFind = NonNullable<AppHooks['afterFind']>;
+    type BeforeFindOne = NonNullable<AppHooks['beforeFindOne']>;
+    type AfterFindOne = NonNullable<AppHooks['afterFindOne']>;
+    type BeforeCount = NonNullable<AppHooks['beforeCount']>;
+    type BeforeAggregate = NonNullable<AppHooks['beforeAggregate']>;
+    type AfterAggregate = NonNullable<AppHooks['afterAggregate']>;
+
+    expectTypeOf<Parameters<BeforeFind>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterFind>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<BeforeFindOne>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterFindOne>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<BeforeCount>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<BeforeAggregate>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterAggregate>[1]>().toEqualTypeOf<AppCtx>();
+
+    // Write hooks
+    type BeforeCreate = NonNullable<AppHooks['beforeCreate']>;
+    type AfterCreate = NonNullable<AppHooks['afterCreate']>;
+    type BeforeUpdate = NonNullable<AppHooks['beforeUpdate']>;
+    type AfterUpdate = NonNullable<AppHooks['afterUpdate']>;
+    type BeforeDelete = NonNullable<AppHooks['beforeDelete']>;
+    type AfterDelete = NonNullable<AppHooks['afterDelete']>;
+
+    expectTypeOf<Parameters<BeforeCreate>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterCreate>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<BeforeUpdate>[2]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterUpdate>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<BeforeDelete>[1]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterDelete>[1]>().toEqualTypeOf<AppCtx>();
+
+    // Relation hooks (4-arg signature, ctx is the 4th)
+    type BeforeRelation = NonNullable<AppHooks['beforeRelation']>;
+    type AfterRelation = NonNullable<AppHooks['afterRelation']>;
+    expectTypeOf<Parameters<BeforeRelation>[3]>().toEqualTypeOf<AppCtx>();
+    expectTypeOf<Parameters<AfterRelation>[3]>().toEqualTypeOf<AppCtx>();
+  });
+});
+
+describe('RelayerController typed context', () => {
+  it('default TCtx is RequestContext and TQueryCtx is unknown', () => {
+    // Construct a default controller class to inspect protected method signatures
+    class DefaultCtrl extends RelayerController<PostEntity, TestEntities> {
+      callBuild(req: unknown) {
+        return this.buildContext(req);
+      }
+      callBuildQuery(ctx: any) {
+        return this.buildQueryContext(ctx);
+      }
+    }
+    type Build = DefaultCtrl['callBuild'];
+    type BuildQuery = DefaultCtrl['callBuildQuery'];
+
+    expectTypeOf<ReturnType<Build>>().toMatchTypeOf<RequestContext>();
+    expectTypeOf<ReturnType<BuildQuery>>().toMatchTypeOf<unknown>();
+  });
+
+  it('TCtx narrows buildContext return type', () => {
+    class TypedCtrl extends RelayerController<
+      PostEntity,
+      TestEntities,
+      DtoMapper<PostEntity, PostEntity, PostEntity>,
+      AppCtx,
+      AppQueryCtx
+    > {
+      callBuild(req: unknown) {
+        return this.buildContext(req);
+      }
+    }
+    type Build = TypedCtrl['callBuild'];
+    expectTypeOf<ReturnType<Build>>().toEqualTypeOf<AppCtx>();
+  });
+
+  it('TQueryCtx narrows buildQueryContext signature', () => {
+    class TypedCtrl extends RelayerController<
+      PostEntity,
+      TestEntities,
+      DtoMapper<PostEntity, PostEntity, PostEntity>,
+      AppCtx,
+      AppQueryCtx
+    > {
+      callBuildQuery(ctx: AppCtx) {
+        return this.buildQueryContext(ctx);
+      }
+    }
+    type BuildQuery = TypedCtrl['callBuildQuery'];
+    // Returns AppQueryCtx | undefined (because base default returns undefined)
+    expectTypeOf<ReturnType<BuildQuery>>().toEqualTypeOf<AppQueryCtx | undefined>();
+    // Argument must be AppCtx
+    expectTypeOf<Parameters<BuildQuery>[0]>().toEqualTypeOf<AppCtx>();
+  });
+
+  it('controller TQueryCtx must align with service TContext', () => {
+    // Critical: the constructor requires RelayerService<E, EM, TQueryCtx>.
+    // Mismatch should be a compile error.
+    class TypedCtrl extends RelayerController<
+      PostEntity,
+      TestEntities,
+      DtoMapper<PostEntity, PostEntity, PostEntity>,
+      AppCtx,
+      AppQueryCtx
+    > {}
+
+    type CtorParam = ConstructorParameters<typeof TypedCtrl>[0];
+    expectTypeOf<CtorParam>().toMatchTypeOf<
+      RelayerService<PostEntity, TestEntities, AppQueryCtx>
+    >();
   });
 });
