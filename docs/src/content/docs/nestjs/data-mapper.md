@@ -3,8 +3,6 @@ title: 'NestJS: Data Mapper'
 description: Transform entity data for API responses with DtoMapper.
 ---
 
-## Overview
-
 DtoMapper transforms between entity (internal) and API response (external). It only affects the controller/API layer -- services always work with entity types.
 
 ## Basic usage

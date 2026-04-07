@@ -3,8 +3,6 @@ title: SSR Direct Call
 description: Use route handlers directly from Server Components without HTTP round-trip.
 ---
 
-## Overview
-
 Each handler returned by `.list()` is both a Next.js route handler AND directly callable via `.query()`. Same config, same hooks, no HTTP round-trip.
 
 ## Basic usage

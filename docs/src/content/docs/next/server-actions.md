@@ -3,8 +3,6 @@ title: Server Actions
 description: Use Relayer directly in Server Actions and Server Components.
 ---
 
-## Overview
-
 You don't need any wrapper for Server Actions — use `r.entity` methods directly. Relayer works in any server-side context: Server Actions, Server Components, API routes, cron jobs.
 
 ## Server Action example

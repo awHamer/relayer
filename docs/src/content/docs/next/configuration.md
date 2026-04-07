@@ -3,8 +3,6 @@ title: Configuration
 description: Restrict select, where, and orderBy fields for API security.
 ---
 
-## Overview
-
 The third argument to `createRelayerRoute()` is a configuration object that controls what clients can query:
 
 ```ts

@@ -3,8 +3,6 @@ title: 'NestJS: Query Service'
 description: Type-safe CRUD service with defaults, cross-entity access, and DI.
 ---
 
-## Overview
-
 `RelayerService<TEntity, TEntities>` is the data layer. It wraps a Relayer entity repository with typed CRUD methods and applies business-level defaults. Services work everywhere: controllers, cron jobs, event handlers, tests.
 
 ## Module setup
@@ -226,6 +224,8 @@ protected getDefaultWhere(
 }
 ```
 
+For per-request scoping driven by the current user/tenant, use the typed context overload — see [Typed context](#typed-context) below.
+
 ### getDefaultOrderBy
 
 Fallback -- used only when the caller doesn't provide their own `orderBy`:
@@ -264,6 +264,85 @@ async getPostWithAuthor(id: number) {
   return { post, author };
 }
 ```
+
+## Typed context
+
+`RelayerService` accepts a third generic `TContext` that flows into every CRUD method's `options.context`, into `getDefaultWhere`, and into computed/derived field resolvers. Use it for row-level filtering driven by the current request — multi-tenancy, ownership checks, soft-deletes scoped to a user.
+
+### Defining the context
+
+```ts
+// common/app-context.ts
+export interface AppQueryContext {
+  currentUserId: number;
+  isAdmin: boolean;
+}
+```
+
+### Typing the service
+
+Pass `AppQueryContext` as the third generic and override `getDefaultWhere(upstream, ctx)` — the second parameter is now fully typed:
+
+```ts
+import { Injectable } from '@nestjs/common';
+import { InjectRelayer, RelayerService } from '@relayerjs/nestjs-crud';
+import type { RelayerInstance, Where } from '@relayerjs/nestjs-crud';
+
+import type { AppQueryContext } from '../../common/app-context';
+import { PostEntity, type EM } from '../entities';
+
+@Injectable()
+export class PostsService extends RelayerService<PostEntity, EM, AppQueryContext> {
+  constructor(@InjectRelayer() r: RelayerInstance<EM>) {
+    super(r, PostEntity);
+  }
+
+  // Non-admins only see published posts or their own drafts
+  protected getDefaultWhere(
+    upstream?: Where<PostEntity, EM>,
+    ctx?: AppQueryContext,
+  ): Where<PostEntity, EM> | undefined {
+    if (!ctx || ctx.isAdmin) return upstream;
+
+    const scoped: Where<PostEntity, EM> = {
+      OR: [{ published: true }, { authorId: ctx.currentUserId }],
+    };
+    return upstream ? { AND: [upstream, scoped] } : scoped;
+  }
+}
+```
+
+The same `getDefaultWhere` is now applied on **every** read AND write — `findMany`, `findFirst`, `count`, `update`, `updateMany`, `delete`, `deleteMany`, `aggregate`. A non-admin trying to PATCH or DELETE someone else's post will get a no-op because the scoped where filters them out before the SQL runs.
+
+### Passing context per call
+
+The `context` option on every CRUD method is typed as `AppQueryContext`:
+
+```ts
+await postsService.findMany({
+  where: { published: true },
+  context: { currentUserId: 42, isAdmin: false },
+});
+
+await postsService.update({
+  where: { id: 1 },
+  data: { title: 'Updated' },
+  context: { currentUserId: 42, isAdmin: false },
+});
+```
+
+Wrong shapes are rejected at compile time:
+
+```ts
+await postsService.findMany({
+  context: { wrong: 'shape' },
+  // Type error: 'wrong' does not exist in type 'AppQueryContext'
+});
+```
+
+### Auto-wiring from a controller
+
+When a controller extends `RelayerController`, you typically don't pass `context` manually — the controller builds it from the request and forwards it to the service for every auto-generated route. See [CRUD Controller > Typed context](/nestjs/crud-controller/#typed-context) for the request → context → query-context flow.
 
 ## DI decorators
 
