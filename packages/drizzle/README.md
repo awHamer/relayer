@@ -32,8 +32,13 @@ import { createRelayerDrizzle, createRelayerEntity } from '@relayerjs/drizzle';
 import { db } from './db';
 import * as schema from './schema';
 
-// Define entity model
-const UserEntity = createRelayerEntity(schema, 'users');
+interface AppContext {
+  currentUserId: number;
+  tenantId: string;
+}
+
+// Define entity model. The third generic types `context` for every resolver below.
+const UserEntity = createRelayerEntity<typeof schema, 'users', AppContext>(schema, 'users');
 
 class User extends UserEntity {
   @UserEntity.computed({
@@ -43,7 +48,7 @@ class User extends UserEntity {
 
   @UserEntity.computed({
     resolve: ({ table, sql, context }) =>
-      sql`CASE WHEN ${table.id} = ${(context as any).currentUserId} THEN true ELSE false END`,
+      sql`CASE WHEN ${table.id} = ${context.currentUserId} THEN true ELSE false END`,
   })
   isMe!: boolean;
 
@@ -92,7 +97,7 @@ Virtual SQL expressions evaluated at SELECT time. Not stored in the database. Th
 ```ts
 const users = await r.users.findMany({
   select: { id: true, fullName: true, isMe: true },
-  context: { currentUserId: 1 },
+  context: { currentUserId: 1, tenantId: 'acme' },
 });
 // [{ id: 1, fullName: 'John Doe', isMe: true }, ...]
 ```

@@ -13,17 +13,17 @@ import type { InferTableSelect } from './types/helpers';
 // Infer db type from table dialect. All dialects map to DrizzleDatabase.
 type InferDialectDb<_TTable> = DrizzleDatabase;
 
-interface ComputedDecoratorConfig<TTable, TSchema> {
-  resolve: (ctx: { table: TTable; schema: TSchema; sql: typeof sql; context: unknown }) => unknown;
+interface ComputedDecoratorConfig<TTable, TSchema, TContext = unknown> {
+  resolve: (ctx: { table: TTable; schema: TSchema; sql: typeof sql; context: TContext }) => unknown;
 }
 
-interface DerivedDecoratorConfig<TTable, TDb, TSchema> {
+interface DerivedDecoratorConfig<TTable, TDb, TSchema, TContext = unknown> {
   shape?: ObjectValueType;
   query: (ctx: {
     db: TDb;
     schema: TSchema;
     sql: typeof sql;
-    context: unknown;
+    context: TContext;
     field: (subField?: string) => string;
   }) => unknown;
   on: (ctx: DerivedJoinContext<TTable>) => unknown;
@@ -39,18 +39,25 @@ export interface EntityClassStatics<TTable, _TDb, TSchema, TKey extends string =
 }
 
 // Entity class methods: decorators & chain
-export interface EntityClassMethods<TTable, TDb, TSchema, TInstance, TKey extends string = string> {
-  computed(config: ComputedDecoratorConfig<TTable, TSchema>): PropertyDecorator;
+export interface EntityClassMethods<
+  TTable,
+  TDb,
+  TSchema,
+  TInstance,
+  TKey extends string = string,
+  TContext = unknown,
+> {
+  computed(config: ComputedDecoratorConfig<TTable, TSchema, TContext>): PropertyDecorator;
   computed<V, K extends string>(
     name: K,
-    config: ComputedDecoratorConfig<TTable, TSchema>,
-  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>, TKey>;
+    config: ComputedDecoratorConfig<TTable, TSchema, TContext>,
+  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>, TKey, TContext>;
 
-  derived(config: DerivedDecoratorConfig<TTable, TDb, TSchema>): PropertyDecorator;
+  derived(config: DerivedDecoratorConfig<TTable, TDb, TSchema, TContext>): PropertyDecorator;
   derived<V, K extends string>(
     name: K,
-    config: DerivedDecoratorConfig<TTable, TDb, TSchema>,
-  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>, TKey>;
+    config: DerivedDecoratorConfig<TTable, TDb, TSchema, TContext>,
+  ): EntityChainResult<TTable, TDb, TSchema, TInstance & Record<K, V>, TKey, TContext>;
 }
 
 export type EntityChainResult<
@@ -59,18 +66,20 @@ export type EntityChainResult<
   TSchema,
   TInstance,
   TKey extends string = string,
+  TContext = unknown,
 > = (new () => TInstance) &
   EntityClassStatics<TTable, TDb, TSchema, TKey> &
-  EntityClassMethods<TTable, TDb, TSchema, TInstance>;
+  EntityClassMethods<TTable, TDb, TSchema, TInstance, TKey, TContext>;
 
 type EntityBaseClass<
   TTable,
   TDb,
   TSchema extends Record<string, unknown>,
   TKey extends string = string,
+  TContext = unknown,
 > = (new () => InferTableSelect<TTable>) &
   EntityClassStatics<TTable, TDb, TSchema, TKey> &
-  EntityClassMethods<TTable, TDb, TSchema, InferTableSelect<TTable>, TKey>;
+  EntityClassMethods<TTable, TDb, TSchema, InferTableSelect<TTable>, TKey, TContext>;
 
 interface EntityClassWithMaps {
   __computed: Map<string, ComputedFieldDef>;
@@ -164,10 +173,11 @@ function makeEntityClass(schema: Record<string, unknown>, key: string, table: un
 export function createRelayerEntity<
   TSchema extends Record<string, unknown>,
   TKey extends string & SchemaTableKeys<TSchema>,
+  TContext = unknown,
 >(
   schema: TSchema,
   key: TKey,
-): EntityBaseClass<TSchema[TKey], InferDialectDb<TSchema[TKey]>, TSchema, TKey> {
+): EntityBaseClass<TSchema[TKey], InferDialectDb<TSchema[TKey]>, TSchema, TKey, TContext> {
   const table = schema[key];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime class cast to generic EntityBaseClass
   return makeEntityClass(schema, key, table) as any;
@@ -181,23 +191,24 @@ function isDrizzleTable(value: unknown): boolean {
   );
 }
 
-export type DrizzleEntities<TSchema extends Record<string, unknown>> = {
+export type DrizzleEntities<TSchema extends Record<string, unknown>, TContext = unknown> = {
   [K in SchemaTableKeys<TSchema>]: EntityBaseClass<
     TSchema[K],
     InferDialectDb<TSchema[K]>,
     TSchema,
-    K
+    K,
+    TContext
   >;
 };
 
-export function createDrizzleEntities<TSchema extends Record<string, unknown>>(
+export function createDrizzleEntities<TSchema extends Record<string, unknown>, TContext = unknown>(
   schema: TSchema,
-): DrizzleEntities<TSchema> {
+): DrizzleEntities<TSchema, TContext> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(schema)) {
     if (isDrizzleTable(value)) {
       result[key] = makeEntityClass(schema, key, value);
     }
   }
-  return result as DrizzleEntities<TSchema>;
+  return result as DrizzleEntities<TSchema, TContext>;
 }

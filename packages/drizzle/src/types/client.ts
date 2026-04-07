@@ -65,7 +65,7 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
   count(options?: { where?: WhereType<TModel>; context?: TContext }): Promise<number>;
 
   aggregate<const TOptions extends AggregateType<TModel>>(
-    options: TOptions,
+    options: TOptions & { context?: TContext },
   ): Promise<
     TOptions extends { groupBy: readonly string[] }
       ? AggregateResult<EntityOf<TModel>, TOptions>[]
@@ -76,6 +76,7 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
     data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
       : Record<string, unknown>;
+    context?: TContext;
   }): Promise<
     ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
@@ -86,6 +87,7 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
     data: (ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableInsert<(S & Record<string, unknown>)[K & keyof S]>
       : Record<string, unknown>)[];
+    context?: TContext;
   }): Promise<
     (ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
@@ -97,6 +99,7 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
     data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? UpdateData<S & Record<string, unknown>, K & string>
       : Record<string, unknown>;
+    context?: TContext;
   }): Promise<
     ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
@@ -108,17 +111,19 @@ export interface TypedEntityClient<TModel, TContext = unknown> {
     data: ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? UpdateData<S & Record<string, unknown>, K & string>
       : Record<string, unknown>;
+    context?: TContext;
   }): Promise<{ count: number }>;
 
   delete(options: {
     where: WhereType<TModel>;
+    context?: TContext;
   }): Promise<
     ExtractMeta<TModel> extends { schema: infer S; key: infer K }
       ? InferTableSelect<(S & Record<string, unknown>)[K & keyof S]>
       : Record<string, unknown>
   >;
 
-  deleteMany(options: { where: WhereType<TModel> }): Promise<{ count: number }>;
+  deleteMany(options: { where: WhereType<TModel>; context?: TContext }): Promise<{ count: number }>;
 }
 
 export type RelayerClient<
