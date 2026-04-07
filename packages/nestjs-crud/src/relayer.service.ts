@@ -23,6 +23,7 @@ export type { Model, Where, Select, OrderBy, ManyOptions, FirstOptions } from '.
 export class RelayerService<
   TEntity,
   TEntities extends Record<string, unknown> = Record<string, never>,
+  TContext = unknown,
 > {
   protected readonly repo!: EntityRepo<TEntity, TEntities>;
   protected readonly r!: RelayerInstance<TEntities>;
@@ -37,6 +38,7 @@ export class RelayerService<
 
   protected getDefaultWhere(
     upstream?: Where<TEntity, TEntities>,
+    _context?: TContext,
   ): Where<TEntity, TEntities> | undefined {
     return upstream;
   }
@@ -64,9 +66,12 @@ export class RelayerService<
   }
 
   findMany<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
-    options?: ManyOptions<TEntity, TEntities> & { select?: TSelect },
+    options?: ManyOptions<TEntity, TEntities> & { select?: TSelect; context?: TContext },
   ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect>[]> {
-    const where = this.combineWhere(this.getDefaultWhere(), options?.where);
+    const where = this.combineWhere(
+      this.getDefaultWhere(undefined, options?.context),
+      options?.where,
+    );
     const orderBy = options?.orderBy ?? this.getDefaultOrderBy();
     const select = options?.select ?? this.getDefaultSelect();
     return this.repo.findMany({ ...options, where, orderBy, select }) as Promise<
@@ -75,9 +80,12 @@ export class RelayerService<
   }
 
   findFirst<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
-    options?: FirstOptions<TEntity, TEntities> & { select?: TSelect },
+    options?: FirstOptions<TEntity, TEntities> & { select?: TSelect; context?: TContext },
   ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect> | null> {
-    const where = this.combineWhere(this.getDefaultWhere(), options?.where);
+    const where = this.combineWhere(
+      this.getDefaultWhere(undefined, options?.context),
+      options?.where,
+    );
     const orderBy = options?.orderBy ?? this.getDefaultOrderBy();
     const select = options?.select ?? this.getDefaultSelect();
     return this.repo.findFirst({ ...options, where, orderBy, select }) as Promise<SelectResult<
@@ -86,44 +94,70 @@ export class RelayerService<
     > | null>;
   }
 
-  count(options?: WhereOptions<TEntity, TEntities>): Promise<number> {
-    const { where: optionsWhere, ...otherOptions } = options ?? {};
-    const where = this.combineWhere(this.getDefaultWhere(), optionsWhere);
-    return this.repo.count({ where, ...otherOptions });
+  count(options?: WhereOptions<TEntity, TEntities> & { context?: TContext }): Promise<number> {
+    const { where: optionsWhere, context, ...otherOptions } = options ?? {};
+    const where = this.combineWhere(this.getDefaultWhere(undefined, context), optionsWhere);
+    return this.repo.count({ where, context, ...otherOptions });
   }
 
-  create(options: PartialDataOptions<TEntity>): Promise<Model<TEntity, TEntities>> {
+  create(
+    options: PartialDataOptions<TEntity> & { context?: TContext },
+  ): Promise<Model<TEntity, TEntities>> {
     return this.repo.create(options);
   }
 
-  createMany(options: { data: Partial<TEntity>[] }): Promise<Model<TEntity, TEntities>[]> {
+  createMany(options: {
+    data: Partial<TEntity>[];
+    context?: TContext;
+  }): Promise<Model<TEntity, TEntities>[]> {
     return this.repo.createMany(options);
   }
 
-  update(options: UpdateOptions<TEntity, TEntities>): Promise<Model<TEntity, TEntities>> {
-    const where = this.combineWhere(this.getDefaultWhere(), options.where) ?? options.where;
+  update(
+    options: UpdateOptions<TEntity, TEntities> & { context?: TContext },
+  ): Promise<Model<TEntity, TEntities>> {
+    const where =
+      this.combineWhere(this.getDefaultWhere(undefined, options.context), options.where) ??
+      options.where;
     return this.repo.update({ ...options, where });
   }
 
-  updateMany(options: UpdateOptions<TEntity, TEntities>): Promise<{ count: number }> {
-    const where = this.combineWhere(this.getDefaultWhere(), options.where) ?? options.where;
+  updateMany(
+    options: UpdateOptions<TEntity, TEntities> & { context?: TContext },
+  ): Promise<{ count: number }> {
+    const where =
+      this.combineWhere(this.getDefaultWhere(undefined, options.context), options.where) ??
+      options.where;
     return this.repo.updateMany({ ...options, where });
   }
 
-  delete(options: { where: Where<TEntity, TEntities> }): Promise<Model<TEntity, TEntities>> {
-    const where = this.combineWhere(this.getDefaultWhere(), options.where) ?? options.where;
+  delete(options: {
+    where: Where<TEntity, TEntities>;
+    context?: TContext;
+  }): Promise<Model<TEntity, TEntities>> {
+    const where =
+      this.combineWhere(this.getDefaultWhere(undefined, options.context), options.where) ??
+      options.where;
     return this.repo.delete({ ...options, where });
   }
 
-  deleteMany(options: { where: Where<TEntity, TEntities> }): Promise<{ count: number }> {
-    const where = this.combineWhere(this.getDefaultWhere(), options.where) ?? options.where;
+  deleteMany(options: {
+    where: Where<TEntity, TEntities>;
+    context?: TContext;
+  }): Promise<{ count: number }> {
+    const where =
+      this.combineWhere(this.getDefaultWhere(undefined, options.context), options.where) ??
+      options.where;
     return this.repo.deleteMany({ ...options, where });
   }
 
-  aggregate<const TOptions extends AggregateOptions<TEntity, TEntities>>(
+  aggregate<const TOptions extends AggregateOptions<TEntity, TEntities> & { context?: TContext }>(
     options: TOptions,
   ): Promise<AggregateResult<Model<TEntity, TEntities>, TOptions>[]> {
-    const where = this.combineWhere(this.getDefaultWhere(), options.where);
+    const where = this.combineWhere(
+      this.getDefaultWhere(undefined, options.context),
+      options.where,
+    );
     return this.repo.aggregate({ ...options, ...(where ? { where } : {}) });
   }
 }

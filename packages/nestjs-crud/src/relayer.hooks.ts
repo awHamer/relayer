@@ -22,6 +22,7 @@ import type {
 export abstract class RelayerHooks<
   TEntity = unknown,
   TEntities extends Record<string, unknown> = Record<string, never>,
+  TCtx extends RequestContext = RequestContext,
 > {
   /**
    * Runs before creating an entity.
@@ -29,11 +30,11 @@ export abstract class RelayerHooks<
    */
   beforeCreate?(
     data: Partial<TEntity>,
-    ctx: RequestContext,
+    ctx: TCtx,
   ): Promise<Partial<TEntity> | void> | Partial<TEntity> | void;
 
   /** Runs after an entity is created. Use for notifications, cache invalidation, etc. */
-  afterCreate?(entity: TEntity, ctx: RequestContext): Promise<void> | void;
+  afterCreate?(entity: TEntity, ctx: TCtx): Promise<void> | void;
 
   /**
    * Runs before updating an entity.
@@ -42,59 +43,47 @@ export abstract class RelayerHooks<
   beforeUpdate?(
     data: Partial<TEntity>,
     where: Where<TEntity, TEntities>,
-    ctx: RequestContext,
+    ctx: TCtx,
   ): Promise<Partial<TEntity> | void> | Partial<TEntity> | void;
 
   /** Runs after an entity is updated. */
-  afterUpdate?(entity: TEntity, ctx: RequestContext): Promise<void> | void;
+  afterUpdate?(entity: TEntity, ctx: TCtx): Promise<void> | void;
 
   /** Runs before deleting an entity. Receives the where clause. */
-  beforeDelete?(where: Where<TEntity, TEntities>, ctx: RequestContext): Promise<void> | void;
+  beforeDelete?(where: Where<TEntity, TEntities>, ctx: TCtx): Promise<void> | void;
 
   /** Runs after an entity is deleted. */
-  afterDelete?(entity: TEntity, ctx: RequestContext): Promise<void> | void;
+  afterDelete?(entity: TEntity, ctx: TCtx): Promise<void> | void;
 
   /** Runs before a findMany query. Receives the full query options. */
-  beforeFind?(options: ManyOptions<TEntity, TEntities>, ctx: RequestContext): Promise<void> | void;
+  beforeFind?(options: ManyOptions<TEntity, TEntities>, ctx: TCtx): Promise<void> | void;
 
   /**
    * Runs after findMany returns results.
    * Return a modified array to transform the output, or void to pass through.
    */
-  afterFind?(
-    entities: TEntity[],
-    ctx: RequestContext,
-  ): Promise<TEntity[] | void> | TEntity[] | void;
+  afterFind?(entities: TEntity[], ctx: TCtx): Promise<TEntity[] | void> | TEntity[] | void;
 
   /** Runs before a findFirst query. */
-  beforeFindOne?(
-    options: FirstOptions<TEntity, TEntities>,
-    ctx: RequestContext,
-  ): Promise<void> | void;
+  beforeFindOne?(options: FirstOptions<TEntity, TEntities>, ctx: TCtx): Promise<void> | void;
 
   /**
    * Runs after findFirst returns a result.
    * Return a modified entity to transform the output.
    */
-  afterFindOne?(entity: TEntity, ctx: RequestContext): Promise<TEntity | void> | TEntity | void;
+  afterFindOne?(entity: TEntity, ctx: TCtx): Promise<TEntity | void> | TEntity | void;
 
   /** Runs before a count query. */
-  beforeCount?(
-    options: WhereOptions<TEntity, TEntities>,
-    ctx: RequestContext,
-  ): Promise<void> | void;
+  beforeCount?(options: WhereOptions<TEntity, TEntities>, ctx: TCtx): Promise<void> | void;
 
   /** Runs before an aggregate query. */
-  beforeAggregate?(
-    options: AggregateOptions<TEntity, TEntities>,
-    ctx: RequestContext,
-  ): Promise<void> | void;
+  beforeAggregate?(options: AggregateOptions<TEntity, TEntities>, ctx: TCtx): Promise<void> | void;
 
   /**
    * Runs after an aggregate query.
    * Return a modified result to transform the output.
    */
-  afterAggregate?(result: unknown, ctx: RequestContext): Promise<unknown | void> | unknown | void;
+  afterAggregate?(result: unknown, ctx: TCtx): Promise<unknown | void> | unknown | void;
 
   /**
    * Runs before a relation connect/disconnect/set operation.
@@ -108,7 +97,7 @@ export abstract class RelayerHooks<
     operation: RelationOperation,
     relationName: RelationKeys<TEntity, TEntities>,
     ids: RelationId[],
-    ctx: RequestContext,
+    ctx: TCtx,
   ): Promise<RelationId[] | void> | RelationId[] | void;
 
   /**
@@ -120,6 +109,6 @@ export abstract class RelayerHooks<
     operation: RelationOperation,
     relationName: RelationKeys<TEntity, TEntities>,
     ids: RelationId[],
-    ctx: RequestContext,
+    ctx: TCtx,
   ): Promise<void> | void;
 }

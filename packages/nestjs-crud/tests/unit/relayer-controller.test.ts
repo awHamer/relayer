@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { RequestContext } from '../../src';
 import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
 import { CrudController } from '../../src/decorators/crud-controller.decorator';
 import { RelayerController } from '../../src/relayer.controller';
@@ -1381,5 +1382,500 @@ describe('handleUpdate with inline relation ops', () => {
       {},
     )) as any;
     expect(result.data.title).toBe('Updated');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// typed context propagation
+// ---------------------------------------------------------------------------
+// Verifies that:
+// 1. buildContext(request) is called with the raw request and produces TCtx
+// 2. buildQueryContext(ctx) is called with TCtx and produces TQueryCtx
+// 3. Hooks receive the TCtx (not RequestContext, not TQueryCtx)
+// 4. Service methods receive the TQueryCtx (not the full TCtx)
+// 5. The default buildContext / buildQueryContext behave as documented
+//
+// Critical insight: hooks ctx and service queryCtx are different objects
+// flowing through different paths and tests verify they don't get confused.
+
+interface TestAppUser {
+  id: number;
+  role: 'admin' | 'user';
+}
+
+interface TestAppContext extends RequestContext {
+  currentUser: TestAppUser;
+}
+
+interface TestAppQueryContext {
+  currentUserId: number;
+  isAdmin: boolean;
+}
+
+@CrudController({
+  model: TestEntity as any,
+  routes: {
+    list: { defaultLimit: 20, maxLimit: 50 },
+    findById: true,
+    create: true,
+    update: true,
+    delete: true,
+    count: true,
+    aggregate: true,
+    relations: { tags: true },
+  },
+  id: { field: 'id', type: 'number' },
+})
+class TypedTestController extends RelayerController<
+  any,
+  Record<string, unknown>,
+  DtoMapper<any, any, any>,
+  TestAppContext,
+  TestAppQueryContext
+> {
+  public buildContextSpy = vi.fn();
+  public buildQueryContextSpy = vi.fn();
+
+  constructor(service: RelayerService<any, Record<string, unknown>, TestAppQueryContext>) {
+    super(service);
+  }
+
+  protected buildContext(request: unknown): TestAppContext {
+    this.buildContextSpy(request);
+    const user = (request as { user?: TestAppUser }).user ?? { id: 0, role: 'user' };
+    return { request, currentUser: user };
+  }
+
+  protected buildQueryContext(ctx: TestAppContext): TestAppQueryContext {
+    this.buildQueryContextSpy(ctx);
+    return {
+      currentUserId: ctx.currentUser.id,
+      isAdmin: ctx.currentUser.role === 'admin',
+    };
+  }
+
+  list(r: any) {
+    return this.handleList(r);
+  }
+  findOne(id: string, r: unknown) {
+    return this.handleFindById(id, r);
+  }
+  doCreate(body: any, r: unknown) {
+    return this.handleCreate(body, r);
+  }
+  doUpdate(id: string, body: any, r: unknown) {
+    return this.handleUpdate(id, body, r);
+  }
+  doDelete(id: string, r: unknown) {
+    return this.handleDelete(id, r);
+  }
+  doCount(r: any) {
+    return this.handleCount(r);
+  }
+  doAggregate(r: any) {
+    return this.handleAggregate(r);
+  }
+  doRelationConnect(id: string, name: string, body: any, r: any) {
+    return this.handleRelationConnect(id, name as any, body, r);
+  }
+}
+
+function createTypedController() {
+  const client = mockEntityClient({
+    findMany: vi.fn().mockResolvedValue([{ id: 1 }]),
+    findFirst: vi.fn().mockResolvedValue({ id: 1, title: 'Test' }),
+    count: vi.fn().mockResolvedValue(1),
+    create: vi.fn().mockResolvedValue({ id: 3, title: 'New' }),
+    update: vi.fn().mockResolvedValue({ id: 1, title: 'Updated' }),
+    delete: vi.fn().mockResolvedValue({ id: 1 }),
+    aggregate: vi.fn().mockResolvedValue({ _count: 1 }),
+  });
+  const r = { tests: client } as any;
+  const service = new RelayerService<any, Record<string, unknown>, TestAppQueryContext>(r, 'tests');
+  const ctrl = new TypedTestController(service);
+  (ctrl as any).baseUrlConfig = 'http://test';
+  (ctrl as any).moduleRef = {
+    get: () => {
+      throw new Error('not found');
+    },
+  };
+  return { ctrl, client, service };
+}
+
+// Default-behavior controller (no overrides) — to verify base class defaults
+@CrudController({
+  model: TestEntity as any,
+  routes: { list: { defaultLimit: 20, maxLimit: 50 } },
+})
+class DefaultCtxController extends RelayerController<any, Record<string, unknown>> {
+  // Expose protected helpers for direct unit assertions
+  callBuildContext(request: unknown) {
+    return this.buildContext(request);
+  }
+  callBuildQueryContext(ctx: any) {
+    return this.buildQueryContext(ctx);
+  }
+}
+
+describe('RelayerController: typed context propagation', () => {
+  // ---- defaults ----
+  describe('defaults', () => {
+    it('default buildContext returns { request }', () => {
+      const ctrl = new DefaultCtxController(
+        new RelayerService<any, Record<string, unknown>>(
+          { tests: mockEntityClient() } as any,
+          'tests',
+        ),
+      );
+      const ctx = ctrl.callBuildContext({ headers: {}, url: '/foo' });
+      expect(ctx).toEqual({ request: { headers: {}, url: '/foo' } });
+    });
+
+    it('default buildQueryContext returns undefined', () => {
+      const ctrl = new DefaultCtxController(
+        new RelayerService<any, Record<string, unknown>>(
+          { tests: mockEntityClient() } as any,
+          'tests',
+        ),
+      );
+      expect(ctrl.callBuildQueryContext({ request: {} })).toBeUndefined();
+    });
+  });
+
+  // ---- handleList (offset) ----
+  describe('handleList (offset)', () => {
+    it('builds context from request and forwards queryCtx to service.findMany', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { ...req(), user: { id: 42, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+
+      expect(ctrl.buildContextSpy).toHaveBeenCalledWith(request);
+      expect(ctrl.buildQueryContextSpy).toHaveBeenCalledWith({
+        request,
+        currentUser: { id: 42, role: 'admin' },
+      });
+      expect(client.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 42, isAdmin: true } }),
+      );
+    });
+
+    it('forwards queryCtx to service.count', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { ...req(), user: { id: 5, role: 'user' } as TestAppUser };
+      await ctrl.list(request);
+      expect(client.count).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 5, isAdmin: false } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.beforeFind', async () => {
+      const { ctrl } = createTypedController();
+      const beforeFind = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeFind };
+      (ctrl as any).hooksResolved = true;
+      const request = { ...req(), user: { id: 7, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+      expect(beforeFind).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 7, role: 'admin' } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.afterFind', async () => {
+      const { ctrl } = createTypedController();
+      const afterFind = vi.fn();
+      (ctrl as any).resolvedHooks = { afterFind };
+      (ctrl as any).hooksResolved = true;
+      const request = { ...req(), user: { id: 8, role: 'user' } as TestAppUser };
+      await ctrl.list(request);
+      expect(afterFind).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({ currentUser: { id: 8, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- handleCursorList ----
+  describe('handleCursorList', () => {
+    it('cursor list also builds queryCtx and forwards to service.findMany', async () => {
+      // Build a cursor-paginated controller using the same TypedTestController + decorator override
+      @CrudController({
+        model: TestEntity as any,
+        routes: { list: { pagination: 'cursor', defaultLimit: 20, maxLimit: 50 } },
+        id: { field: 'id', type: 'number' },
+      })
+      class CursorCtrl extends TypedTestController {}
+
+      const client = mockEntityClient({
+        findMany: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
+      });
+      const r = { tests: client } as any;
+      const service = new RelayerService<any, Record<string, unknown>, TestAppQueryContext>(
+        r,
+        'tests',
+      );
+      const ctrl = new CursorCtrl(service);
+      (ctrl as any).baseUrlConfig = 'http://test';
+      (ctrl as any).moduleRef = {
+        get: () => {
+          throw new Error('not found');
+        },
+      };
+
+      const request = { ...req(), user: { id: 99, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+
+      expect(client.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 99, isAdmin: true } }),
+      );
+    });
+  });
+
+  // ---- handleFindById ----
+  describe('handleFindById', () => {
+    it('forwards queryCtx to service.findFirst', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { ...req(), user: { id: 11, role: 'admin' } as TestAppUser };
+      await ctrl.findOne('1', request);
+      expect(client.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 11, isAdmin: true } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.afterFindOne', async () => {
+      const { ctrl } = createTypedController();
+      const afterFindOne = vi.fn();
+      (ctrl as any).resolvedHooks = { afterFindOne };
+      (ctrl as any).hooksResolved = true;
+      const request = { ...req(), user: { id: 12, role: 'user' } as TestAppUser };
+      await ctrl.findOne('1', request);
+      expect(afterFindOne).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 12, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- handleCount ----
+  describe('handleCount', () => {
+    it('forwards queryCtx to service.count', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { ...req(), user: { id: 21, role: 'admin' } as TestAppUser };
+      await ctrl.doCount(request);
+      expect(client.count).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 21, isAdmin: true } }),
+      );
+    });
+  });
+
+  // ---- handleAggregate ----
+  describe('handleAggregate', () => {
+    it('forwards queryCtx to service.aggregate', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = {
+        query: { _count: 'true' },
+        user: { id: 31, role: 'admin' } as TestAppUser,
+      };
+      await ctrl.doAggregate(request);
+      expect(client.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 31, isAdmin: true } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.beforeAggregate', async () => {
+      const { ctrl } = createTypedController();
+      const beforeAggregate = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeAggregate };
+      (ctrl as any).hooksResolved = true;
+      const request = {
+        query: { _count: 'true' },
+        user: { id: 32, role: 'user' } as TestAppUser,
+      };
+      await ctrl.doAggregate(request);
+      expect(beforeAggregate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 32, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- handleCreate ----
+  describe('handleCreate', () => {
+    it('forwards queryCtx to service.create', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { user: { id: 41, role: 'admin' } as TestAppUser };
+      await ctrl.doCreate({ title: 'X' }, request);
+      expect(client.create).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 41, isAdmin: true } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.beforeCreate and afterCreate', async () => {
+      const { ctrl } = createTypedController();
+      const beforeCreate = vi.fn();
+      const afterCreate = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeCreate, afterCreate };
+      (ctrl as any).hooksResolved = true;
+      const request = { user: { id: 42, role: 'user' } as TestAppUser };
+      await ctrl.doCreate({ title: 'X' }, request);
+      expect(beforeCreate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 42, role: 'user' } }),
+      );
+      expect(afterCreate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 42, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- handleUpdate ----
+  describe('handleUpdate', () => {
+    it('forwards queryCtx to service.update', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { user: { id: 51, role: 'admin' } as TestAppUser };
+      await ctrl.doUpdate('1', { title: 'X' }, request);
+      expect(client.update).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 51, isAdmin: true } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.beforeUpdate and afterUpdate', async () => {
+      const { ctrl } = createTypedController();
+      const beforeUpdate = vi.fn();
+      const afterUpdate = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeUpdate, afterUpdate };
+      (ctrl as any).hooksResolved = true;
+      const request = { user: { id: 52, role: 'user' } as TestAppUser };
+      await ctrl.doUpdate('1', { title: 'X' }, request);
+      expect(beforeUpdate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 52, role: 'user' } }),
+      );
+      expect(afterUpdate).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 52, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- handleDelete ----
+  describe('handleDelete', () => {
+    it('forwards queryCtx to service.delete', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { user: { id: 61, role: 'admin' } as TestAppUser };
+      await ctrl.doDelete('1', request);
+      expect(client.delete).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 61, isAdmin: true } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.beforeDelete and afterDelete', async () => {
+      const { ctrl } = createTypedController();
+      const beforeDelete = vi.fn();
+      const afterDelete = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeDelete, afterDelete };
+      (ctrl as any).hooksResolved = true;
+      const request = { user: { id: 62, role: 'user' } as TestAppUser };
+      await ctrl.doDelete('1', request);
+      expect(beforeDelete).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 62, role: 'user' } }),
+      );
+      expect(afterDelete).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({ currentUser: { id: 62, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- handleRelationOp ----
+  describe('handleRelationOp', () => {
+    it('connect forwards queryCtx to service.update', async () => {
+      const { ctrl, client } = createTypedController();
+      const request = { user: { id: 71, role: 'admin' } as TestAppUser };
+      await ctrl.doRelationConnect('1', 'tags', { data: [10, 11] }, request);
+      expect(client.update).toHaveBeenCalledWith(
+        expect.objectContaining({ context: { currentUserId: 71, isAdmin: true } }),
+      );
+    });
+
+    it('passes typed AppContext to hooks.beforeRelation and afterRelation', async () => {
+      const { ctrl } = createTypedController();
+      const beforeRelation = vi.fn();
+      const afterRelation = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeRelation, afterRelation };
+      (ctrl as any).hooksResolved = true;
+      const request = { user: { id: 72, role: 'user' } as TestAppUser };
+      await ctrl.doRelationConnect('1', 'tags', { data: [10] }, request);
+      expect(beforeRelation).toHaveBeenCalledWith(
+        'connect',
+        'tags',
+        [10],
+        expect.objectContaining({ currentUser: { id: 72, role: 'user' } }),
+      );
+      expect(afterRelation).toHaveBeenCalledWith(
+        'connect',
+        'tags',
+        [10],
+        expect.objectContaining({ currentUser: { id: 72, role: 'user' } }),
+      );
+    });
+  });
+
+  // ---- ordering and counts ----
+  describe('build order and call counts', () => {
+    it('buildContext is called once per handler invocation', async () => {
+      const { ctrl } = createTypedController();
+      const request = { ...req(), user: { id: 1, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+      expect(ctrl.buildContextSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('buildQueryContext is called once per handler invocation', async () => {
+      const { ctrl } = createTypedController();
+      const request = { ...req(), user: { id: 1, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+      expect(ctrl.buildQueryContextSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('buildContext runs before buildQueryContext', async () => {
+      const { ctrl } = createTypedController();
+      const order: string[] = [];
+      ctrl.buildContextSpy.mockImplementation(() => order.push('build'));
+      ctrl.buildQueryContextSpy.mockImplementation(() => order.push('queryCtx'));
+      const request = { ...req(), user: { id: 1, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+      expect(order).toEqual(['build', 'queryCtx']);
+    });
+  });
+
+  // ---- critical: hooks ctx vs service queryCtx separation ----
+  describe('hooks ctx vs service queryCtx', () => {
+    it('hooks receive AppContext (with currentUser), service receives AppQueryContext (with currentUserId)', async () => {
+      const { ctrl, client } = createTypedController();
+      const beforeFind = vi.fn();
+      (ctrl as any).resolvedHooks = { beforeFind };
+      (ctrl as any).hooksResolved = true;
+      const request = { ...req(), user: { id: 100, role: 'admin' } as TestAppUser };
+      await ctrl.list(request);
+
+      // Hooks: get the full AppContext with currentUser
+      const hookCtxArg = beforeFind.mock.calls[0]?.[1] as TestAppContext & {
+        currentUserId?: unknown;
+      };
+      expect(hookCtxArg).toEqual({
+        request,
+        currentUser: { id: 100, role: 'admin' },
+      });
+      expect(hookCtxArg.currentUserId).toBeUndefined(); // does not have flat fields
+
+      // Service: gets the slim AppQueryContext, no `request` or `currentUser`
+      const serviceCtxArg = (client.findMany as any).mock.calls[0][0].context;
+      expect(serviceCtxArg).toEqual({ currentUserId: 100, isAdmin: true });
+      expect(serviceCtxArg.request).toBeUndefined();
+      expect(serviceCtxArg.currentUser).toBeUndefined();
+    });
   });
 });

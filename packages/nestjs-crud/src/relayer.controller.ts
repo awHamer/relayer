@@ -45,6 +45,8 @@ export class RelayerController<
   TEntity,
   EM extends Record<string, unknown> = Record<string, unknown>,
   _TDtoMapper extends DtoMapper<TEntity, unknown, unknown> = DtoMapper<TEntity, TEntity, TEntity>,
+  TCtx extends RequestContext = RequestContext,
+  TQueryCtx = unknown,
 > implements OnModuleInit {
   @Inject(ModuleRef)
   private moduleRef!: ModuleRef;
@@ -57,7 +59,7 @@ export class RelayerController<
   private dtoMapperResolved = false;
   private hooksResolved = false;
 
-  constructor(private readonly service: RelayerService<TEntity, EM>) {}
+  constructor(private readonly service: RelayerService<TEntity, EM, TQueryCtx>) {}
 
   onModuleInit(): void {
     const config = this.getConfig();
@@ -92,8 +94,12 @@ export class RelayerController<
     return (base ? base.replace(/\/$/, '') : '') + '/' + path;
   }
 
-  protected buildContext(request: unknown): RequestContext {
-    return { request };
+  protected buildContext(request: unknown): TCtx {
+    return { request } as TCtx;
+  }
+
+  protected buildQueryContext(_ctx: TCtx): TQueryCtx | undefined {
+    return undefined;
   }
 
   protected parseId(id: string): string | number {
@@ -183,6 +189,7 @@ export class RelayerController<
     const offset = query.offset ?? 0;
     const findOptions = { ...query, limit, offset };
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
 
     if (hooks?.beforeFind) {
@@ -191,8 +198,14 @@ export class RelayerController<
 
     // eslint-disable-next-line prefer-const
     let [data, total] = await Promise.all([
-      this.service.findMany(findOptions as ManyOptions<TEntity, EM>) as Promise<TEntity[]>,
-      this.service.count(query.where ? { where: query.where as Where<TEntity, EM> } : {}),
+      this.service.findMany({
+        ...(findOptions as ManyOptions<TEntity, EM>),
+        context: queryCtx,
+      }) as Promise<TEntity[]>,
+      this.service.count({
+        ...(query.where ? { where: query.where as Where<TEntity, EM> } : {}),
+        context: queryCtx,
+      }),
     ]);
 
     if (hooks?.afterFind) {
@@ -267,15 +280,17 @@ export class RelayerController<
     delete findOptions.offset;
 
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
 
     if (hooks?.beforeFind) {
       await hooks.beforeFind(findOptions as ManyOptions<TEntity, EM>, ctx);
     }
 
-    const rawData = (await this.service.findMany(
-      findOptions as ManyOptions<TEntity, EM>,
-    )) as TEntity[];
+    const rawData = (await this.service.findMany({
+      ...(findOptions as ManyOptions<TEntity, EM>),
+      context: queryCtx,
+    })) as TEntity[];
     const hasMore = rawData.length > limit;
     let results = hasMore ? rawData.slice(0, limit) : rawData;
 
@@ -333,15 +348,17 @@ export class RelayerController<
     };
 
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
 
     if (hooks?.beforeFindOne) {
       await hooks.beforeFindOne(findOptions as FirstOptions<TEntity, EM>, ctx);
     }
 
-    let result = (await this.service.findFirst(
-      findOptions as FirstOptions<TEntity, EM>,
-    )) as TEntity | null;
+    let result = (await this.service.findFirst({
+      ...(findOptions as FirstOptions<TEntity, EM>),
+      context: queryCtx,
+    })) as TEntity | null;
     if (!result) {
       throw new NotFoundException('Entity not found');
     }
@@ -367,6 +384,7 @@ export class RelayerController<
     const config = this.getConfig();
     const createConfig = getRouteConfig(config.routes, 'create') as MutationRouteConfig | undefined;
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const dtoMapper = this.getDtoMapper();
     const hooks = this.getHooks();
 
@@ -384,7 +402,7 @@ export class RelayerController<
       if (modified) data = modified;
     }
 
-    const created = (await this.service.create({ data })) as TEntity;
+    const created = (await this.service.create({ data, context: queryCtx })) as TEntity;
 
     if (hooks?.afterCreate) {
       await hooks.afterCreate(created, ctx);
@@ -438,6 +456,7 @@ export class RelayerController<
     const idField = config.id?.field ?? 'id';
     const where = { [idField]: parsedId };
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const dtoMapper = this.getDtoMapper();
     const hooks = this.getHooks();
 
@@ -465,6 +484,7 @@ export class RelayerController<
     const updated = (await this.service.update({
       where: where as Where<TEntity, EM>,
       data: data as Partial<TEntity>,
+      context: queryCtx,
     })) as TEntity | undefined;
 
     if (updated && hooks?.afterUpdate) {
@@ -494,13 +514,17 @@ export class RelayerController<
     const idField = config.id?.field ?? 'id';
     const where = { [idField]: parsedId };
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
 
     if (hooks?.beforeDelete) {
       await hooks.beforeDelete(where as Where<TEntity, EM>, ctx);
     }
 
-    const deleted = (await this.service.delete({ where: where as Where<TEntity, EM> })) as TEntity;
+    const deleted = (await this.service.delete({
+      where: where as Where<TEntity, EM>,
+      context: queryCtx,
+    })) as TEntity;
 
     if (!deleted) {
       throw new NotFoundException('Entity not found');
@@ -533,6 +557,7 @@ export class RelayerController<
     this.applySearch(query, listConfig);
 
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
     const countOptions = query.where ? { where: query.where as Where<TEntity, EM> } : {};
 
@@ -540,7 +565,7 @@ export class RelayerController<
       await hooks.beforeCount(countOptions, ctx);
     }
 
-    const count = await this.service.count(countOptions);
+    const count = await this.service.count({ ...countOptions, context: queryCtx });
     return { data: { count: Number(count) } };
   }
 
@@ -553,6 +578,7 @@ export class RelayerController<
   protected async handleAggregate(request: { query: Record<string, string> }): Promise<unknown> {
     const raw = request.query;
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
 
     const options: Record<string, unknown> = {} as Record<string, unknown>;
@@ -573,6 +599,8 @@ export class RelayerController<
       const parsed = tryParseJson(raw[key]);
       if (parsed) (options as Record<string, unknown>)[key] = parsed;
     }
+
+    options.context = queryCtx;
 
     if (hooks?.beforeAggregate) {
       await hooks.beforeAggregate(options, ctx);
@@ -604,6 +632,7 @@ export class RelayerController<
     }
 
     const ctx = this.buildContext(request);
+    const queryCtx = this.buildQueryContext(ctx);
     const hooks = this.getHooks();
 
     if (hooks?.beforeRelation) {
@@ -614,6 +643,7 @@ export class RelayerController<
     await this.service.update({
       where: { [idField]: parsedId } as Where<TEntity, EM>,
       data: { [relationName]: { [operation]: ids } } as Partial<TEntity>,
+      context: queryCtx,
     });
 
     if (hooks?.afterRelation) {

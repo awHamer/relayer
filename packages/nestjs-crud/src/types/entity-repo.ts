@@ -69,22 +69,37 @@ export interface AggregateOptions<TEntity, TEntities extends Record<string, unkn
   _min?: Partial<Record<ModelPaths<TEntity, TEntities>, boolean>>;
   _max?: Partial<Record<ModelPaths<TEntity, TEntities>, boolean>>;
   having?: AggregateHaving;
+  context?: unknown;
 }
 
 export interface EntityRepo<TEntity, TEntities extends Record<string, unknown>> {
   findMany<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
-    options?: ManyOptions<TEntity, TEntities> & { select?: TSelect },
+    options?: ManyOptions<TEntity, TEntities> & { select?: TSelect; context?: unknown },
   ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect>[]>;
   findFirst<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
-    options?: FirstOptions<TEntity, TEntities> & { select?: TSelect },
+    options?: FirstOptions<TEntity, TEntities> & { select?: TSelect; context?: unknown },
   ): Promise<SelectResult<Model<TEntity, TEntities>, TSelect> | null>;
-  count(options?: WhereOptions<TEntity, TEntities>): Promise<number>;
-  create(options: { data: Record<string, unknown> }): Promise<Model<TEntity, TEntities>>;
-  createMany(options: { data: Record<string, unknown>[] }): Promise<Model<TEntity, TEntities>[]>;
-  update(options: UpdateOptions<TEntity, TEntities>): Promise<Model<TEntity, TEntities>>;
-  updateMany(options: UpdateOptions<TEntity, TEntities>): Promise<{ count: number }>;
-  delete(options: WhereOptions<TEntity, TEntities>): Promise<Model<TEntity, TEntities>>;
-  deleteMany(options: WhereOptions<TEntity, TEntities>): Promise<{ count: number }>;
+  count(options?: WhereOptions<TEntity, TEntities> & { context?: unknown }): Promise<number>;
+  create(options: {
+    data: Record<string, unknown>;
+    context?: unknown;
+  }): Promise<Model<TEntity, TEntities>>;
+  createMany(options: {
+    data: Record<string, unknown>[];
+    context?: unknown;
+  }): Promise<Model<TEntity, TEntities>[]>;
+  update(
+    options: UpdateOptions<TEntity, TEntities> & { context?: unknown },
+  ): Promise<Model<TEntity, TEntities>>;
+  updateMany(
+    options: UpdateOptions<TEntity, TEntities> & { context?: unknown },
+  ): Promise<{ count: number }>;
+  delete(
+    options: WhereOptions<TEntity, TEntities> & { context?: unknown },
+  ): Promise<Model<TEntity, TEntities>>;
+  deleteMany(
+    options: WhereOptions<TEntity, TEntities> & { context?: unknown },
+  ): Promise<{ count: number }>;
   aggregate<const TOptions extends AggregateOptions<TEntity, TEntities>>(
     options: TOptions,
   ): Promise<AggregateResult<Model<TEntity, TEntities>, TOptions>[]>;

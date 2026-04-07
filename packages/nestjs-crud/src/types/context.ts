@@ -1,6 +1,6 @@
-export interface RequestContext {
+export interface RequestContext<TUser = unknown> {
   request: unknown;
-  user?: unknown;
+  user?: TUser;
   tx?: unknown;
   [key: string]: unknown;
 }

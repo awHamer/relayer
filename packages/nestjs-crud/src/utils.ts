@@ -8,7 +8,7 @@ export interface RelayerEntityWithKey extends RelayerEntityClass {
 
 export function isEntityWithKey(entity: RelayerEntityClass): entity is RelayerEntityWithKey {
   return (
-    '__entityKey' in entity && typeof (entity as RelayerEntityWithKey).__entityKey === 'string'
+    '__entityKey' in entity && typeof (entity as { __entityKey?: unknown }).__entityKey === 'string'
   );
 }
 

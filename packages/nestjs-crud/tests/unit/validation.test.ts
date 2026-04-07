@@ -72,6 +72,24 @@ describe('validateBody', () => {
     // class-validator pipeline. Without decorators it throws 422, not "not installed".
     await expect(validateBody(TestDto, { name: 'test' })).rejects.toThrow('Validation failed');
   });
+
+  it('handles undefined body without crashing (Zod)', async () => {
+    const schema = z.object({ title: z.string() });
+    await expect(validateBody(schema, undefined)).rejects.toThrow(HttpException);
+  });
+
+  it('handles null body without crashing (Zod)', async () => {
+    const schema = z.object({ title: z.string() });
+    await expect(validateBody(schema, null)).rejects.toThrow(HttpException);
+  });
+
+  it('handles undefined body without crashing (class-validator DTO)', async () => {
+    class TestDto {
+      name!: string;
+    }
+    await expect(validateBody(TestDto, undefined)).rejects.toThrow(HttpException);
+    await expect(validateBody(TestDto, undefined)).rejects.not.toThrow(TypeError);
+  });
 });
 
 describe('validateWithZod edge cases', () => {
