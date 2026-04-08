@@ -252,16 +252,25 @@ protected getDefaultSelect(
 
 ## Cross-entity access
 
-The `r` property gives typed access to all registered entities:
+`PostsService` is bound to `posts`. To query other entities directly (without relations on the current model), use the typed `this.r` client:
+
+```ts
+async findActiveCommenters() {
+  return this.r.users.findMany({
+    where: { comments: { some: { createdAt: { gte: lastWeek() } } } },
+    select: { id: true, fullName: true, postsCount: true },
+  });
+}
+```
+
+For loading related data on the **current** entity, just use `select` with relations — one query, fully typed:
 
 ```ts
 async getPostWithAuthor(id: number) {
-  const post = await this.findFirst({ where: { id } });
-  const author = await this.r.users.findFirst({
-    where: { id: post?.authorId },
-    select: { id: true, fullName: true },
+  return this.findFirst({
+    where: { id },
+    select: { id: true, title: true, author: { id: true, fullName: true } },
   });
-  return { post, author };
 }
 ```
 
