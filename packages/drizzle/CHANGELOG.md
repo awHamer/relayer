@@ -1,5 +1,16 @@
 # @relayerjs/drizzle
 
+## 0.7.0
+
+### Minor Changes
+
+- 1366a2c: - Add typed Context support — `createRelayerEntity` accepts a `TContext` generic that propagates into `@computed` and `@derived` resolvers, and `context` is now passed through on every read AND mutation method
+
+### Patch Changes
+
+- Updated dependencies [1366a2c]
+  - @relayerjs/core@0.4.0
+
 ## 0.6.1
 
 ### Patch Changes

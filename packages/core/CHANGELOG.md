@@ -1,5 +1,11 @@
 # @relayerjs/core
 
+## 0.4.0
+
+### Minor Changes
+
+- 1366a2c: - Add `TContext` generic to query and mutation option types so per-request context flows through the whole stack with proper type safety
+
 ## 0.3.1
 
 ### Patch Changes
