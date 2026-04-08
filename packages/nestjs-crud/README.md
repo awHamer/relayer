@@ -209,19 +209,19 @@ Mutations follow the same pattern: parse -> validate -> hooks.before -> dtoMappe
 
 ## Service
 
-`RelayerService<TEntity, TEntities>` provides fully typed CRUD methods:
+`RelayerService<TEntity, TEntities, TContext?>` provides fully typed CRUD methods. The optional third generic `TContext` types the per-call `context` option and the second argument of `getDefaultWhere(upstream, ctx)` for row-level scoping — see [Typed Context](#typed-context) below.
 
 ```ts
-service.findMany({ where, select, orderBy, limit, offset })
-service.findFirst({ where, select, orderBy })
-service.count({ where })
-service.create({ data })
-service.createMany({ data: [...] })
-service.update({ where, data })
-service.updateMany({ where, data })
-service.delete({ where })
-service.deleteMany({ where })
-service.aggregate({ groupBy, _count, _sum, _avg, _min, _max, where, having })
+service.findMany({ where, select, orderBy, limit, offset, context })
+service.findFirst({ where, select, orderBy, context })
+service.count({ where, context })
+service.create({ data, context })
+service.createMany({ data: [...], context })
+service.update({ where, data, context })
+service.updateMany({ where, data, context })
+service.delete({ where, context })
+service.deleteMany({ where, context })
+service.aggregate({ groupBy, _count, _sum, _avg, _min, _max, where, having, context })
 ```
 
 ### Service Defaults
@@ -256,15 +256,62 @@ export class PostsService extends RelayerService<PostEntity, EM> {
 
 ### Cross-entity Access
 
-The `r` property gives typed access to all registered entities:
+`PostsService` is bound to `posts`. To query unrelated entities (ones that don't have a relation to the current model), use the typed `this.r` client:
+
+```ts
+async getRecentSystemOrders() {
+  return this.r.orders.findMany({
+    where: { createdAt: { gte: yesterday() } },
+    orderBy: { field: 'createdAt', order: 'desc' },
+    select: { id: true, total: true, status: true },
+  });
+}
+```
+
+For data that **is** related to the current entity, just use `select` with relations — one query, fully typed:
 
 ```ts
 async getPostWithAuthor(id: number) {
-  const post = await this.findFirst({ where: { id } });
-  const author = await this.r.users.findFirst({ where: { id: post?.authorId } });
-  return { post, author };
+  return this.findFirst({
+    where: { id },
+    select: { id: true, title: true, author: { id: true, fullName: true } },
+  });
 }
 ```
+
+### Typed Context
+
+Pass an `AppQueryContext` interface as the third generic to type the per-call `context` option and the second argument of `getDefaultWhere`. Use it for row-level scoping driven by the current request — multi-tenancy, ownership checks, soft-deletes:
+
+```ts
+interface AppQueryContext {
+  currentUserId: number;
+  isAdmin: boolean;
+}
+
+@Injectable()
+export class PostsService extends RelayerService<PostEntity, EM, AppQueryContext> {
+  constructor(@InjectRelayer() r: RelayerInstance<EM>) {
+    super(r, PostEntity);
+  }
+
+  // Non-admins only see published posts or their own drafts
+  protected getDefaultWhere(
+    upstream?: Where<PostEntity, EM>,
+    ctx?: AppQueryContext,
+  ): Where<PostEntity, EM> | undefined {
+    if (!ctx || ctx.isAdmin) return upstream;
+    const scoped: Where<PostEntity, EM> = {
+      OR: [{ published: true }, { authorId: ctx.currentUserId }],
+    };
+    return upstream ? { AND: [upstream, scoped] } : scoped;
+  }
+}
+```
+
+The same `getDefaultWhere` is applied to **every** read AND write — `findMany`, `findFirst`, `count`, `update`, `updateMany`, `delete`, `deleteMany`, `aggregate`. A non-admin trying to PATCH or DELETE someone else's post gets a no-op because the scoped where filters them out before the SQL runs.
+
+When the controller extends `RelayerController`, it builds and forwards the context automatically per request — see the [Controller](#controller) section.
 
 ## Controller
 
@@ -646,10 +693,6 @@ constructor(@InjectEntity(PostEntity) repo: EntityRepo<PostEntity, EM>) {}
 // Auto-registered service for an entity
 constructor(@InjectQueryService(PostEntity) service: RelayerService<PostEntity, EM>) {}
 ```
-
-## Roadmap
-
-- Better integration with Relayer context object
 
 ## License
 
