@@ -1,5 +1,11 @@
 # @relayerjs/nestjs-crud
 
+## 0.3.0
+
+### Minor Changes
+
+- 5e5ab99: - Add typed Context support across services, controllers and hooks. Override `buildContext` / `buildQueryContext` on the controller and the same typed context flows into hooks and into `getDefaultWhere` for row-level scoping on reads and writes
+
 ## 0.2.0
 
 ### Minor Changes

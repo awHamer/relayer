@@ -1,5 +1,11 @@
 # @relayerjs/next
 
+## 0.1.4
+
+### Patch Changes
+
+- 5e5ab99: - Bump peer deps to `@relayerjs/core@^0.4.0` and `@relayerjs/drizzle@^0.7.0`
+
 ## 0.1.3
 
 ### Patch Changes
