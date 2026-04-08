@@ -7,5 +7,10 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@relayerjs/example-nestjs", "@relayerjs/example-drizzle"]
+  "ignore": [
+    "@relayerjs/example-nestjs",
+    "@relayerjs/example-drizzle",
+    "@relayerjs/nestjs-crud",
+    "@relayerjs/next"
+  ]
 }
