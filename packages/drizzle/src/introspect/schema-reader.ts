@@ -32,13 +32,19 @@ export function readSchema(schema: Record<string, unknown>): Map<string, TableIn
     const scalarFields = new Map<string, ScalarFieldDef>();
 
     for (const [fieldName, column] of Object.entries(columns)) {
-      const col = column as { dataType: string; notNull: boolean; primary?: boolean };
+      const col = column as {
+        dataType: string;
+        notNull: boolean;
+        primary?: boolean;
+        hasDefault?: boolean;
+      };
       scalarFields.set(fieldName, {
         kind: 'scalar',
         name: fieldName,
         valueType: DATA_TYPE_MAP[col.dataType] ?? 'string',
         nullable: !col.notNull,
         primaryKey: col.primary ?? false,
+        hasDefault: col.hasDefault ?? false,
       });
     }
 
