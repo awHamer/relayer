@@ -1,5 +1,13 @@
 # @relayerjs/drizzle
 
+## 0.7.1
+
+### Patch Changes
+
+- d1e9e2b: Fix drizzle proxy reflection, export introspect utils, add hasDefault to ScalarFieldDef
+- Updated dependencies [d1e9e2b]
+  - @relayerjs/core@0.4.1
+
 ## 0.7.0
 
 ### Minor Changes
