@@ -67,10 +67,19 @@ function _createRelayerDrizzle(config: {
   const { registry, tables } = buildRegistry(schema, resolvedEntities);
   const relayerClientCache = new Map<string, unknown>();
 
+  const target = {} as Record<string, unknown>;
+
   // Create a client on first accessing to reduce unnecessary instances
-  return new Proxy({} as Record<string, unknown>, {
+  return new Proxy(target, {
     get(_target, prop) {
-      if (typeof prop !== 'string') return undefined;
+      // Pass through symbols and well-known JS introspection props so frameworks
+      // scanning providers via reflection (NestJS, util.inspect) don't break.
+      if (typeof prop !== 'string') {
+        return Reflect.get(target, prop);
+      }
+      if (prop === 'constructor' || prop === 'then') {
+        return Reflect.get(target, prop);
+      }
 
       if (prop === '$orm') return db;
       if (prop === 'getOrm') return () => db;

@@ -6,4 +6,5 @@ export interface ScalarFieldDef {
   valueType: ValueType;
   nullable: boolean;
   primaryKey?: boolean;
+  hasDefault?: boolean;
 }
