@@ -1,5 +1,11 @@
 # @relayerjs/core
 
+## 0.4.1
+
+### Patch Changes
+
+- d1e9e2b: Fix drizzle proxy reflection, export introspect utils, add hasDefault to ScalarFieldDef
+
 ## 0.4.0
 
 ### Minor Changes
