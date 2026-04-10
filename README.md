@@ -12,12 +12,13 @@
 
 ## Packages
 
-| Package                                          | Description                                     |
-| ------------------------------------------------ | ----------------------------------------------- |
-| [@relayerjs/drizzle](./packages/drizzle)         | Drizzle ORM adapter — main package              |
-| [@relayerjs/core](./packages/core)               | ORM-agnostic types and contracts                |
-| [@relayerjs/next](./packages/next)               | Next.js App Router CRUD integration             |
-| [@relayerjs/nestjs-crud](./packages/nestjs-crud) | NestJS CRUD controllers with DI, hooks, Swagger |
+| Package                                                | Description                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------ |
+| [@relayerjs/drizzle](./packages/drizzle)               | Drizzle ORM adapter — main package                           |
+| [@relayerjs/core](./packages/core)                     | ORM-agnostic types and contracts                             |
+| [@relayerjs/next](./packages/next)                     | Next.js App Router CRUD integration                          |
+| [@relayerjs/nestjs-crud](./packages/nestjs-crud)       | NestJS CRUD controllers with DI, hooks, Swagger              |
+| [@relayerjs/nestjs-graphql](./packages/nestjs-graphql) | NestJS GraphQL code-first CRUD with filtering and pagination |
 
 ## Table of Contents
 
@@ -26,6 +27,7 @@
 - [Quick Start](#quick-start)
 - [Next.js Integration](#nextjs-integration)
 - [NestJS Integration](#nestjs-integration)
+- [NestJS GraphQL Integration](#nestjs-graphql-integration)
 - [Documentation](#documentation)
 - [Examples](#examples)
 - [Roadmap](#roadmap)
@@ -36,7 +38,7 @@
 
 Relayer is a repository layer that sits between your ORM and your API. It makes dynamic fields (computed, derived) a first-class part of the data model with full support for filtering, sorting, and aggregation — not through raw SQL escape hatches, but as a core design principle. The query DSL is a plain JSON-serializable object, making it trivial to wire up as REST or GraphQL filters.
 
-Currently ships with a [Drizzle ORM](https://orm.drizzle.team) adapter and framework integrations for [Next.js](./packages/next) and [NestJS](./packages/nestjs-crud). The project is in active development — adapters for Kysely, TypeORM, and other ORMs are planned.
+Currently ships with a [Drizzle ORM](https://orm.drizzle.team) adapter and framework integrations for [Next.js](./packages/next) and NestJS ([REST](./packages/nestjs-crud), [GraphQL](./packages/nestjs-graphql)). The project is in active development — adapters for Kysely, TypeORM, and other ORMs are planned.
 
 ## Features
 
@@ -62,10 +64,11 @@ Currently ships with a [Drizzle ORM](https://orm.drizzle.team) adapter and frame
 ### NestJS
 
 - **Full-featured REST CRUD** — services, controllers, and route generation out of the box
+- **GraphQL code-first CRUD** — one `@GqlResolver` decorator generates queries, mutations, and all GraphQL types
 - **Lifecycle hooks** and **DTO mapping** for full control over request/response pipeline
 - **Complex filters** — AND, OR, relations, JSON fields, computed/derived fields, search
-- **Cursor and offset pagination** with configurable limits
-- **Swagger/OpenAPI** auto-documentation
+- **Cursor and offset pagination** — both strategies, or both at once
+- **Swagger/OpenAPI** auto-documentation for REST
 
 ## Quick Start
 
@@ -219,30 +222,64 @@ Auto-generated routes:
 
 > Full documentation: [@relayerjs/nestjs-crud README](./packages/nestjs-crud/README.md)
 
+## NestJS GraphQL Integration
+
+[@relayerjs/nestjs-graphql](./packages/nestjs-graphql) generates a complete code-first GraphQL API from your Relayer entities. One decorator, full CRUD.
+
+```bash
+npm install @relayerjs/nestjs-graphql @relayerjs/core @relayerjs/drizzle @relayerjs/nestjs-common
+```
+
+```ts
+@GqlResolver(UserEntity, { name: 'User' })
+export class UsersResolver extends RelayerResolver<UserEntity, EM> {
+  constructor(usersService: UsersService) {
+    super(usersService);
+  }
+}
+```
+
+Auto-generated operations:
+
+| Type     | Name                       | Description                        |
+| -------- | -------------------------- | ---------------------------------- |
+| Query    | `users`                    | Cursor-paginated list (Connection) |
+| Query    | `user(id: ID!)`            | Find by ID                         |
+| Query    | `usersCount(where: ...)`   | Count matching records             |
+| Query    | `usersAggregate(...)`      | Aggregation with groupBy           |
+| Mutation | `createUser(data: ...)`    | Create one                         |
+| Mutation | `updateUser(id: ID!, ...)` | Update one                         |
+| Mutation | `deleteUser(id: ID!)`      | Delete one                         |
+
+All GraphQL types, filter inputs, and sorting are generated automatically. Supports cursor and offset pagination, relation filters, lifecycle hooks, and typed context.
+
+> Full documentation: [@relayerjs/nestjs-graphql README](./packages/nestjs-graphql/README.md)
+
 ## Documentation
 
 Full documentation is available at **[relayerjs.vercel.app](https://relayerjs.vercel.app)**
 
-| Topic               | Link                                                               |
-| ------------------- | ------------------------------------------------------------------ |
-| Drizzle adapter     | [packages/drizzle/README.md](./packages/drizzle/README.md)         |
-| Next.js integration | [packages/next/README.md](./packages/next/README.md)               |
-| NestJS CRUD         | [packages/nestjs-crud/README.md](./packages/nestjs-crud/README.md) |
+| Topic               | Link                                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| Drizzle adapter     | [packages/drizzle/README.md](./packages/drizzle/README.md)               |
+| Next.js integration | [packages/next/README.md](./packages/next/README.md)                     |
+| NestJS CRUD         | [packages/nestjs-crud/README.md](./packages/nestjs-crud/README.md)       |
+| NestJS GraphQL      | [packages/nestjs-graphql/README.md](./packages/nestjs-graphql/README.md) |
 
 ## Examples
 
-| Example                             | Directory                                      |
-| ----------------------------------- | ---------------------------------------------- |
-| Drizzle (PostgreSQL, MySQL, SQLite) | [examples/drizzle](./examples/drizzle)         |
-| NestJS CRUD                         | [examples/nestjs-crud](./examples/nestjs-crud) |
-| Next.js App Router                  | [examples/next](./examples/next)               |
+| Example                             | Directory                                            |
+| ----------------------------------- | ---------------------------------------------------- |
+| Drizzle (PostgreSQL, MySQL, SQLite) | [examples/drizzle](./examples/drizzle)               |
+| NestJS CRUD                         | [examples/nestjs-crud](./examples/nestjs-crud)       |
+| NestJS GraphQL                      | [examples/nestjs-graphql](./examples/nestjs-graphql) |
+| Next.js App Router                  | [examples/next](./examples/next)                     |
 
 ## Roadmap
 
 Relayer is in early development. Planned packages:
 
 - **@relayerjs/rest**: auto-generate REST CRUD endpoints (Express, Fastify)
-- **@relayerjs/nestjs-graphql**: NestJS GraphQL resolvers with auto-generated schemas
 - **@relayerjs/react**: React client with hooks for querying Relayer endpoints
 
 Contributions are always welcome.
@@ -289,6 +326,7 @@ pnpm --filter @relayerjs/drizzle test:pg       # drizzle PostgreSQL integration
 pnpm --filter @relayerjs/drizzle test:mysql    # drizzle MySQL integration
 pnpm --filter @relayerjs/drizzle test:sqlite   # drizzle SQLite integration (in-memory)
 pnpm --filter @relayerjs/nestjs-crud test      # nestjs-crud
+pnpm --filter @relayerjs/nestjs-graphql test   # nestjs-graphql
 pnpm --filter @relayerjs/next test             # next
 ```
 
