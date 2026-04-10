@@ -1,5 +1,5 @@
 import type { ExecutionContext } from '@nestjs/common';
-import type { RequestContext } from '@relayerjs/nestjs-crud';
+import type { RequestContext } from '@relayerjs/nestjs-common';
 
 export type GqlContext = RequestContext;
 

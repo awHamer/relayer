@@ -1,4 +1,4 @@
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import type { ClassRef } from '../class-ref';
 import { SchemaRegistry } from '../registry';
 import { applyInputType, createGqlClass } from './create-gql-class';
@@ -22,24 +22,29 @@ export class WhereInputBuilder {
     return entry.whereInput;
   }
 
-  enrichMetadata(entity: EntityMetadata): void {
+  enrichMetadata(entity: EntityMetadata, filterable?: readonly string[]): void {
     if (this.enriched.has(entity.name)) return;
     this.enriched.add(entity.name);
 
     const cls = this.ensureClass(entity);
     const gqlName = `${this.registry.getGqlName(entity.name)}WhereInput`;
+    const allowed = filterable ? new Set(filterable) : null;
 
     for (const field of entity.getScalarFields()) {
+      if (allowed && !allowed.has(field.name)) continue;
       defineField(cls, field.name, () => getFilterClassForScalar(field.scalar), { nullable: true });
     }
     for (const field of entity.getComputedFields()) {
+      if (allowed && !allowed.has(field.name)) continue;
       defineField(cls, field.name, () => getFilterClassForScalar(field.scalar), { nullable: true });
     }
     for (const field of entity.getDerivedFields()) {
+      if (allowed && !allowed.has(field.name)) continue;
       defineField(cls, field.name, () => getFilterClassForScalar(field.scalar), { nullable: true });
     }
 
     for (const rel of entity.getRelationFields()) {
+      if (allowed && !allowed.has(rel.name)) continue;
       const target = entity.getRelatedEntityMetadata(rel.name);
       if (!target) continue;
       if (rel.cardinality === 'one') {

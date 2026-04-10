@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRelayer, RelayerService } from '@relayerjs/nestjs-crud';
-import type { RelayerInstance } from '@relayerjs/nestjs-crud';
+import { InjectRelayer, RelayerService } from '@relayerjs/nestjs-common';
+import type { RelayerInstance } from '@relayerjs/nestjs-common';
 
 import { UserEntity, type EM } from '../../entities';
 

@@ -1,7 +1,5 @@
-import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
-import { GraphQLModule } from '@nestjs/graphql';
-import { RelayerModule } from '@relayerjs/nestjs-crud';
+import { RelayerGraphqlModule } from '@relayerjs/nestjs-graphql';
 
 import { db } from './db';
 import { CommentEntity, PostEntity, UserEntity } from './entities';
@@ -12,13 +10,7 @@ import * as schema from './schema';
 
 @Module({
   imports: [
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      autoSchemaFile: true,
-      sortSchema: true,
-      context: (ctx: { req: unknown }) => ({ req: ctx.req }),
-    }),
-    RelayerModule.forRoot({
+    RelayerGraphqlModule.forRoot({
       db,
       schema,
       entities: [UserEntity, PostEntity, CommentEntity],

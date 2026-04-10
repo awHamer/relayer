@@ -1,11 +1,11 @@
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import { Module, type DynamicModule, type Provider } from '@nestjs/common';
 import { isRelayerEntityClass, type RelayerEntityClass } from '@relayerjs/core';
 import {
-  RELAYER_CLIENT,
-  RelayerService,
   entitiesToRecord,
   getEntityToken,
   getServiceToken,
+  RELAYER_CLIENT,
+  RelayerService,
   type RelayerInstance,
 } from '@relayerjs/nestjs-common';
 
@@ -41,7 +41,6 @@ export class RelayerGraphqlModule {
     };
 
     const entityProviders = this.buildEntityProviders(entityMap);
-
     const graphqlModule = this.buildGraphqlModule(options.graphql);
 
     return {
@@ -53,9 +52,7 @@ export class RelayerGraphqlModule {
     };
   }
 
-  private static buildEntityProviders(
-    entityMap: Record<string, RelayerEntityClass>,
-  ): Provider[] {
+  private static buildEntityProviders(entityMap: Record<string, RelayerEntityClass>): Provider[] {
     const providers: Provider[] = [];
 
     for (const [key, entity] of Object.entries(entityMap)) {

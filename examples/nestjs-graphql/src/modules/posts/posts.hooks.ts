@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RelayerHooks } from '@relayerjs/nestjs-crud';
+import { RelayerHooks } from '@relayerjs/nestjs-common';
 
 import type { AppContext } from '../../common/app-context';
 import { PostEntity, type EM } from '../../entities';

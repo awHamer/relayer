@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRelayer, RelayerService } from '@relayerjs/nestjs-crud';
-import type { RelayerInstance, Where } from '@relayerjs/nestjs-crud';
+import { InjectRelayer, RelayerService } from '@relayerjs/nestjs-common';
+import type { RelayerInstance, Where } from '@relayerjs/nestjs-common';
 
 import type { AppQueryContext } from '../../common/app-context';
 import { PostEntity, type EM } from '../../entities';

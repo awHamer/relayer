@@ -1,8 +1,11 @@
-import type { RelationId, RelationKeys, RelationOperation, RequestContext } from './types';
 import type {
   AggregateOptions,
   FirstOptions,
   ManyOptions,
+  RelationId,
+  RelationKeys,
+  RelationOperation,
+  RequestContext,
   Where,
   WhereOptions,
 } from './types';

@@ -1,7 +1,7 @@
 import { Float, GraphQLISODateTime, ID, Int, type ReturnTypeFunc } from '@nestjs/graphql';
 import { GraphQLJSON } from 'graphql-scalars';
 
-import type { GqlScalarKind } from '../../metadata/types';
+import type { GqlScalarKind } from '../../metadata';
 
 const SCALAR_TO_RETURN_TYPE: Record<GqlScalarKind, ReturnTypeFunc> = {
   Int: () => Int,

@@ -23,6 +23,8 @@ interface ExpressLikeRequest {
     updateOne: { name: 'updatePost' },
     deleteOne: { name: 'deletePost' },
   },
+  filterable: ['id', 'title', 'published', 'author'],
+  orderable: ['id', 'title', 'createdAt'],
 })
 export class PostsResolver extends RelayerResolver<PostEntity, EM, AppContext, AppQueryContext> {
   constructor(postsService: PostsService) {

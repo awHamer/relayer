@@ -1,4 +1,4 @@
-import type { EntityMetadata } from '../metadata/entity-metadata';
+import type { EntityMetadata } from '../metadata';
 import type { FieldsConfig } from '../types';
 import type { ClassRef } from './class-ref';
 
@@ -20,6 +20,8 @@ interface RegistryEntry {
 export interface BuildJob {
   entity: EntityMetadata;
   fieldsConfig?: FieldsConfig;
+  filterable?: readonly string[];
+  orderable?: readonly string[];
 }
 
 export class SchemaRegistry {
@@ -56,9 +58,14 @@ export class SchemaRegistry {
     return entry;
   }
 
-  enqueueBuild(entity: EntityMetadata, fieldsConfig?: FieldsConfig): void {
+  enqueueBuild(
+    entity: EntityMetadata,
+    fieldsConfig?: FieldsConfig,
+    filterable?: readonly string[],
+    orderable?: readonly string[],
+  ): void {
     if (!this.buildJobs.has(entity.name)) {
-      this.buildJobs.set(entity.name, { entity, fieldsConfig });
+      this.buildJobs.set(entity.name, { entity, fieldsConfig, filterable, orderable });
     }
   }
 

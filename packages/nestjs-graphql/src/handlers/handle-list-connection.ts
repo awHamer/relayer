@@ -1,4 +1,4 @@
-import { buildCursorWhere, decodeCursor, encodeCursor } from '@relayerjs/nestjs-crud';
+import { buildCursorWhere, decodeCursor, encodeCursor } from '@relayerjs/nestjs-common';
 
 import { infoToRelayerSelect } from '../info/info-to-select';
 import { selectionIncludes } from '../info/selection-includes';

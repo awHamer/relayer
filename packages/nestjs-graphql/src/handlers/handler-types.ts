@@ -1,7 +1,7 @@
 import type { GraphQLResolveInfo } from 'graphql';
-import type { RelayerHooks, RelayerService } from '@relayerjs/nestjs-crud';
+import type { RelayerHooks, RelayerService } from '@relayerjs/nestjs-common';
 
-import type { EntityMetadata } from '../metadata/entity-metadata';
+import type { EntityMetadata } from '../metadata';
 import type { GqlContext } from '../types';
 
 export interface HandlerHost<

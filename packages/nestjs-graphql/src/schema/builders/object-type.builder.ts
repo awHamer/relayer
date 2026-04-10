@@ -1,4 +1,4 @@
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import type { FieldsConfig } from '../../types';
 import type { ClassRef } from '../class-ref';
 import { SchemaRegistry } from '../registry';

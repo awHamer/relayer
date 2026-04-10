@@ -1,4 +1,4 @@
-import type { RequestContext } from '@relayerjs/nestjs-crud';
+import type { RequestContext } from '@relayerjs/nestjs-common';
 
 export interface AppUser {
   id: number;

@@ -1,6 +1,6 @@
 import { Inject, type OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import type { RelayerHooks, RelayerService } from '@relayerjs/nestjs-crud';
+import type { RelayerHooks, RelayerService } from '@relayerjs/nestjs-common';
 
 import { RELAYER_GQL_RESOLVER_METADATA } from './constants';
 import type { GqlContext, GqlResolverConfig, ResolvedResolverMetadata } from './types';

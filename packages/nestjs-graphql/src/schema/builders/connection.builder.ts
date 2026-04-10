@@ -1,9 +1,9 @@
 import { Int } from '@nestjs/graphql';
 
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import type { ClassRef } from '../class-ref';
 import { SchemaRegistry } from '../registry';
-import { PageInfo } from '../types/page-info.type';
+import { PageInfo } from '../types';
 import { applyObjectType, createGqlClass } from './create-gql-class';
 import { defineField } from './define-field';
 import { ObjectTypeBuilder } from './object-type.builder';

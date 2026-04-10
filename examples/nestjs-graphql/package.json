@@ -19,7 +19,7 @@
     "@nestjs/platform-express": "^11.1.3",
     "@relayerjs/core": "workspace:*",
     "@relayerjs/drizzle": "workspace:*",
-    "@relayerjs/nestjs-crud": "workspace:*",
+    "@relayerjs/nestjs-common": "workspace:*",
     "@relayerjs/nestjs-graphql": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "graphql": "^16.9.0",

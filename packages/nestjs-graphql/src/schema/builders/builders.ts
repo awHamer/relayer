@@ -1,4 +1,4 @@
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import { SchemaRegistry } from '../registry';
 import { AggregateBuilder } from './aggregate.builder';
 import { ConnectionBuilder } from './connection.builder';
@@ -68,8 +68,8 @@ export function getBuilders(): RelayerBuilders {
       const jobs = registry.takeBuildJobs();
       for (const job of jobs) {
         objectType.enrichMetadata(job.entity, job.fieldsConfig);
-        whereInput.enrichMetadata(job.entity);
-        orderByInput.enrichMetadata(job.entity);
+        whereInput.enrichMetadata(job.entity, job.filterable);
+        orderByInput.enrichMetadata(job.entity, job.orderable);
         createInput.enrichMetadata(job.entity);
         updateInput.enrichMetadata(job.entity);
         listResult.enrichMetadata(job.entity);

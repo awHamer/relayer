@@ -1,6 +1,6 @@
 import { GraphQLJSON } from 'graphql-scalars';
 
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import type { ClassRef } from '../class-ref';
 import { SchemaRegistry } from '../registry';
 import { applyInputType, applyObjectType, createGqlClass } from './create-gql-class';

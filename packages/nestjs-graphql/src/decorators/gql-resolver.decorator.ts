@@ -1,7 +1,7 @@
 import { Resolver } from '@nestjs/graphql';
 
 import { RELAYER_GQL_RESOLVER_METADATA } from '../constants';
-import { EntityMetadata } from '../metadata/entity-metadata';
+import { EntityMetadata } from '../metadata';
 import { getBuilders } from '../schema/builders';
 import type { GqlResolverConfig, ResolvedResolverMetadata } from '../types';
 import {
@@ -33,7 +33,7 @@ export function GqlResolver<TEntity, EM extends Record<string, unknown>>(
 
     const gqlName = config.name ?? builders.registry.toGqlName(entity.name);
     builders.registry.setGqlName(entity.name, gqlName);
-    builders.registry.enqueueBuild(entity, config.fields);
+    builders.registry.enqueueBuild(entity, config.fields, config.filterable, config.orderable);
     builders.ensureAllClasses(entity);
 
     const { queries, mutations } = resolveOperationNames(gqlName, config);

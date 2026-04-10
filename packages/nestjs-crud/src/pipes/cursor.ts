@@ -12,7 +12,8 @@ function fromBase64(str: string): string {
   return Buffer.from(str, 'base64').toString('utf-8');
 }
 
-// t = types: 's' string, 'n' number, 'd' date
+// keys compacted for reducing cursor's base64 size
+// v = values, f = fields, d = directions, t = types ('s' string, 'n' number, 'd' date)
 interface CursorData {
   v: unknown[];
   f: string[];
@@ -61,7 +62,7 @@ export function decodeCursor(cursor: string): CursorData {
   try {
     const parsed = JSON.parse(fromBase64(cursor));
     if (!Array.isArray(parsed.v) || !Array.isArray(parsed.f) || !Array.isArray(parsed.d)) {
-      throw new Error();
+      throw new BadRequestException('Malformed cursor: expected v, f, d arrays');
     }
     const types = (parsed.t ?? []) as string[];
     const values = (parsed.v as unknown[]).map((v, i) => {

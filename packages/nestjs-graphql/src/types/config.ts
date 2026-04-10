@@ -1,4 +1,5 @@
-import type { RelayerHooks } from '@relayerjs/nestjs-crud';
+import type { EntityModelFromInstance } from '@relayerjs/drizzle';
+import type { RelayerHooks } from '@relayerjs/nestjs-common';
 
 export type PaginationMode = 'offset' | 'cursor' | 'both';
 
@@ -30,10 +31,15 @@ export interface MutationsConfig {
   deleteMany?: boolean | MutationOpConfig;
 }
 
-// todo: improve types
-export interface FieldsConfig {
-  include?: readonly string[];
-  exclude?: readonly string[];
+type ModelKeys<TEntity, EM extends Record<string, unknown>> = keyof EntityModelFromInstance<
+  TEntity,
+  EM
+> &
+  string;
+
+export interface FieldsConfig<TKeys extends string = string> {
+  include?: readonly TKeys[];
+  exclude?: readonly TKeys[];
 }
 
 export interface GqlResolverConfig<
@@ -43,9 +49,9 @@ export interface GqlResolverConfig<
   name?: string;
   queries?: QueriesConfig;
   mutations?: MutationsConfig;
-  fields?: FieldsConfig;
-  filterable?: readonly string[]; // todo: implement, improve types
-  orderable?: readonly string[]; // todo: implement, improve types
+  fields?: FieldsConfig<ModelKeys<TEntity, EM>>;
+  filterable?: readonly ModelKeys<TEntity, EM>[];
+  orderable?: readonly ModelKeys<TEntity, EM>[];
   hooks?: new (...args: never[]) => RelayerHooks<TEntity, EM>;
   idField?: string;
   idType?: 'number' | 'string';

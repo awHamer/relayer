@@ -2,7 +2,7 @@ import { Int } from '@nestjs/graphql';
 
 import { handleList } from '../../handlers/handle-list';
 import type { AnyHandlerHost, HandlerCallContext } from '../../handlers/handler-types';
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import type { RelayerBuilders } from '../../schema/builders';
 import { defineMethod } from './method-utils';
 

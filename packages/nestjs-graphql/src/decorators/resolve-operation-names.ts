@@ -36,14 +36,13 @@ export function resolveOperationNames<T, EM extends Record<string, unknown>>(
 
   if (queryDefaults.list !== false) {
     const listConfig = typeof queryDefaults.list === 'object' ? queryDefaults.list : {};
-    const pagination = listConfig.pagination ?? 'both';
-    if (pagination === 'offset' || pagination === 'both') {
-      queries.list = listConfig.name ?? plural;
-    }
+    const pagination = listConfig.pagination ?? 'cursor';
+    const baseName = listConfig.name ?? plural;
     if (pagination === 'cursor' || pagination === 'both') {
-      queries.listConnection = listConfig.name
-        ? `${listConfig.name}Connection`
-        : `${plural}Connection`;
+      queries.listConnection = baseName;
+    }
+    if (pagination === 'offset' || pagination === 'both') {
+      queries.list = pagination === 'both' ? `${baseName}Offset` : baseName;
     }
   }
   if (queryDefaults.findById !== false) {

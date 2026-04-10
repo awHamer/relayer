@@ -1,4 +1,4 @@
-import type { EntityMetadata } from '../../metadata/entity-metadata';
+import type { EntityMetadata } from '../../metadata';
 import type { ClassRef } from '../class-ref';
 import { SchemaRegistry } from '../registry';
 import { applyInputType, createGqlClass } from './create-gql-class';

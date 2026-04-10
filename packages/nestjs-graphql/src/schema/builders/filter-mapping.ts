@@ -1,4 +1,4 @@
-import type { GqlScalarKind } from '../../metadata/types';
+import type { GqlScalarKind } from '../../metadata';
 import type { ClassRef } from '../class-ref';
 import {
   BooleanFilter,

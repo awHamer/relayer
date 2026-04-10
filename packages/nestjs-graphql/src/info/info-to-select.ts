@@ -1,6 +1,6 @@
 import type { FragmentDefinitionNode, GraphQLResolveInfo, SelectionSetNode } from 'graphql';
 
-import type { EntityMetadata } from '../metadata/entity-metadata';
+import type { EntityMetadata } from '../metadata';
 import { expandSelections, getNestedSelectionSet, getRootSelectionSet } from './walk-selection';
 
 export interface SelectTree {
