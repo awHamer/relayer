@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleCreateOne } from '../../src/handlers/handle-create-one';
+import { handleCreateOne } from '../../src/handlers';
 import { mockCallContext, mockHooks, mockHost, mockService } from '../helpers';
 
 describe('handleCreateOne', () => {

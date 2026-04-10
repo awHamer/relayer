@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { translateOrderByInput } from '../../src/handlers/order-by-translation';
+import { translateOrderByInput } from '../../src/handlers';
 
 describe('translateOrderByInput', () => {
   it('returns empty array for undefined', () => {

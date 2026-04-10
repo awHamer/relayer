@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleAggregate } from '../../src/handlers/handle-aggregate';
+import { handleAggregate } from '../../src/handlers';
 import { mockCallContext, mockHooks, mockHost, mockService } from '../helpers';
 
 describe('handleAggregate', () => {

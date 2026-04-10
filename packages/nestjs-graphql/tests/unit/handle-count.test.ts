@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleCount } from '../../src/handlers/handle-count';
+import { handleCount } from '../../src/handlers';
 import { mockCallContext, mockHooks, mockHost, mockService } from '../helpers';
 
 describe('handleCount', () => {

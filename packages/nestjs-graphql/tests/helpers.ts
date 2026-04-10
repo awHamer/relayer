@@ -6,7 +6,7 @@ import type {
 } from 'graphql';
 import { vi } from 'vitest';
 
-import type { AnyHandlerHost, HandlerCallContext } from '../src/handlers/handler-types';
+import type { AnyHandlerHost, HandlerCallContext } from '../src/handlers';
 import type { EntityMetadata } from '../src/metadata';
 
 // Service mock with all CRUD methods

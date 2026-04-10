@@ -1,7 +1,7 @@
 import type { FieldNode, SelectionSetNode } from 'graphql';
 import { describe, expect, it } from 'vitest';
 
-import { infoToRelayerSelect } from '../../src/info/info-to-select';
+import { infoToRelayerSelect } from '../../src/info';
 import { mockEntityMeta } from '../helpers';
 
 function field(name: string, subSelSet?: SelectionSetNode): FieldNode {

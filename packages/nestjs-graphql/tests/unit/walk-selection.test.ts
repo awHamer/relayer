@@ -6,7 +6,7 @@ import {
   getNestedSelectionSet,
   getRootFieldNode,
   getRootSelectionSet,
-} from '../../src/info/walk-selection';
+} from '../../src/info';
 
 function field(name: string, selSet?: SelectionSetNode): FieldNode {
   return {

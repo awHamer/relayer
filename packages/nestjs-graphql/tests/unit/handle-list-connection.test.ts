@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { encodeCursor } from '@relayerjs/nestjs-common';
 
-import { handleListConnection } from '../../src/handlers/handle-list-connection';
+import { handleListConnection } from '../../src/handlers';
 import {
   fieldNode,
   mockCallContext,

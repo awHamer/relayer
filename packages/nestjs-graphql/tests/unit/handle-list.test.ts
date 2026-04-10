@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleList } from '../../src/handlers/handle-list';
+import { handleList } from '../../src/handlers';
 import {
   fieldNode,
   mockCallContext,

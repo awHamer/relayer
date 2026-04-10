@@ -1,7 +1,7 @@
 import type { FieldNode, SelectionSetNode } from 'graphql';
 import { describe, expect, it } from 'vitest';
 
-import { selectionIncludes } from '../../src/info/selection-includes';
+import { selectionIncludes } from '../../src/info';
 
 function field(name: string, subSelSet?: SelectionSetNode): FieldNode {
   return {

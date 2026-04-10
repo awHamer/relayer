@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleFindById } from '../../src/handlers/handle-find-by-id';
+import { handleFindById } from '../../src/handlers';
 import { mockCallContext, mockEntityMeta, mockHooks, mockHost, mockService } from '../helpers';
 
 describe('handleFindById', () => {

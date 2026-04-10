@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   mapScalarFieldToGqlScalar,
   mapValueTypeToGqlScalar,
-} from '../../src/metadata/scalar-mapping';
+} from '../../src/metadata';
 
 describe('mapValueTypeToGqlScalar', () => {
   it('maps number to Float', () => {

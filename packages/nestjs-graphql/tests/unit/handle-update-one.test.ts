@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import { handleUpdateOne } from '../../src/handlers/handle-update-one';
+import { handleUpdateOne } from '../../src/handlers';
 import { mockCallContext, mockEntityMeta, mockHooks, mockHost, mockService } from '../helpers';
 
 describe('handleUpdateOne', () => {
