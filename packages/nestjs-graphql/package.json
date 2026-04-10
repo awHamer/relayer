@@ -1,6 +1,6 @@
 {
   "name": "@relayerjs/nestjs-graphql",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "NestJS GraphQL integration for Relayer - code-first GraphQL CRUD",
   "license": "MIT",
   "repository": {
