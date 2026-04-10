@@ -7,5 +7,9 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@relayerjs/example-nestjs", "@relayerjs/example-nestjs-graphql", "@relayerjs/example-drizzle"]
+  "ignore": [
+    "@relayerjs/example-nestjs",
+    "@relayerjs/example-nestjs-graphql",
+    "@relayerjs/example-drizzle"
+  ]
 }
