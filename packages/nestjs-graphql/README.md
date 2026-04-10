@@ -10,7 +10,7 @@ Full-featured GraphQL CRUD for NestJS on top of [Relayer](https://github.com/nic
 
 ⚡ **Full-featured GraphQL CRUD** - One `@GqlResolver` decorator generates queries, mutations, and all GraphQL types. Zero boilerplate.
 
-📄 **Dual pagination** - Cursor-based (Relay-style connections) and offset-based pagination, or both at once.
+📄 **Dual pagination** - Cursor-based (Relayer-style connections) and offset-based pagination, or both at once.
 
 🔥 **Rich filtering** - AND/OR/NOT combinators, relation filters (some/every/none), per-type operators, case-insensitive mode.
 
@@ -238,7 +238,7 @@ When `pagination: 'both'`, two list queries are generated: `posts` (cursor) and 
 
 ### Cursor-based (default)
 
-Relay-compatible connections with edges, cursors, and page info:
+Connections with edges, cursors, and page info:
 
 ```graphql
 query {

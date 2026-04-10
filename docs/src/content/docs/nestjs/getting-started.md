@@ -27,7 +27,7 @@ npm install @relayerjs/nestjs-crud @relayerjs/core @relayerjs/drizzle drizzle-or
 
 Assumes you already have a NestJS project with `@nestjs/common`, `@nestjs/core`, etc.
 
-## Quick start (5 minutes)
+## Quick start
 
 ### 1. Define your entity
 

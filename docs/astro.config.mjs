@@ -91,6 +91,17 @@ export default defineConfig({
             { label: 'Known Limitations', slug: 'nestjs/limitations' },
           ],
         },
+        {
+          label: '@relayerjs/nestjs-graphql',
+          items: [
+            { label: 'Getting Started', slug: 'nestjs-graphql/getting-started' },
+            { label: 'Resolvers', slug: 'nestjs-graphql/resolvers' },
+            { label: 'Types', slug: 'nestjs-graphql/types' },
+            { label: 'Queries', slug: 'nestjs-graphql/queries' },
+            { label: 'Mutations', slug: 'nestjs-graphql/mutations' },
+            { label: 'Hooks & Context', slug: 'nestjs-graphql/hooks-and-context' },
+          ],
+        },
         { label: 'Roadmap', slug: 'roadmap' },
       ],
     }),
