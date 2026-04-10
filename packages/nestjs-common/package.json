@@ -1,6 +1,6 @@
 {
   "name": "@relayerjs/nestjs-common",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Shared NestJS utilities for Relayer — services, hooks, DI, and query primitives",
   "license": "MIT",
   "repository": {
