@@ -33,6 +33,22 @@ export const comments = pgTable('comments', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const categories = pgTable('categories', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+export const postCategories = pgTable('post_categories', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id')
+    .notNull()
+    .references(() => posts.id),
+  categoryId: integer('category_id')
+    .notNull()
+    .references(() => categories.id),
+  isPrimary: boolean('is_primary').default(false).notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   posts: many(posts),
   comments: many(comments),
@@ -41,9 +57,19 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const postsRelations = relations(posts, ({ one, many }) => ({
   author: one(users, { fields: [posts.authorId], references: [users.id] }),
   comments: many(comments),
+  postCategories: many(postCategories),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
   post: one(posts, { fields: [comments.postId], references: [posts.id] }),
   author: one(users, { fields: [comments.authorId], references: [users.id] }),
+}));
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  postCategories: many(postCategories),
+}));
+
+export const postCategoriesRelations = relations(postCategories, ({ one }) => ({
+  post: one(posts, { fields: [postCategories.postId], references: [posts.id] }),
+  category: one(categories, { fields: [postCategories.categoryId], references: [categories.id] }),
 }));

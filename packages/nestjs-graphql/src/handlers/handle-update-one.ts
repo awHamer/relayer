@@ -15,17 +15,15 @@ export async function handleUpdateOne(
 
   const hooks = host.getHooks();
   let payload = data;
-  const overridden = await hooks?.beforeUpdate?.(payload as never, where as never, ctx as never);
+  const overridden = await hooks?.beforeUpdate?.(payload, where, ctx);
   if (overridden && typeof overridden === 'object') payload = overridden as Record<string, unknown>;
 
   try {
-    const updated = await host
-      .getService()
-      .update({ where, data: payload, context: queryCtx } as never);
+    const updated = await host.getService().update({ where, data: payload, context: queryCtx });
     if (!updated) {
       throw new NotFoundException(`${call.entity.name} with ${idField}=${id} not found`);
     }
-    await hooks?.afterUpdate?.(updated as never, ctx as never);
+    await hooks?.afterUpdate?.(updated, ctx);
     return updated;
   } catch (err) {
     if (err instanceof NotFoundException) throw err;

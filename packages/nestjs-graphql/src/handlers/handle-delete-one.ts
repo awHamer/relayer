@@ -13,14 +13,14 @@ export async function handleDeleteOne(
   const where = { [idField]: id };
 
   const hooks = host.getHooks();
-  await hooks?.beforeDelete?.(where as never, ctx as never);
+  await hooks?.beforeDelete?.(where, ctx);
 
   try {
-    const deleted = await host.getService().delete({ where, context: queryCtx } as never);
+    const deleted = await host.getService().delete({ where, context: queryCtx });
     if (!deleted) {
       throw new NotFoundException(`${call.entity.name} with ${idField}=${id} not found`);
     }
-    await hooks?.afterDelete?.(deleted as never, ctx as never);
+    await hooks?.afterDelete?.(deleted, ctx);
     return deleted;
   } catch (err) {
     if (err instanceof NotFoundException) throw err;

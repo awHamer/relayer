@@ -32,9 +32,9 @@ export async function handleAggregate(
   } as Parameters<ReturnType<AnyHandlerHost['getService']>['aggregate']>[0];
 
   const hooks = host.getHooks();
-  await hooks?.beforeAggregate?.(options as never, ctx as never);
+  await hooks?.beforeAggregate?.(options, ctx);
 
   const data = await host.getService().aggregate(options);
-  const final = (await hooks?.afterAggregate?.(data as never, ctx as never)) ?? data;
+  const final = (await hooks?.afterAggregate?.(data, ctx)) ?? data;
   return { data: final };
 }

@@ -12,7 +12,7 @@ export async function handleCount(
   >[0];
 
   const hooks = host.getHooks();
-  await hooks?.beforeCount?.(options as never, ctx as never);
+  await hooks?.beforeCount?.(options!, ctx);
 
   return host.getService().count(options);
 }

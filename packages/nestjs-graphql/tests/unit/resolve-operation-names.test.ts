@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { resolveOperationNames } from '../../src/decorators/resolve-operation-names';
+import { Pagination } from '../../src/types';
 
 describe('resolveOperationNames', () => {
   describe('default config', () => {
     it('generates all operations for "User"', () => {
       const result = resolveOperationNames('User', {});
       expect(result.queries).toEqual({
-        listConnection: 'users',
+        listCursor: 'users',
         findById: 'user',
         count: 'usersCount',
         aggregate: 'usersAggregate',
@@ -21,7 +22,7 @@ describe('resolveOperationNames', () => {
 
     it('generates all operations for "Post"', () => {
       const result = resolveOperationNames('Post', {});
-      expect(result.queries.listConnection).toBe('posts');
+      expect(result.queries.listCursor).toBe('posts');
       expect(result.queries.findById).toBe('post');
       expect(result.queries.count).toBe('postsCount');
       expect(result.queries.aggregate).toBe('postsAggregate');
@@ -32,49 +33,52 @@ describe('resolveOperationNames', () => {
 
     it('does not double-s names already ending in s', () => {
       const result = resolveOperationNames('Address', {});
-      expect(result.queries.listConnection).toBe('address');
+      expect(result.queries.listCursor).toBe('address');
       expect(result.queries.findById).toBe('address');
       expect(result.queries.count).toBe('addressCount');
     });
   });
 
   describe('pagination modes', () => {
-    it('defaults to cursor pagination (listConnection set, list undefined)', () => {
+    it('defaults to cursor pagination', () => {
       const result = resolveOperationNames('User', {});
-      expect(result.queries.listConnection).toBe('users');
-      expect(result.queries.list).toBeUndefined();
+      expect(result.queries.listCursor).toBe('users');
+      expect(result.queries.listOffset).toBeUndefined();
+      expect(result.queries.listCursorEdges).toBeUndefined();
     });
 
-    it('offset pagination (list set, listConnection undefined)', () => {
+    it('offset pagination', () => {
       const result = resolveOperationNames('User', {
-        queries: { list: { pagination: 'offset' } },
+        queries: { list: { pagination: Pagination.Offset } },
       });
-      expect(result.queries.list).toBe('users');
-      expect(result.queries.listConnection).toBeUndefined();
+      expect(result.queries.listOffset).toBe('users');
+      expect(result.queries.listCursor).toBeUndefined();
+      expect(result.queries.listCursorEdges).toBeUndefined();
     });
 
     it('cursor pagination explicit', () => {
       const result = resolveOperationNames('User', {
-        queries: { list: { pagination: 'cursor' } },
+        queries: { list: { pagination: Pagination.Cursor } },
       });
-      expect(result.queries.listConnection).toBe('users');
-      expect(result.queries.list).toBeUndefined();
+      expect(result.queries.listCursor).toBe('users');
+      expect(result.queries.listOffset).toBeUndefined();
+      expect(result.queries.listCursorEdges).toBeUndefined();
     });
 
-    it('both pagination modes', () => {
+    it('cursor-edges pagination (Relay-style)', () => {
       const result = resolveOperationNames('User', {
-        queries: { list: { pagination: 'both' } },
+        queries: { list: { pagination: Pagination.CursorEdges } },
       });
-      expect(result.queries.listConnection).toBe('users');
-      expect(result.queries.list).toBe('usersOffset');
+      expect(result.queries.listCursorEdges).toBe('users');
+      expect(result.queries.listCursor).toBeUndefined();
+      expect(result.queries.listOffset).toBeUndefined();
     });
 
-    it('both with custom name', () => {
+    it('accepts string literals for pagination mode', () => {
       const result = resolveOperationNames('User', {
-        queries: { list: { pagination: 'both', name: 'allUsers' } },
+        queries: { list: { pagination: 'cursor-edges' } },
       });
-      expect(result.queries.listConnection).toBe('allUsers');
-      expect(result.queries.list).toBe('allUsersOffset');
+      expect(result.queries.listCursorEdges).toBe('users');
     });
   });
 
@@ -88,7 +92,7 @@ describe('resolveOperationNames', () => {
           aggregate: { name: 'postStats' },
         },
       });
-      expect(result.queries.listConnection).toBe('allPosts');
+      expect(result.queries.listCursor).toBe('allPosts');
       expect(result.queries.findById).toBe('getPost');
       expect(result.queries.count).toBe('totalPosts');
       expect(result.queries.aggregate).toBe('postStats');
@@ -113,8 +117,9 @@ describe('resolveOperationNames', () => {
       const result = resolveOperationNames('User', {
         queries: { list: false, findById: true, count: true, aggregate: true },
       });
-      expect(result.queries.listConnection).toBeUndefined();
-      expect(result.queries.list).toBeUndefined();
+      expect(result.queries.listCursor).toBeUndefined();
+      expect(result.queries.listOffset).toBeUndefined();
+      expect(result.queries.listCursorEdges).toBeUndefined();
       expect(result.queries.findById).toBe('user');
     });
 
@@ -146,7 +151,7 @@ describe('resolveOperationNames', () => {
       const result = resolveOperationNames('Post', {
         queries: { list: true },
       });
-      expect(result.queries.listConnection).toBe('posts');
+      expect(result.queries.listCursor).toBe('posts');
     });
 
     it('true for mutations uses default names', () => {
@@ -156,6 +161,74 @@ describe('resolveOperationNames', () => {
       expect(result.mutations.createOne).toBe('createPost');
       expect(result.mutations.updateOne).toBe('updatePost');
       expect(result.mutations.deleteOne).toBe('deletePost');
+    });
+  });
+
+  describe('relations', () => {
+    it('returns empty relations when not configured', () => {
+      const result = resolveOperationNames('Post', {});
+      expect(result.relations).toEqual({});
+    });
+
+    it('generates all 3 mutations when relation is true', () => {
+      const result = resolveOperationNames('Post', {
+        relations: { tags: true },
+      });
+      expect(result.relations.tags).toEqual({
+        add: 'addTagsToPost',
+        remove: 'removeTagsFromPost',
+        set: 'setTagsOnPost',
+      });
+    });
+
+    it('capitalizes relation name', () => {
+      const result = resolveOperationNames('Post', {
+        relations: { categories: true },
+      });
+      expect(result.relations.categories!.add).toBe('addCategoriesToPost');
+      expect(result.relations.categories!.remove).toBe('removeCategoriesFromPost');
+      expect(result.relations.categories!.set).toBe('setCategoriesOnPost');
+    });
+
+    it('uses entity gqlName in mutation names', () => {
+      const result = resolveOperationNames('BlogPost', {
+        relations: { tags: true },
+      });
+      expect(result.relations.tags!.add).toBe('addTagsToBlogPost');
+    });
+
+    it('skips relation set to false', () => {
+      const result = resolveOperationNames('Post', {
+        relations: { tags: true, hidden: false },
+      });
+      expect(result.relations.tags).toBeDefined();
+      expect(result.relations.hidden).toBeUndefined();
+    });
+
+    it('selective ops: only enabled ops appear', () => {
+      const result = resolveOperationNames('Post', {
+        relations: { tags: { add: true, remove: true, set: false } },
+      });
+      expect(result.relations.tags!.add).toBe('addTagsToPost');
+      expect(result.relations.tags!.remove).toBe('removeTagsFromPost');
+      expect(result.relations.tags!.set).toBeUndefined();
+    });
+
+    it('selective ops: only set enabled', () => {
+      const result = resolveOperationNames('Post', {
+        relations: { tags: { add: false, remove: false, set: true } },
+      });
+      expect(result.relations.tags!.add).toBeUndefined();
+      expect(result.relations.tags!.remove).toBeUndefined();
+      expect(result.relations.tags!.set).toBe('setTagsOnPost');
+    });
+
+    it('multiple relations', () => {
+      const result = resolveOperationNames('Post', {
+        relations: { tags: true, categories: true },
+      });
+      expect(result.relations.tags!.add).toBe('addTagsToPost');
+      expect(result.relations.categories!.add).toBe('addCategoriesToPost');
     });
   });
 });

@@ -1,8 +1,11 @@
 import type { GqlResolverConfig } from '../types';
+import { Pagination } from '../types';
+import { lowerFirst, upperFirst } from '../utils';
 
 export interface QueryNames {
-  list?: string;
-  listConnection?: string;
+  listOffset?: string;
+  listCursor?: string;
+  listCursorEdges?: string;
   findById?: string;
   count?: string;
   aggregate?: string;
@@ -14,9 +17,16 @@ export interface MutationNames {
   deleteOne?: string;
 }
 
+export interface RelationMutationNames {
+  add?: string;
+  remove?: string;
+  set?: string;
+}
+
 export interface ResolvedOperationNames {
   queries: QueryNames;
   mutations: MutationNames;
+  relations: Record<string, RelationMutationNames>;
 }
 
 const DEFAULT_QUERIES = { list: true, findById: true, count: true, aggregate: true } as const;
@@ -31,19 +41,16 @@ export function resolveOperationNames<T, EM extends Record<string, unknown>>(
   const queryDefaults = config.queries ?? DEFAULT_QUERIES;
   const mutationDefaults = config.mutations ?? DEFAULT_MUTATIONS;
 
-  const baseLower = gqlName.charAt(0).toLowerCase() + gqlName.slice(1);
+  const baseLower = lowerFirst(gqlName);
   const plural = baseLower.endsWith('s') ? baseLower : `${baseLower}s`;
 
   if (queryDefaults.list !== false) {
     const listConfig = typeof queryDefaults.list === 'object' ? queryDefaults.list : {};
-    const pagination = listConfig.pagination ?? 'cursor';
+    const pagination = listConfig.pagination ?? Pagination.Cursor;
     const baseName = listConfig.name ?? plural;
-    if (pagination === 'cursor' || pagination === 'both') {
-      queries.listConnection = baseName;
-    }
-    if (pagination === 'offset' || pagination === 'both') {
-      queries.list = pagination === 'both' ? `${baseName}Offset` : baseName;
-    }
+    if (pagination === Pagination.Offset) queries.listOffset = baseName;
+    else if (pagination === Pagination.Cursor) queries.listCursor = baseName;
+    else if (pagination === Pagination.CursorEdges) queries.listCursorEdges = baseName;
   }
   if (queryDefaults.findById !== false) {
     const cfg = typeof queryDefaults.findById === 'object' ? queryDefaults.findById : {};
@@ -71,5 +78,20 @@ export function resolveOperationNames<T, EM extends Record<string, unknown>>(
     mutations.deleteOne = cfg.name ?? `delete${gqlName}`;
   }
 
-  return { queries, mutations };
+  const relations: Record<string, RelationMutationNames> = {};
+  if (config.relations) {
+    for (const [relName, relConfig] of Object.entries(config.relations)) {
+      if (relConfig === false) continue;
+      const ops =
+        typeof relConfig === 'object' ? relConfig : { add: true, remove: true, set: true };
+      const capRelation = upperFirst(relName);
+      const names: RelationMutationNames = {};
+      if (ops.add !== false) names.add = `add${capRelation}To${gqlName}`;
+      if (ops.remove !== false) names.remove = `remove${capRelation}From${gqlName}`;
+      if (ops.set !== false) names.set = `set${capRelation}On${gqlName}`;
+      relations[relName] = names;
+    }
+  }
+
+  return { queries, mutations, relations };
 }

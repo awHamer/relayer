@@ -10,10 +10,10 @@ export async function handleCreateOne(
 
   const hooks = host.getHooks();
   let payload: Record<string, unknown> = data;
-  const overridden = await hooks?.beforeCreate?.(payload as never, ctx as never);
+  const overridden = await hooks?.beforeCreate?.(payload, ctx);
   if (overridden && typeof overridden === 'object') payload = overridden as Record<string, unknown>;
 
-  const created = await host.getService().create({ data: payload, context: queryCtx } as never);
-  await hooks?.afterCreate?.(created as never, ctx as never);
+  const created = await host.getService().create({ data: payload, context: queryCtx });
+  await hooks?.afterCreate?.(created, ctx);
   return created;
 }

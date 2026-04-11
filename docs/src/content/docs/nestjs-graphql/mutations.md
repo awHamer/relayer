@@ -89,3 +89,151 @@ Disable all mutations to create a read-only resolver:
   },
 })
 ```
+
+## Relation mutations
+
+Manage many-to-many relations with dedicated mutations. Configure in the `relations` option:
+
+```ts
+@GqlResolver(PostEntity, {
+  name: 'Post',
+  relations: {
+    tags: true,
+    postCategories: { include: ['isPrimary'] },
+  },
+})
+```
+
+Two input types are used:
+
+- **`RelationIdInput`** (shared across all mutations) - only `_id: ID!`. Used by **remove**, since disconnect only needs to identify the link.
+- **`{Parent}{Relation}RelationInput`** (per-relation) - `_id: ID!` plus any extra pivot columns declared via `include`. Used by **add** and **set**.
+
+```graphql
+# Shared, used by every remove mutation
+input RelationIdInput {
+  _id: ID!
+}
+
+# Per-relation, used by add/set - includes extras declared via `include`
+input PostPostCategoriesRelationInput {
+  _id: ID!
+  isPrimary: Boolean
+}
+```
+
+Three operations are generated per relation:
+
+### Add
+
+Connect items to the relation. Existing links are preserved.
+
+```graphql
+mutation {
+  addTagsToPost(id: 1, items: [{ _id: 5 }, { _id: 6 }, { _id: 7 }]) {
+    success
+  }
+}
+```
+
+### Remove
+
+Disconnect items from the relation. Uses the shared `RelationIdInput` - extras are not needed.
+
+```graphql
+mutation {
+  removeTagsFromPost(id: 1, items: [{ _id: 5 }]) {
+    success
+  }
+}
+```
+
+### Set
+
+Replace all links. Disconnects existing items and connects the new ones.
+
+```graphql
+mutation {
+  setTagsOnPost(id: 1, items: [{ _id: 10 }, { _id: 20 }]) {
+    success
+  }
+}
+```
+
+### Extra pivot columns
+
+When a join table has columns beyond the two foreign keys (e.g., `isPrimary`, `order`, `role`), expose them via `include`:
+
+```ts
+relations: {
+  postCategories: { include: ['isPrimary'] },
+}
+```
+
+The generated input gains typed fields for each included column. `NOT NULL` columns without a default are required, everything else is optional.
+
+```graphql
+mutation {
+  addPostCategoriesToPost(
+    id: 1
+    items: [{ _id: 5, isPrimary: true }, { _id: 6, isPrimary: false }]
+  ) {
+    success
+  }
+}
+```
+
+### Naming pattern
+
+| Operation | Pattern                        | Example              |
+| --------- | ------------------------------ | -------------------- |
+| Add       | `add{Relation}To{Entity}`      | `addTagsToPost`      |
+| Remove    | `remove{Relation}From{Entity}` | `removeTagsFromPost` |
+| Set       | `set{Relation}On{Entity}`      | `setTagsOnPost`      |
+
+### Selective enabling
+
+Disable specific operations per relation:
+
+```ts
+relations: {
+  tags: { add: true, remove: true, set: false },
+}
+```
+
+Combine `include` and selective ops:
+
+```ts
+relations: {
+  postCategories: { add: true, remove: true, set: false, include: ['isPrimary'] },
+}
+```
+
+Set a relation to `false` to disable all its mutations:
+
+```ts
+relations: {
+  tags: true,
+  internalLinks: false,
+}
+```
+
+### Hooks
+
+`beforeRelation` and `afterRelation` hooks fire for all relation operations and receive the full items array:
+
+```ts
+@Injectable()
+export class PostHooks extends RelayerHooks<PostEntity, EM, AppContext> {
+  async beforeRelation(operation, relationName, items, ctx) {
+    this.logger.log(`${operation} ${relationName}: ${items.length} items`);
+    return items; // return modified items or void
+  }
+
+  async afterRelation(operation, relationName, items, ctx) {
+    await this.cacheService.invalidate(`post:${ctx.currentUser.id}`);
+  }
+}
+```
+
+See [Hooks & Context](/nestjs-graphql/hooks-and-context/) for the full hooks reference.

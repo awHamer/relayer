@@ -15,6 +15,8 @@ export interface AggregateClasses {
 }
 
 export class AggregateBuilder {
+  private readonly enriched = new Set<string>();
+
   constructor(private readonly registry: SchemaRegistry) {}
 
   ensureClasses(entity: EntityMetadata): AggregateClasses {
@@ -36,6 +38,8 @@ export class AggregateBuilder {
   }
 
   enrichMetadata(entity: EntityMetadata): void {
+    if (this.enriched.has(entity.name)) return;
+    this.enriched.add(entity.name);
     const { result, sumInput, minInput } = this.ensureClasses(entity);
 
     defineField(result, 'data', () => GraphQLJSON, { nullable: false });

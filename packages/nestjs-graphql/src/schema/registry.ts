@@ -1,5 +1,6 @@
 import type { EntityMetadata } from '../metadata';
 import type { FieldsConfig } from '../types';
+import { upperFirst } from '../utils';
 import type { ClassRef } from './class-ref';
 
 interface RegistryEntry {
@@ -7,9 +8,11 @@ interface RegistryEntry {
   whereInput?: ClassRef;
   orderByInput?: ClassRef;
   relationFilter?: Map<string, ClassRef>;
+  relationInput?: Map<string, ClassRef>;
   createInput?: ClassRef;
   updateInput?: ClassRef;
   listResult?: ClassRef;
+  cursorResult?: ClassRef;
   connection?: ClassRef;
   edge?: ClassRef;
   aggregate?: ClassRef;
@@ -45,7 +48,7 @@ export class SchemaRegistry {
 
   toGqlName(entityKey: string): string {
     const stripped = entityKey.replace(/Entity$/, '');
-    return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+    return upperFirst(stripped);
   }
 
   getEntry(entity: EntityMetadata): RegistryEntry {

@@ -40,21 +40,23 @@ export class PostsModule {}
 
 ### Available hooks
 
-| Hook              | Arguments            | Can modify result?     |
-| ----------------- | -------------------- | ---------------------- |
-| `beforeCreate`    | `(data, ctx)`        | Return modified data   |
-| `afterCreate`     | `(entity, ctx)`      |                        |
-| `beforeUpdate`    | `(data, where, ctx)` | Return modified data   |
-| `afterUpdate`     | `(entity, ctx)`      |                        |
-| `beforeDelete`    | `(where, ctx)`       |                        |
-| `afterDelete`     | `(entity, ctx)`      |                        |
-| `beforeFind`      | `(options, ctx)`     |                        |
-| `afterFind`       | `(entities, ctx)`    | Return modified list   |
-| `beforeFindOne`   | `(options, ctx)`     |                        |
-| `afterFindOne`    | `(entity, ctx)`      | Return modified entity |
-| `beforeCount`     | `(options, ctx)`     |                        |
-| `beforeAggregate` | `(options, ctx)`     |                        |
-| `afterAggregate`  | `(result, ctx)`      | Return modified result |
+| Hook              | Arguments              | Can modify result?     |
+| ----------------- | ---------------------- | ---------------------- |
+| `beforeCreate`    | `(data, ctx)`          | Return modified data   |
+| `afterCreate`     | `(entity, ctx)`        |                        |
+| `beforeUpdate`    | `(data, where, ctx)`   | Return modified data   |
+| `afterUpdate`     | `(entity, ctx)`        |                        |
+| `beforeDelete`    | `(where, ctx)`         |                        |
+| `afterDelete`     | `(entity, ctx)`        |                        |
+| `beforeFind`      | `(options, ctx)`       |                        |
+| `afterFind`       | `(entities, ctx)`      | Return modified list   |
+| `beforeFindOne`   | `(options, ctx)`       |                        |
+| `afterFindOne`    | `(entity, ctx)`        | Return modified entity |
+| `beforeCount`     | `(options, ctx)`       |                        |
+| `beforeAggregate` | `(options, ctx)`       |                        |
+| `afterAggregate`  | `(result, ctx)`        | Return modified result |
+| `beforeRelation`  | `(op, name, ids, ctx)` | Return modified ids    |
+| `afterRelation`   | `(op, name, ids, ctx)` |                        |
 
 Hooks that "can modify result" can return a new value to override the original. Return `undefined` to keep the original.
 

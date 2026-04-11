@@ -6,7 +6,7 @@ import { CommentsService } from './comments.service';
 @GqlResolver(CommentEntity, {
   name: 'Comment',
   queries: {
-    list: { name: 'comments', pagination: 'both' },
+    list: { name: 'comments', pagination: 'cursor' },
     findById: { name: 'comment' },
     count: { name: 'commentsCount' },
     aggregate: { name: 'commentsAggregate' },

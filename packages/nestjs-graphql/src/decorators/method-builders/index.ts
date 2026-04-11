@@ -1,6 +1,7 @@
 export { defineMethod } from './method-utils';
 export type { ArgSpec, DefineMethodOptions } from './method-utils';
 export { buildListMethod } from './build-list-method';
+export { buildListCursorMethod } from './build-list-cursor-method';
 export { buildListConnectionMethod } from './build-list-connection-method';
 export { buildFindByIdMethod } from './build-find-by-id-method';
 export { buildCountMethod } from './build-count-method';
@@ -8,3 +9,4 @@ export { buildAggregateMethod } from './build-aggregate-method';
 export { buildCreateOneMethod } from './build-create-one-method';
 export { buildUpdateOneMethod } from './build-update-one-method';
 export { buildDeleteOneMethod } from './build-delete-one-method';
+export { buildRelationMethods } from './build-relation-methods';

@@ -10,7 +10,7 @@ Full-featured GraphQL CRUD for NestJS on top of [Relayer](https://github.com/nic
 
 ⚡ **Full-featured GraphQL CRUD** - One `@GqlResolver` decorator generates queries, mutations, and all GraphQL types. Zero boilerplate.
 
-📄 **Dual pagination** - Cursor-based (Relayer-style connections) and offset-based pagination, or both at once.
+📄 **Three pagination modes** - offset, flat cursor, and Relay-style cursor with edges. Pick whichever fits your use case.
 
 🔥 **Rich filtering** - AND/OR/NOT combinators, relation filters (some/every/none), per-type operators, case-insensitive mode.
 
@@ -120,17 +120,17 @@ export class UsersResolver extends RelayerResolver<UserEntity, EM> {
 
 That's it. One decorator, full GraphQL CRUD:
 
-| Type     | Name                       | Description                        |
-| -------- | -------------------------- | ---------------------------------- |
-| Query    | `users`                    | Cursor-paginated list (Connection) |
-| Query    | `user(id: ID!)`            | Find by ID                         |
-| Query    | `usersCount(where: ...)`   | Count matching records             |
-| Query    | `usersAggregate(...)`      | Aggregation with groupBy           |
-| Mutation | `createUser(data: ...)`    | Create one                         |
-| Mutation | `updateUser(id: ID!, ...)` | Update one                         |
-| Mutation | `deleteUser(id: ID!)`      | Delete one                         |
+| Type     | Name                       | Description              |
+| -------- | -------------------------- | ------------------------ |
+| Query    | `users`                    | Cursor-paginated list    |
+| Query    | `user(id: ID!)`            | Find by ID               |
+| Query    | `usersCount(where: ...)`   | Count matching records   |
+| Query    | `usersAggregate(...)`      | Aggregation with groupBy |
+| Mutation | `createUser(data: ...)`    | Create one               |
+| Mutation | `updateUser(id: ID!, ...)` | Update one               |
+| Mutation | `deleteUser(id: ID!)`      | Delete one               |
 
-All GraphQL types are generated automatically: `User`, `UserWhereInput`, `UserOrderByInput`, `CreateUserInput`, `UpdateUserInput`, `UserConnection`, `UserEdge`, `PageInfo`, `UserAggregate`, plus scalar filter inputs (`StringFilter`, `IntFilter`, etc.).
+All GraphQL types are generated automatically: `User`, `UserWhereInput`, `UserOrderByInput`, `CreateUserInput`, `UpdateUserInput`, `UserCursorResult`, `PageInfo`, `UserAggregate`, plus scalar filter inputs (`StringFilter`, `IntFilter`, etc.).
 
 > Full working example with entities, services, resolvers, hooks, and typed context is available in [examples/nestjs-graphql](../../examples/nestjs-graphql).
 
@@ -169,7 +169,7 @@ A fully configured resolver:
   name: 'Post',
   hooks: PostHooks,
   queries: {
-    list: { name: 'posts', pagination: 'both' },
+    list: { name: 'posts', pagination: 'cursor' },
     findById: { name: 'post' },
     count: { name: 'postsCount' },
     aggregate: { name: 'postsAggregate' },
@@ -191,23 +191,23 @@ export class PostsResolver extends RelayerResolver<PostEntity, EM, AppContext, A
 
 ### Config reference
 
-| Option                    | Type                                | Default        | Description                                     |
-| ------------------------- | ----------------------------------- | -------------- | ----------------------------------------------- |
-| `name`                    | `string`                            | Entity name    | GraphQL type name prefix                        |
-| `queries.list`            | `boolean \| { pagination?, name? }` | `true`, cursor | List query. Set `false` to disable              |
-| `queries.list.pagination` | `'offset' \| 'cursor' \| 'both'`    | `'cursor'`     | Pagination strategy                             |
-| `queries.findById`        | `boolean \| { name? }`              | `true`         | Find by ID query                                |
-| `queries.count`           | `boolean \| { name? }`              | `true`         | Count query                                     |
-| `queries.aggregate`       | `boolean \| { name? }`              | `true`         | Aggregate query                                 |
-| `mutations.createOne`     | `boolean \| { name? }`              | `true`         | Create mutation                                 |
-| `mutations.updateOne`     | `boolean \| { name? }`              | `true`         | Update mutation                                 |
-| `mutations.deleteOne`     | `boolean \| { name? }`              | `true`         | Delete mutation                                 |
-| `fields`                  | `{ include?, exclude? }`            | All fields     | Whitelist or blacklist fields in GraphQL schema |
-| `filterable`              | `string[]`                          | All fields     | Fields allowed in `WhereInput`                  |
-| `orderable`               | `string[]`                          | All fields     | Fields allowed in `OrderByInput`                |
-| `hooks`                   | `class`                             | -              | Lifecycle hooks class (injectable)              |
-| `idField`                 | `string`                            | `'id'`         | Primary key field name                          |
-| `idType`                  | `'number' \| 'string'`              | `'number'`     | Primary key GraphQL type (`ID` scalar)          |
+| Option                    | Type                                     | Default        | Description                                     |
+| ------------------------- | ---------------------------------------- | -------------- | ----------------------------------------------- |
+| `name`                    | `string`                                 | Entity name    | GraphQL type name prefix                        |
+| `queries.list`            | `boolean \| { pagination?, name? }`      | `true`, cursor | List query. Set `false` to disable              |
+| `queries.list.pagination` | `'offset' \| 'cursor' \| 'cursor-edges'` | `'cursor'`     | Pagination strategy                             |
+| `queries.findById`        | `boolean \| { name? }`                   | `true`         | Find by ID query                                |
+| `queries.count`           | `boolean \| { name? }`                   | `true`         | Count query                                     |
+| `queries.aggregate`       | `boolean \| { name? }`                   | `true`         | Aggregate query                                 |
+| `mutations.createOne`     | `boolean \| { name? }`                   | `true`         | Create mutation                                 |
+| `mutations.updateOne`     | `boolean \| { name? }`                   | `true`         | Update mutation                                 |
+| `mutations.deleteOne`     | `boolean \| { name? }`                   | `true`         | Delete mutation                                 |
+| `fields`                  | `{ include?, exclude? }`                 | All fields     | Whitelist or blacklist fields in GraphQL schema |
+| `filterable`              | `string[]`                               | All fields     | Fields allowed in `WhereInput`                  |
+| `orderable`               | `string[]`                               | All fields     | Fields allowed in `OrderByInput`                |
+| `hooks`                   | `class`                                  | -              | Lifecycle hooks class (injectable)              |
+| `idField`                 | `string`                                 | `'id'`         | Primary key field name                          |
+| `idType`                  | `'number' \| 'string'`                   | `'number'`     | Primary key GraphQL type (`ID` scalar)          |
 
 ### Disabling operations
 
@@ -232,13 +232,19 @@ For `name: 'Post'`:
 | updateOne | `updatePost`     |
 | deleteOne | `deletePost`     |
 
-When `pagination: 'both'`, two list queries are generated: `posts` (cursor) and `postsOffset` (offset).
-
 ## Pagination
 
-### Cursor-based (default)
+Three pagination strategies. Pick one per resolver via `queries.list.pagination`.
 
-Connections with edges, cursors, and page info:
+### Cursor (default)
+
+Flat items array with cursor-based pagination. The most ergonomic option for most clients.
+
+```ts
+@GqlResolver(UserEntity, {
+  queries: { list: { pagination: 'cursor' } }, // or just omit pagination
+})
+```
 
 ```graphql
 query {
@@ -248,12 +254,68 @@ query {
     where: { fullName: { contains: "Alice" } }
     orderBy: [{ createdAt: desc }]
   ) {
+    items {
+      id
+      firstName
+      lastName
+      fullName
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+```
+
+The client passes `pageInfo.endCursor` as `after` to get the next page. `totalCount` is lazy - only queried if selected.
+
+### Offset
+
+Classic limit/offset pagination. Familiar for anyone coming from REST.
+
+```ts
+@GqlResolver(PostEntity, {
+  queries: { list: { pagination: 'offset' } },
+})
+```
+
+```graphql
+query {
+  posts(limit: 20, offset: 0, where: { published: { eq: true } }, orderBy: [{ createdAt: desc }]) {
+    items {
+      id
+      title
+      published
+    }
+    totalCount
+    hasMore
+  }
+}
+```
+
+> ⚠️ **Performance warning:** offset pagination degrades on large datasets. At `offset: 10000`, the database still scans and discards the first 10,000 rows before returning results. Fine for small-to-medium tables and admin UIs, but use cursor pagination for anything resembling an "infinite scroll" over a large collection.
+
+### Cursor with edges (Relay-style)
+
+Full edges + nodes wrapping. Use when you need a per-node cursor (e.g., resuming pagination from an arbitrary item in the middle of a page).
+
+```ts
+@GqlResolver(PostEntity, {
+  queries: { list: { pagination: 'cursor-edges' } },
+})
+```
+
+```graphql
+query {
+  posts(first: 10, after: "eyJ...") {
     edges {
       node {
         id
-        firstName
-        lastName
-        fullName
+        title
       }
       cursor
     }
@@ -268,34 +330,11 @@ query {
 }
 ```
 
-`totalCount` is lazy - the count query only runs if the client includes it in the selection.
+### Which to pick?
 
-### Offset-based
-
-Classic limit/offset pagination:
-
-```graphql
-query {
-  postsOffset(
-    limit: 20
-    offset: 0
-    where: { published: { eq: true } }
-    orderBy: [{ createdAt: desc }]
-  ) {
-    items {
-      id
-      title
-      published
-    }
-    totalCount
-    hasMore
-  }
-}
-```
-
-### Both at once
-
-Set `pagination: 'both'` to generate both queries simultaneously. Cursor pagination uses the base name (`posts`), offset gets the `Offset` suffix (`postsOffset`).
+- **`cursor`** - for 99% of cases. Flat, stable, simple to consume. Safe on any dataset size.
+- **`offset`** - when clients need "jump to page N" or total page count visible upfront. Only for small-to-medium tables - avoid on huge datasets.
+- **`cursor-edges`** - when you need per-node cursors (arbitrary resume point, Relay client compatibility).
 
 ## Filtering
 
@@ -473,6 +512,108 @@ Register in resolver config and module providers:
 | `beforeCount`     | `(options, ctx)`     |                        |
 | `beforeAggregate` | `(options, ctx)`     |                        |
 | `afterAggregate`  | `(result, ctx)`      | Return modified result |
+
+## Relation Mutations
+
+Manage many-to-many relations with dedicated mutations. Enable per-relation in the resolver config:
+
+```ts
+@GqlResolver(PostEntity, {
+  name: 'Post',
+  relations: {
+    tags: true,
+    postCategories: { include: ['isPrimary'] },
+  },
+})
+```
+
+This generates input types and three mutations per relation:
+
+```graphql
+# Shared input used by all remove mutations - only identifies the link target
+input RelationIdInput {
+  _id: ID!
+}
+
+# Per-relation input used by add/set - includes extra pivot columns via `include`
+input PostPostCategoriesRelationInput {
+  _id: ID!
+  isPrimary: Boolean # optional because the pivot column has a default
+}
+
+type Mutation {
+  addTagsToPost(id: ID!, items: [RelationIdInput!]!): RelationMutationResult!
+  removeTagsFromPost(id: ID!, items: [RelationIdInput!]!): RelationMutationResult!
+  setTagsOnPost(id: ID!, items: [RelationIdInput!]!): RelationMutationResult!
+
+  addPostCategoriesToPost(
+    id: ID!
+    items: [PostPostCategoriesRelationInput!]!
+  ): RelationMutationResult!
+  removePostCategoriesFromPost(id: ID!, items: [RelationIdInput!]!): RelationMutationResult!
+  setPostCategoriesOnPost(
+    id: ID!
+    items: [PostPostCategoriesRelationInput!]!
+  ): RelationMutationResult!
+}
+```
+
+| Operation | Pattern                        | Example              | Input type                   |
+| --------- | ------------------------------ | -------------------- | ---------------------------- |
+| Add       | `add{Relation}To{Entity}`      | `addTagsToPost`      | `{Parent}{Rel}RelationInput` |
+| Remove    | `remove{Relation}From{Entity}` | `removeTagsFromPost` | `RelationIdInput`            |
+| Set       | `set{Relation}On{Entity}`      | `setTagsOnPost`      | `{Parent}{Rel}RelationInput` |
+
+- **add** - connect items to the relation (existing links preserved)
+- **remove** - disconnect items from the relation
+- **set** - replace all links (disconnect existing + connect new)
+
+### Items shape
+
+**Remove** uses the shared `RelationIdInput` (only `_id` is needed to match a link for disconnect):
+
+```graphql
+mutation {
+  removeTagsFromPost(id: 1, items: [{ _id: 5 }]) {
+    success
+  }
+}
+```
+
+**Add** and **set** use a per-relation input with `_id` plus any extra pivot columns declared via `include`:
+
+```graphql
+mutation {
+  addTagsToPost(id: 1, items: [{ _id: 5 }, { _id: 6 }]) {
+    success
+  }
+}
+```
+
+### Extra pivot columns
+
+When a join table has columns beyond the two foreign keys (like `isPrimary`, `order`, `role`), expose them via the `include` option. The per-relation `add`/`set` input type gains typed fields for each included column:
+
+```ts
+relations: {
+  postCategories: { include: ['isPrimary'] },
+}
+```
+
+```graphql
+mutation {
+  addPostCategoriesToPost(
+    id: 1
+    items: [{ _id: 5, isPrimary: true }, { _id: 6, isPrimary: false }]
+  ) {
+    success
+  }
+}
+```
+
+Nullability of extra columns mirrors the database schema. `NOT NULL` columns without a default become required inputs, everything else becomes optional.
+
+Relation hooks (`beforeRelation`, `afterRelation`) fire for all three operations and receive the full items array (including any extra columns).
 
 ## Typed Context
 

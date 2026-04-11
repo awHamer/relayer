@@ -8,6 +8,8 @@ export { RELAYER_GQL_RESOLVER_METADATA } from './constants';
 
 export * from './schema';
 
+export { Pagination } from './types';
+
 export type {
   FieldsConfig,
   GqlContext,
@@ -19,5 +21,6 @@ export type {
   PaginationMode,
   QueriesConfig,
   QueryOpConfig,
+  RelationMutationConfig,
   ResolvedResolverMetadata,
 } from './types';

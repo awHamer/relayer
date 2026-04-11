@@ -3,8 +3,8 @@ import { encodeCursor } from '@relayerjs/nestjs-common';
 import { fetchCursorPage } from './fetch-cursor-page';
 import type { AnyHandlerHost, CursorListHandlerArgs, HandlerCallContext } from './handler-types';
 
-export interface ConnectionResult {
-  edges: { node: unknown; cursor: string }[];
+export interface CursorResult {
+  items: unknown[];
   pageInfo: {
     hasNextPage: boolean;
     hasPreviousPage: boolean;
@@ -14,25 +14,25 @@ export interface ConnectionResult {
   totalCount: number | null;
 }
 
-export async function handleListConnection(
+export async function handleListCursor(
   host: AnyHandlerHost,
   args: CursorListHandlerArgs,
   call: HandlerCallContext,
-): Promise<ConnectionResult> {
-  const page = await fetchCursorPage(host, args, call, ['edges', 'node']);
+): Promise<CursorResult> {
+  const page = await fetchCursorPage(host, args, call, ['items']);
 
-  const edges = page.items.map((node) => ({
-    node,
-    cursor: encodeCursor(node, page.orderBy, page.idField),
-  }));
+  const first = page.items[0];
+  const last = page.items[page.items.length - 1];
+  const startCursor = first ? encodeCursor(first, page.orderBy, page.idField) : null;
+  const endCursor = last ? encodeCursor(last, page.orderBy, page.idField) : null;
 
   return {
-    edges,
+    items: page.items,
     pageInfo: {
       hasNextPage: page.hasNextPage,
       hasPreviousPage: page.hasPreviousPage,
-      startCursor: edges[0]?.cursor ?? null,
-      endCursor: edges[edges.length - 1]?.cursor ?? null,
+      startCursor,
+      endCursor,
     },
     totalCount: page.totalCount,
   };

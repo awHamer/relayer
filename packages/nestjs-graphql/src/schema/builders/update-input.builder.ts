@@ -6,6 +6,8 @@ import { defineField } from './define-field';
 import { getScalarReturnType } from './scalar-type';
 
 export class UpdateInputBuilder {
+  private readonly enriched = new Set<string>();
+
   constructor(private readonly registry: SchemaRegistry) {}
 
   ensureClass(entity: EntityMetadata): ClassRef {
@@ -16,6 +18,8 @@ export class UpdateInputBuilder {
   }
 
   enrichMetadata(entity: EntityMetadata): void {
+    if (this.enriched.has(entity.name)) return;
+    this.enriched.add(entity.name);
     const cls = this.ensureClass(entity);
     for (const field of entity.getScalarFields()) {
       if (field.isPrimaryKey) continue;
