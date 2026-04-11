@@ -1,5 +1,11 @@
 # @relayerjs/core
 
+## 0.4.2
+
+### Patch Changes
+
+- b583531: Add `mergeWhere` utility for combining multiple where clauses with AND. Variadic, skips undefined values.
+
 ## 0.4.1
 
 ### Patch Changes

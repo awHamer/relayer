@@ -1,5 +1,12 @@
 # @relayerjs/drizzle
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies [b583531]
+  - @relayerjs/core@0.4.2
+
 ## 0.7.1
 
 ### Patch Changes
