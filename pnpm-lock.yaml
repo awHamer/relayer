@@ -293,7 +293,11 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/core: {}
+  packages/core:
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.12.13(@types/node@25.5.0)(typescript@5.9.3))(terser@5.46.1)(tsx@4.21.0)
 
   packages/drizzle:
     dependencies:

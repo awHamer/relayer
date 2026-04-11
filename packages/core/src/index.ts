@@ -20,7 +20,7 @@ export type { DerivedConfig } from './decorators/derived';
 
 export type { RelayerAdapter } from './adapter/adapter';
 
-export { isObject } from './utils';
+export { isObject, mergeWhere } from './utils';
 
 export { RelayerError, RelayerDialectError } from './errors';
 
