@@ -217,7 +217,8 @@ export async function executeManyRelationOps(
     }
 
     if (op.disconnect && op.disconnect.length > 0) {
-      for (const targetId of op.disconnect) {
+      for (const item of op.disconnect) {
+        const targetId = isObject(item) ? (item as { _id: unknown })._id : item;
         const condition = buildLinkCondition(
           joinTable,
           sourceFkName,
