@@ -9,6 +9,8 @@ import { defineField } from './define-field';
 import { ObjectTypeBuilder } from './object-type.builder';
 
 export class ConnectionBuilder {
+  private readonly enriched = new Set<string>();
+
   constructor(
     private readonly registry: SchemaRegistry,
     private readonly objectTypeBuilder: ObjectTypeBuilder,
@@ -22,6 +24,8 @@ export class ConnectionBuilder {
   }
 
   enrichMetadata(entity: EntityMetadata): void {
+    if (this.enriched.has(entity.name)) return;
+    this.enriched.add(entity.name);
     const { connection, edge } = this.ensureClasses(entity);
     const objectType = this.objectTypeBuilder.ensureClass(entity);
 

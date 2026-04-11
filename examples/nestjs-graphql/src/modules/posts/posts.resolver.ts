@@ -13,7 +13,7 @@ interface ExpressLikeRequest {
   name: 'Post',
   hooks: PostHooks,
   queries: {
-    list: { name: 'posts', pagination: 'both' },
+    list: { name: 'posts', pagination: 'cursor-edges' },
     findById: { name: 'post' },
     count: { name: 'postsCount' },
     aggregate: { name: 'postsAggregate' },
@@ -25,6 +25,9 @@ interface ExpressLikeRequest {
   },
   filterable: ['id', 'title', 'published', 'author'],
   orderable: ['id', 'title', 'createdAt'],
+  relations: {
+    postCategories: { include: ['isPrimary'] },
+  },
 })
 export class PostsResolver extends RelayerResolver<PostEntity, EM, AppContext, AppQueryContext> {
   constructor(postsService: PostsService) {

@@ -11,7 +11,9 @@ import {
   buildDeleteOneMethod,
   buildFindByIdMethod,
   buildListConnectionMethod,
+  buildListCursorMethod,
   buildListMethod,
+  buildRelationMethods,
   buildUpdateOneMethod,
 } from './method-builders';
 import type { BuildListConnectionMethodOptions } from './method-builders/build-list-connection-method';
@@ -36,18 +38,26 @@ export function GqlResolver<TEntity, EM extends Record<string, unknown>>(
     builders.registry.enqueueBuild(entity, config.fields, config.filterable, config.orderable);
     builders.ensureAllClasses(entity);
 
-    const { queries, mutations } = resolveOperationNames(gqlName, config);
+    const { queries, mutations, relations } = resolveOperationNames(gqlName, config);
     const targetCls = target as unknown as BuildListConnectionMethodOptions['target'];
 
-    if (queries.list) {
-      buildListMethod({ target: targetCls, entity, builders, schemaName: queries.list });
+    if (queries.listOffset) {
+      buildListMethod({ target: targetCls, entity, builders, schemaName: queries.listOffset });
     }
-    if (queries.listConnection) {
+    if (queries.listCursor) {
+      buildListCursorMethod({
+        target: targetCls,
+        entity,
+        builders,
+        schemaName: queries.listCursor,
+      });
+    }
+    if (queries.listCursorEdges) {
       buildListConnectionMethod({
         target: targetCls,
         entity,
         builders,
-        schemaName: queries.listConnection,
+        schemaName: queries.listCursorEdges,
       });
     }
     if (queries.findById) {
@@ -81,6 +91,16 @@ export function GqlResolver<TEntity, EM extends Record<string, unknown>>(
         entity,
         builders,
         schemaName: mutations.deleteOne,
+      });
+    }
+
+    if (Object.keys(relations).length > 0) {
+      buildRelationMethods({
+        target: targetCls,
+        entity,
+        builders,
+        relations,
+        relationsConfig: config.relations ?? {},
       });
     }
 

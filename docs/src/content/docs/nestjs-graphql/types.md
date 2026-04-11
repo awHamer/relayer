@@ -219,18 +219,13 @@ input UpdatePostInput {
 }
 ```
 
-## Connection (cursor pagination)
+## CursorResult (default cursor pagination)
 
 ```graphql
-type PostConnection {
-  edges: [PostEdge!]!
+type PostCursorResult {
+  items: [Post!]!
   pageInfo: PageInfo!
   totalCount: Int # nullable - only resolved when selected
-}
-
-type PostEdge {
-  node: Post!
-  cursor: String!
 }
 
 type PageInfo {
@@ -248,6 +243,23 @@ type PostListResult {
   items: [Post!]!
   totalCount: Int!
   hasMore: Boolean!
+}
+```
+
+## Connection (cursor-edges pagination)
+
+Relay-style connection with edges and per-node cursors. Generated when `pagination: 'cursor-edges'`.
+
+```graphql
+type PostConnection {
+  edges: [PostEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int # nullable - only resolved when selected
+}
+
+type PostEdge {
+  node: Post!
+  cursor: String!
 }
 ```
 

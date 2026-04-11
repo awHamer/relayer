@@ -29,18 +29,14 @@ export async function handleList(
   } as Parameters<ReturnType<AnyHandlerHost['getService']>['findMany']>[0];
 
   const hooks = host.getHooks();
-  await hooks?.beforeFind?.(findOptions as never, ctx as never);
+  await hooks?.beforeFind?.(findOptions!, ctx);
 
   const items = (await host.getService().findMany(findOptions)) as unknown[];
-  const finalItems =
-    ((await hooks?.afterFind?.(items as never, ctx as never)) as unknown[]) ?? items;
+  const finalItems = ((await hooks?.afterFind?.(items, ctx)) as unknown[]) ?? items;
 
   let totalCount = 0;
   if (selectionIncludes(call.info, [], 'totalCount')) {
-    totalCount = await host.getService().count({
-      where: args.where,
-      context: queryCtx,
-    } as never);
+    totalCount = await host.getService().count({ where: args.where, context: queryCtx });
   }
 
   const limit = args.limit ?? finalItems.length;

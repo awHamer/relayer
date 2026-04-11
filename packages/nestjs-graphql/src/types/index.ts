@@ -1,3 +1,4 @@
+export { Pagination } from './config';
 export type {
   FieldsConfig,
   GqlResolverConfig,
@@ -7,6 +8,7 @@ export type {
   PaginationMode,
   QueriesConfig,
   QueryOpConfig,
+  RelationMutationConfig,
   ResolvedResolverMetadata,
 } from './config';
 

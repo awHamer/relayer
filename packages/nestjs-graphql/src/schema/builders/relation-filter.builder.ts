@@ -1,4 +1,5 @@
 import type { EntityMetadata } from '../../metadata';
+import { upperFirst } from '../../utils';
 import type { ClassRef } from '../class-ref';
 import { SchemaRegistry } from '../registry';
 import { applyInputType, createGqlClass } from './create-gql-class';
@@ -52,7 +53,7 @@ export class RelationFilterBuilder {
 
   private gqlName(parent: EntityMetadata, relationName: string): string {
     const parentName = this.registry.getGqlName(parent.name);
-    const relName = relationName.charAt(0).toUpperCase() + relationName.slice(1);
+    const relName = upperFirst(relationName);
     return `${parentName}${relName}RelationFilter`;
   }
 }

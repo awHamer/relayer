@@ -20,11 +20,11 @@ export async function handleFindById(
   } as Parameters<ReturnType<AnyHandlerHost['getService']>['findFirst']>[0];
 
   const hooks = host.getHooks();
-  await hooks?.beforeFindOne?.(options as never, ctx as never);
+  await hooks?.beforeFindOne?.(options!, ctx);
 
   const entity = await host.getService().findFirst(options);
   if (!entity) throw new NotFoundException(`${call.entity.name} with ${idField}=${id} not found`);
 
-  const final = (await hooks?.afterFindOne?.(entity as never, ctx as never)) ?? entity;
+  const final = (await hooks?.afterFindOne?.(entity, ctx)) ?? entity;
   return final;
 }

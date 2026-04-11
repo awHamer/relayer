@@ -1,6 +1,6 @@
 ---
 title: 'NestJS GraphQL: Getting Started'
-description: Code-first GraphQL CRUD with auto-generated schemas, filtering, and dual pagination.
+description: Code-first GraphQL CRUD with auto-generated schemas, filtering, and three pagination modes.
 ---
 
 ## What you get
@@ -9,7 +9,7 @@ Drop `@relayerjs/nestjs-graphql` into a NestJS project and get a complete code-f
 
 - **Full CRUD** - queries (list, findById, count, aggregate) and mutations (create, update, delete)
 - **Auto-generated types** - ObjectType, WhereInput, OrderByInput, CreateInput, UpdateInput, Connection, Edge, PageInfo
-- **Dual pagination** - cursor-based (Relayer connections) and offset-based, or both at once
+- **Three pagination modes** - flat cursor (default), offset, or Relay-style cursor with edges
 - **Rich filtering** - per-type operators, AND/OR/NOT combinators, relation filters (some/every/none)
 - **Ordering** - multi-field sorting, nested relation ordering
 - **Aggregation** - groupBy, count, sum, avg, min, max
@@ -108,17 +108,17 @@ export class UsersResolver extends RelayerResolver<UserEntity, EM> {
 
 That's it. One decorator, full GraphQL CRUD:
 
-| Type     | Name                       | Description                        |
-| -------- | -------------------------- | ---------------------------------- |
-| Query    | `users`                    | Cursor-paginated list (Connection) |
-| Query    | `user(id: ID!)`            | Find by ID                         |
-| Query    | `usersCount(where: ...)`   | Count matching records             |
-| Query    | `usersAggregate(...)`      | Aggregation with groupBy           |
-| Mutation | `createUser(data: ...)`    | Create one                         |
-| Mutation | `updateUser(id: ID!, ...)` | Update one                         |
-| Mutation | `deleteUser(id: ID!)`      | Delete one                         |
+| Type     | Name                       | Description              |
+| -------- | -------------------------- | ------------------------ |
+| Query    | `users`                    | Cursor-paginated list    |
+| Query    | `user(id: ID!)`            | Find by ID               |
+| Query    | `usersCount(where: ...)`   | Count matching records   |
+| Query    | `usersAggregate(...)`      | Aggregation with groupBy |
+| Mutation | `createUser(data: ...)`    | Create one               |
+| Mutation | `updateUser(id: ID!, ...)` | Update one               |
+| Mutation | `deleteUser(id: ID!)`      | Delete one               |
 
-All GraphQL types are generated automatically: `User`, `UserWhereInput`, `UserOrderByInput`, `CreateUserInput`, `UpdateUserInput`, `UserConnection`, `UserEdge`, `PageInfo`, `UserAggregate`, plus scalar filter inputs.
+All GraphQL types are generated automatically: `User`, `UserWhereInput`, `UserOrderByInput`, `CreateUserInput`, `UpdateUserInput`, `UserCursorResult`, `PageInfo`, `UserAggregate`, plus scalar filter inputs.
 
 ## What's next
 

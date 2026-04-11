@@ -7,7 +7,13 @@ import { defineField } from './define-field';
 import { getScalarReturnType } from './scalar-type';
 
 export class ObjectTypeBuilder {
+  private readonly enriched = new Set<string>();
+
   constructor(private readonly registry: SchemaRegistry) {}
+
+  isEnriched(entity: EntityMetadata): boolean {
+    return this.enriched.has(entity.name);
+  }
 
   ensureClass(entity: EntityMetadata): ClassRef {
     const entry = this.registry.getEntry(entity);
@@ -17,6 +23,9 @@ export class ObjectTypeBuilder {
   }
 
   enrichMetadata(entity: EntityMetadata, fieldsConfig?: FieldsConfig): void {
+    if (this.enriched.has(entity.name)) return;
+    this.enriched.add(entity.name);
+
     const cls = this.ensureClass(entity);
     const gqlName = this.registry.getGqlName(entity.name);
 
@@ -72,6 +81,10 @@ export class ObjectTypeBuilder {
       const target = entity.getRelatedEntityMetadata(rel.name);
       if (!target) continue;
       const targetCls = this.ensureClass(target);
+      // auto-enqueue target for enrichment if it has no dedicated resolver
+      if (!this.enriched.has(target.name)) {
+        this.registry.enqueueBuild(target);
+      }
       const returnType = rel.cardinality === 'many' ? () => [targetCls] : () => targetCls;
       defineField(cls, rel.name, returnType, { nullable: rel.cardinality === 'one' });
     }

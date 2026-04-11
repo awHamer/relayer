@@ -5,7 +5,7 @@ export async function seed() {
   console.log('Seeding nestjs-graphql example database...');
 
   await client.unsafe(`
-    DROP TABLE IF EXISTS comments, posts, users CASCADE;
+    DROP TABLE IF EXISTS post_categories, categories, comments, posts, users CASCADE;
 
     CREATE TABLE users (
       id SERIAL PRIMARY KEY,
@@ -31,6 +31,18 @@ export async function seed() {
       post_id INTEGER NOT NULL REFERENCES posts(id),
       author_id INTEGER NOT NULL REFERENCES users(id),
       created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    );
+
+    CREATE TABLE categories (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL
+    );
+
+    CREATE TABLE post_categories (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER NOT NULL REFERENCES posts(id),
+      category_id INTEGER NOT NULL REFERENCES categories(id),
+      is_primary BOOLEAN NOT NULL DEFAULT FALSE
     );
   `);
 
@@ -66,6 +78,21 @@ export async function seed() {
     { content: 'Great intro!', postId: 1, authorId: 2 },
     { content: 'Thanks!', postId: 1, authorId: 1 },
     { content: 'Nice post Bob', postId: 2, authorId: 3 },
+  ]);
+
+  await db
+    .insert(schema.categories)
+    .values([
+      { name: 'GraphQL' },
+      { name: 'TypeScript' },
+      { name: 'NestJS' },
+      { name: 'Tutorials' },
+    ]);
+
+  await db.insert(schema.postCategories).values([
+    { postId: 1, categoryId: 1, isPrimary: true },
+    { postId: 1, categoryId: 4, isPrimary: false },
+    { postId: 2, categoryId: 2, isPrimary: true },
   ]);
 
   console.log('Seeded successfully.');

@@ -34,7 +34,7 @@ This generates **4 queries** and **3 mutations** with all the input/output types
 
   // Control which queries exist and how they behave
   queries: {
-    list: { name: 'posts', pagination: 'both' },
+    list: { name: 'posts', pagination: 'cursor' },
     findById: { name: 'post' },
     count: { name: 'postsCount' },
     aggregate: { name: 'postsAggregate' },
@@ -56,6 +56,12 @@ This generates **4 queries** and **3 mutations** with all the input/output types
   // Only these fields appear in OrderByInput (sorting)
   orderable: ['id', 'title', 'createdAt'],
 
+  // Relation mutations (connect/disconnect/set)
+  relations: {
+    tags: true,
+    categories: { add: true, remove: true, set: false },
+  },
+
   // Primary key config (usually auto-detected)
   idField: 'id',
   idType: 'number',
@@ -72,7 +78,7 @@ The prefix used for all generated GraphQL types. This is how you control the nam
 @GqlResolver(PostEntity, { name: 'BlogPost' })
 ```
 
-This generates: `BlogPost` (ObjectType), `BlogPostWhereInput`, `BlogPostOrderByInput`, `CreateBlogPostInput`, `UpdateBlogPostInput`, `BlogPostConnection`, `BlogPostAggregate`, etc.
+This generates: `BlogPost` (ObjectType), `BlogPostWhereInput`, `BlogPostOrderByInput`, `CreateBlogPostInput`, `UpdateBlogPostInput`, `BlogPostCursorResult`, `BlogPostAggregate`, etc.
 
 ## Queries
 
@@ -84,52 +90,72 @@ Each query can be:
 
 ### `queries.list`
 
-The list query with pagination. This is the most configurable query.
+The list query with pagination. One of three pagination strategies.
 
 ```ts
 queries: {
-  list: { name: 'posts', pagination: 'both' },
+  list: { name: 'posts', pagination: 'cursor' },
 }
 ```
 
 **Sub-options:**
 
-| Option       | Type                             | Default    | Description                           |
-| ------------ | -------------------------------- | ---------- | ------------------------------------- |
-| `name`       | `string`                         | `{plural}` | GraphQL operation name                |
-| `pagination` | `'cursor' \| 'offset' \| 'both'` | `'cursor'` | Which pagination strategy to generate |
+| Option       | Type                                     | Default    | Description            |
+| ------------ | ---------------------------------------- | ---------- | ---------------------- |
+| `name`       | `string`                                 | `{plural}` | GraphQL operation name |
+| `pagination` | `'cursor' \| 'offset' \| 'cursor-edges'` | `'cursor'` | Pagination strategy    |
 
-**Pagination modes explained:**
+**Pagination modes:**
 
-**`'cursor'`** (default) - generates one query returning a Connection:
+**`'cursor'`** (default) - flat items array with cursor navigation. Simplest and most ergonomic.
 
 ```graphql
-# query name: "posts"
-posts(first: Int, after: String, where: ..., orderBy: ...): PostConnection!
+posts(first: Int, after: String, where: ..., orderBy: ...): PostCursorResult!
+
+type PostCursorResult {
+  items: [Post!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
 ```
 
-**`'offset'`** - generates one query returning a ListResult:
+**`'offset'`** - classic limit/offset. Familiar for REST. Degrades on large datasets (the database still scans and discards offset rows) - fine for small-to-medium tables, use cursor pagination for anything resembling an infinite scroll over a large collection.
 
 ```graphql
-# query name: "posts"
 posts(limit: Int, offset: Int, where: ..., orderBy: ...): PostListResult!
+
+type PostListResult {
+  items: [Post!]!
+  totalCount: Int!
+  hasMore: Boolean!
+}
 ```
 
-**`'both'`** - generates **two** queries. The cursor query uses the base name, the offset query gets an `Offset` suffix:
+**`'cursor-edges'`** - Relay-style connections with edges and per-node cursors. Use when you need to resume pagination from an arbitrary item mid-page.
 
 ```graphql
-# cursor: base name
 posts(first: Int, after: String, where: ..., orderBy: ...): PostConnection!
 
-# offset: base name + "Offset"
-postsOffset(limit: Int, offset: Int, where: ..., orderBy: ...): PostListResult!
+type PostConnection {
+  edges: [PostEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type PostEdge {
+  node: Post!
+  cursor: String!
+}
 ```
 
-With a custom name:
+You can also import the `Pagination` const for type-safe mode selection:
 
 ```ts
-list: { name: 'allPosts', pagination: 'both' }
-// -> allPosts (cursor) + allPostsOffset (offset)
+import { Pagination } from '@relayerjs/nestjs-graphql';
+
+queries: {
+  list: { pagination: Pagination.CursorEdges },
+}
 ```
 
 ### `queries.findById`
@@ -287,15 +313,15 @@ Read-only resolver (no mutations):
 
 For `name: 'Post'`, this is the full default output:
 
-| Type     | Operation                  | Description                        |
-| -------- | -------------------------- | ---------------------------------- |
-| Query    | `posts`                    | Cursor-paginated list (Connection) |
-| Query    | `post(id: ID!)`            | Find by ID                         |
-| Query    | `postsCount(where: ...)`   | Count matching records             |
-| Query    | `postsAggregate(...)`      | Aggregation with groupBy           |
-| Mutation | `createPost(data: ...)`    | Create one                         |
-| Mutation | `updatePost(id: ID!, ...)` | Update one                         |
-| Mutation | `deletePost(id: ID!)`      | Delete one                         |
+| Type     | Operation                  | Description              |
+| -------- | -------------------------- | ------------------------ |
+| Query    | `posts`                    | Cursor-paginated list    |
+| Query    | `post(id: ID!)`            | Find by ID               |
+| Query    | `postsCount(where: ...)`   | Count matching records   |
+| Query    | `postsAggregate(...)`      | Aggregation with groupBy |
+| Mutation | `createPost(data: ...)`    | Create one               |
+| Mutation | `updatePost(id: ID!, ...)` | Update one               |
+| Mutation | `deletePost(id: ID!)`      | Delete one               |
 
 **Naming pattern:**
 
@@ -372,6 +398,42 @@ Lifecycle hooks class. Must extend `RelayerHooks`. Can be an NestJS injectable.
 ```
 
 See [Hooks & Context](/nestjs-graphql/hooks-and-context/) for details.
+
+## `relations`
+
+**Type:** `Record<string, boolean | { add?, remove?, set?, include? }>` | **Default:** none
+
+Enable mutation endpoints for managing many-to-many relations. Each relation can be fully enabled (`true`) or configured with selective operations and extra pivot columns.
+
+```ts
+@GqlResolver(PostEntity, {
+  relations: {
+    tags: true,
+    postCategories: { include: ['isPrimary'] },
+  },
+})
+```
+
+Generates a per-relation input type and three mutations:
+
+| Operation | Mutation name        | What it does                       |
+| --------- | -------------------- | ---------------------------------- |
+| `add`     | `addTagsToPost`      | Connect items (preserves existing) |
+| `remove`  | `removeTagsFromPost` | Disconnect items                   |
+| `set`     | `setTagsOnPost`      | Replace all links                  |
+
+All mutations accept `id: ID!` and `items: [...]!`. **Add** and **set** use a per-relation input type (`{Parent}{Relation}RelationInput`) with `_id` plus any columns from `include`. **Remove** uses the shared `RelationIdInput` (only `_id`) since extras are meaningless for disconnect. Return type is `RelationMutationResult { success: Boolean! }`.
+
+**Sub-options:**
+
+| Option    | Type                | Default | Description                                          |
+| --------- | ------------------- | ------- | ---------------------------------------------------- |
+| `add`     | `boolean`           | `true`  | Generate the `add{Relation}To{Entity}` mutation      |
+| `remove`  | `boolean`           | `true`  | Generate the `remove{Relation}From{Entity}` mutation |
+| `set`     | `boolean`           | `true`  | Generate the `set{Relation}On{Entity}` mutation      |
+| `include` | `readonly string[]` | `[]`    | Extra pivot columns to expose in the relation input  |
+
+See [Mutations](/nestjs-graphql/mutations/#relation-mutations) for GraphQL examples, extra pivot columns, and hook integration.
 
 ## `idField` / `idType`
 
