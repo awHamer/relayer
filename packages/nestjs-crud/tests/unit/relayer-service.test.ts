@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { RelayerService } from '../../src/relayer.service';
+import { RelayerService } from '../../src';
 import { mockEntityClient } from '../helpers';
 
 function createService(overrides = {}) {

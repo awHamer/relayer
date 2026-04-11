@@ -7,5 +7,5 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   treeshake: true,
-  external: ['class-validator', 'class-transformer'],
+  external: ['class-validator', 'class-transformer', '@relayerjs/nestjs-common'],
 });

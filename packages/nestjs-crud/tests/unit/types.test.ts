@@ -2,15 +2,13 @@ import { describe, expectTypeOf, it } from 'vitest';
 
 import type {
   CrudRoutes,
+  DtoMapper,
   EntityRepo,
   ListRouteConfig,
   RelayerInstance,
   RequestContext,
 } from '../../src';
-import { RelayerController } from '../../src/relayer.controller';
-import type { DtoMapper } from '../../src/relayer.dto-mapper';
-import { RelayerHooks } from '../../src/relayer.hooks';
-import { RelayerService } from '../../src/relayer.service';
+import { RelayerController, RelayerHooks, RelayerService } from '../../src';
 
 // Use Record<string, unknown> compatible type via intersection
 type TestEntities = Record<string, unknown> & {

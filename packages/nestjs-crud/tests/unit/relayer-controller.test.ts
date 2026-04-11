@@ -4,12 +4,14 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { RequestContext } from '../../src';
+import {
+  CrudController,
+  DtoMapper,
+  RelayerController,
+  RelayerHooks,
+  RelayerService,
+} from '../../src';
 import { CRUD_CONTROLLER_METADATA } from '../../src/constants';
-import { CrudController } from '../../src/decorators/crud-controller.decorator';
-import { RelayerController } from '../../src/relayer.controller';
-import { DtoMapper } from '../../src/relayer.dto-mapper';
-import { RelayerHooks } from '../../src/relayer.hooks';
-import { RelayerService } from '../../src/relayer.service';
 import { mockEntityClient, TestEntity } from '../helpers';
 
 function createController<T extends RelayerController<any, Record<string, unknown>>>(

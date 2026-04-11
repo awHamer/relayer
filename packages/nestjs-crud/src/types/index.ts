@@ -1,26 +1,5 @@
-export type { RequestContext, ValidationError } from './context';
-export type {
-  ZodLike,
-  SelectConfig,
-  OperatorName,
-  WhereConfig,
-  PaginationMode,
-  ListRouteConfig,
-  FindByIdRouteConfig,
-  MutationRouteConfig,
-  CrudRoutes,
-  RelationId,
-  RelationOperation,
-  RelationRouteConfig,
-  RelationKeys,
-  DecoratorTargeted,
-  DecoratorEntry,
-  CrudControllerConfig,
-  RelayerModuleOptions,
-  SwaggerConfig,
-  SwaggerRouteOverride,
-  RelayerModuleAsyncOptions,
-} from './config';
+// Re-exported from @relayerjs/nestjs-common
+export type { RequestContext, ValidationError } from '@relayerjs/nestjs-common';
 export type {
   Model,
   Where,
@@ -32,7 +11,35 @@ export type {
   AggregateHaving,
   EntityRepo,
   RelayerInstance,
-} from './entity-repo';
+  WhereOptions,
+  PartialDataOptions,
+  UpdateOptions,
+  RelationOperation,
+  RelationId,
+  RelationKeys,
+  ZodLike,
+  RelayerModuleOptions,
+  RelayerModuleAsyncOptions,
+} from '@relayerjs/nestjs-common';
+
+// CRUD-specific types
+export type {
+  SelectConfig,
+  OperatorName,
+  WhereConfig,
+  PaginationMode,
+  ListRouteConfig,
+  FindByIdRouteConfig,
+  MutationRouteConfig,
+  CrudRoutes,
+  RelationRouteConfig,
+  DecoratorTargeted,
+  DecoratorEntry,
+  CrudControllerConfig,
+  SwaggerConfig,
+  SwaggerRouteOverride,
+} from './config';
+
 export type {
   ListResponse,
   CursorListResponse,

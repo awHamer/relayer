@@ -1,5 +1,6 @@
 import { Inject, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import type { DtoMapper, RelayerHooks, RelayerService } from '@relayerjs/nestjs-common';
 
 import { CRUD_CONTROLLER_METADATA, RELAYER_BASE_URL } from './constants';
 import {
@@ -12,9 +13,6 @@ import {
   validateBody,
   type ParsedListQuery,
 } from './pipes';
-import type { DtoMapper } from './relayer.dto-mapper';
-import type { RelayerHooks } from './relayer.hooks';
-import type { RelayerService } from './relayer.service';
 import type {
   CrudControllerConfig,
   FindByIdRouteConfig,

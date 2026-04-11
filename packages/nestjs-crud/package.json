@@ -48,6 +48,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@relayerjs/nestjs-common": "workspace:~",
     "zod": "^3.24.0"
   },
   "peerDependencies": {

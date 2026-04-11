@@ -2,11 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import {
-  validateBody,
-  validateWithClassValidator,
-  validateWithZod,
-} from '../../src/pipes/validation.pipe';
+import { validateBody, validateWithClassValidator, validateWithZod } from '../../src/pipes';
 
 describe('validateWithZod', () => {
   const schema = z.object({ name: z.string(), age: z.number() });

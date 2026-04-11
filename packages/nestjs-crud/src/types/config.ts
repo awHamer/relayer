@@ -7,36 +7,21 @@ import type {
   StringOperators,
   WhereType,
 } from '@relayerjs/core';
+import type {
+  DtoMapper,
+  Model,
+  RelationKeys,
+  RelayerHooks,
+  ZodLike,
+} from '@relayerjs/nestjs-common';
 
 import type { CrudRouteName } from '../constants';
-import type { DtoMapper } from '../relayer.dto-mapper';
-import type { RelayerHooks } from '../relayer.hooks';
-import type { Model } from './entity-repo';
 
 type ModelKeys<TEntity, TEntities extends Record<string, unknown>> = keyof Model<
   TEntity,
   TEntities
 > &
   string;
-
-export type RelationKeys<TEntity, TEntities extends Record<string, unknown>> = {
-  [K in keyof Model<TEntity, TEntities> & string]: NonNullable<
-    Model<TEntity, TEntities>[K]
-  > extends (infer Item)[]
-    ? Item extends Record<string, unknown>
-      ? K
-      : never
-    : NonNullable<Model<TEntity, TEntities>[K]> extends Record<string, unknown>
-      ? NonNullable<Model<TEntity, TEntities>[K]> extends Date
-        ? never
-        : K
-      : never;
-}[keyof Model<TEntity, TEntities> & string];
-
-export interface ZodLike {
-  parse(data: unknown): unknown;
-  safeParse?(data: unknown): { success: boolean; error?: { errors: unknown[] }; data?: unknown };
-}
 
 type SelectConfigOf<T> = {
   [K in keyof T & string]?: NonNullable<T[K]> extends (infer Item)[]
@@ -118,10 +103,6 @@ export interface MutationRouteConfig {
   schema?: ZodLike | Function;
 }
 
-export type RelationOperation = 'connect' | 'disconnect' | 'set';
-
-export type RelationId = string | number | ({ _id: string | number } & Record<string, unknown>);
-
 export interface RelationRouteConfig {
   connect?: boolean;
   disconnect?: boolean;
@@ -186,20 +167,4 @@ export interface CrudControllerConfig<
   hooks?: new (...args: any[]) => RelayerHooks<TEntity, TEntities>;
   swagger?: SwaggerConfig | false;
   params?: Record<string, { field: string; type: 'number' | 'string' }>;
-}
-
-export interface RelayerModuleOptions {
-  db: unknown;
-  schema: Record<string, unknown>;
-  entities: RelayerEntityClass[] | Record<string, RelayerEntityClass>;
-  maxRelationDepth?: number;
-  defaultRelationLimit?: number;
-  baseUrl?: string | (() => string);
-  envelope?: boolean;
-}
-
-export interface RelayerModuleAsyncOptions {
-  imports?: unknown[];
-  inject?: unknown[];
-  useFactory: (...args: unknown[]) => Promise<RelayerModuleOptions> | RelayerModuleOptions;
 }
