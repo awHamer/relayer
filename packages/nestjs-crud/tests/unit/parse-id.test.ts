@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 
-import { ParseIdPipe } from '../../src/pipes/parse-id.pipe';
+import { ParseIdPipe } from '../../src/pipes';
 
 describe('ParseIdPipe', () => {
   describe('number type', () => {

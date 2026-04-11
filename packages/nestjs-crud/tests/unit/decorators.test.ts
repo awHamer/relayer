@@ -3,12 +3,13 @@ import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
 
 import { RELAYER_CLIENT, RELAYER_ENTITY_PREFIX, RELAYER_SERVICE_PREFIX } from '../../src/constants';
-import { getEntityToken, InjectEntity } from '../../src/decorators/inject-entity.decorator';
 import {
+  getEntityToken,
   getServiceToken,
+  InjectEntity,
   InjectQueryService,
-} from '../../src/decorators/inject-query-service.decorator';
-import { InjectRelayer } from '../../src/decorators/inject-relayer.decorator';
+  InjectRelayer,
+} from '../../src/decorators';
 import { TestEntity } from '../helpers';
 
 describe('getEntityToken', () => {

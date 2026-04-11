@@ -1,15 +1,7 @@
-export { RelayerModule } from './relayer.module';
-export { RelayerService } from './relayer.service';
-export type {
-  RelayerInstance,
-  EntityRepo,
-  Model,
-  Where,
-  Select,
-  OrderBy,
-  ManyOptions,
-  FirstOptions,
-} from './relayer.service';
+// Re-exported from @relayerjs/nestjs-common
+export { RelayerModule, RelayerService, DtoMapper, RelayerHooks } from '@relayerjs/nestjs-common';
+
+// CRUD-specific
 export { RelayerController } from './relayer.controller';
 
 export {
@@ -22,11 +14,7 @@ export {
   InjectRelayer,
 } from './decorators';
 
-export { DtoMapper } from './relayer.dto-mapper';
-export { RelayerHooks } from './relayer.hooks';
-
-export { EnvelopeInterceptor } from './interceptors';
-export { RelayerExceptionFilter } from './interceptors';
+export { EnvelopeInterceptor, RelayerExceptionFilter } from './interceptors';
 
 export {
   ParseIdPipe,
@@ -40,7 +28,27 @@ export {
   buildCursorWhere,
 } from './pipes';
 
-export type { AggregateOptions, AggregateHaving } from './types';
+// Types — common re-exports + CRUD-specific (all via ./types barrel)
+export type {
+  RelayerInstance,
+  EntityRepo,
+  Model,
+  Where,
+  Select,
+  OrderBy,
+  ManyOptions,
+  FirstOptions,
+  AggregateOptions,
+  AggregateHaving,
+  RequestContext,
+  RelationId,
+  RelationOperation,
+  RelationKeys,
+  RelayerModuleOptions,
+  RelayerModuleAsyncOptions,
+  ValidationError,
+} from './types';
+
 export type {
   ListResponse,
   CursorListResponse,
@@ -51,13 +59,9 @@ export type {
 } from './types';
 
 export type {
-  RequestContext,
   CrudControllerConfig,
   CrudRoutes,
-  RelationId,
-  RelationOperation,
   RelationRouteConfig,
-  RelationKeys,
   SelectConfig,
   WhereConfig,
   OperatorName,
@@ -65,11 +69,8 @@ export type {
   ListRouteConfig,
   FindByIdRouteConfig,
   MutationRouteConfig,
-  ValidationError,
   DecoratorEntry,
   DecoratorTargeted,
-  RelayerModuleOptions,
-  RelayerModuleAsyncOptions,
 } from './types';
 
 export type { CrudRouteName } from './constants';

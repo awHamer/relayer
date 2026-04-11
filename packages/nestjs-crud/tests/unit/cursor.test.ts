@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 
-import { buildCursorWhere, decodeCursor, encodeCursor } from '../../src/pipes/cursor';
+import { buildCursorWhere, decodeCursor, encodeCursor } from '../../src/pipes';
 
 describe('encodeCursor', () => {
   it('encodes single-field orderBy', () => {

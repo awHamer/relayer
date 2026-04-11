@@ -363,6 +363,9 @@ importers:
       '@relayerjs/core':
         specifier: workspace:~
         version: link:../core
+      '@relayerjs/nestjs-common':
+        specifier: workspace:~
+        version: link:../nestjs-common
       class-transformer:
         specifier: '>=0.5.0'
         version: 0.5.1

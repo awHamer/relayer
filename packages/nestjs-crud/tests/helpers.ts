@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import type { EntityRepo } from '../src/relayer.service';
+import type { EntityRepo } from '../src';
 
 type MockEntityRepo = EntityRepo<any, Record<string, unknown>>;
 

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { RelayerModule } from '../../src';
 import {
   RELAYER_BASE_URL,
   RELAYER_CLIENT,
@@ -9,7 +10,6 @@ import {
   RELAYER_MODULE_OPTIONS,
   RELAYER_SERVICE_PREFIX,
 } from '../../src/constants';
-import { RelayerModule } from '../../src/relayer.module';
 import { TestEntity } from '../helpers';
 
 describe('RelayerModule.forRoot', () => {
