@@ -1,5 +1,11 @@
 # @relayerjs/nestjs-crud
 
+## 0.3.1
+
+### Patch Changes
+
+- ff9ca54: Internal: shared utilities now imported from @relayerjs/nestjs-common. No public API changes.
+
 ## 0.3.0
 
 ### Minor Changes
