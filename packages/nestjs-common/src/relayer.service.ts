@@ -1,3 +1,4 @@
+import { mergeWhere } from '@relayerjs/core';
 import type { AggregateResult, SelectResult } from '@relayerjs/core';
 
 import type {
@@ -57,10 +58,7 @@ export class RelayerService<
     defaultWhere?: Where<TEntity, TEntities>,
     where?: Where<TEntity, TEntities>,
   ): Where<TEntity, TEntities> | undefined {
-    if (!defaultWhere && !where) return undefined;
-    if (!defaultWhere) return where;
-    if (!where) return defaultWhere;
-    return { AND: [defaultWhere, where] } as Where<TEntity, TEntities>;
+    return mergeWhere(defaultWhere, where) as Where<TEntity, TEntities> | undefined;
   }
 
   findMany<TSelect extends Select<TEntity, TEntities> | undefined = undefined>(
