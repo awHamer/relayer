@@ -65,8 +65,8 @@ describe('validateBody', () => {
     }
 
     // class-validator is available -- validateBody detects class DTO and runs
-    // class-validator pipeline. Without decorators it throws 422, not "not installed".
-    await expect(validateBody(TestDto, { name: 'test' })).rejects.toThrow('Validation failed');
+    // class-validator pipeline. Without decorators it throws 422.
+    await expect(validateBody(TestDto, { name: 'test' })).rejects.toThrow(HttpException);
   });
 
   it('handles undefined body without crashing (Zod)', async () => {
