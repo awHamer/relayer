@@ -332,7 +332,10 @@ export class RelayerController<
    * Runs `beforeFindOne`/`afterFindOne` hooks and DtoMapper `toSingleItem`.
    * Throws `NotFoundException` if entity not found.
    */
-  protected async handleFindById(id: string, request: unknown): Promise<unknown> {
+  protected async handleFindById(
+    id: string,
+    request: { query?: Record<string, string> } | unknown,
+  ): Promise<unknown> {
     const parsedId = this.parseId(id);
     const config = this.getConfig();
     const idField = config.id?.field ?? 'id';
@@ -340,9 +343,14 @@ export class RelayerController<
       | FindByIdRouteConfig<TEntity>
       | undefined;
 
+    const querySelect = tryParseJson(
+      (request as { query?: Record<string, string> })?.query?.select,
+    );
+    const select = querySelect ?? findByIdConfig?.defaults?.select;
+
     const findOptions = {
       where: { [idField]: parsedId } as Where<TEntity, EM>,
-      ...(findByIdConfig?.defaults?.select ? { select: findByIdConfig.defaults.select } : {}),
+      ...(select ? { select } : {}),
     };
 
     const ctx = this.buildContext(request);
