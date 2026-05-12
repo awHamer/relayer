@@ -48,12 +48,18 @@ export class RelayerModule {
       inject: [RELAYER_MODULE_OPTIONS],
     };
 
+    const baseUrlProvider: Provider = {
+      provide: RELAYER_BASE_URL,
+      useFactory: (moduleOptions: RelayerModuleOptions) => moduleOptions.baseUrl ?? '',
+      inject: [RELAYER_MODULE_OPTIONS],
+    };
+
     return {
       module: RelayerModule,
       global: true,
       imports: (options.imports ?? []) as DynamicModule[],
-      providers: [asyncProvider, clientProvider],
-      exports: [RELAYER_CLIENT],
+      providers: [asyncProvider, clientProvider, baseUrlProvider],
+      exports: [RELAYER_CLIENT, RELAYER_BASE_URL],
     };
   }
 
