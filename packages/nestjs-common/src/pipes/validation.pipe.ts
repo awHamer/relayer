@@ -68,10 +68,17 @@ function flattenClassValidatorErrors(
 }
 
 function createValidationException(errors: ValidationError[]): HttpException {
+  const summary = errors
+    .map((e) => {
+      const path = e.path && e.path.length ? e.path.join('.') + ': ' : '';
+      return path + (e.message || '');
+    })
+    .filter(Boolean)
+    .join('; ');
   return new HttpException(
     {
       statusCode: 422,
-      message: 'Validation failed',
+      message: summary || 'Validation failed',
       errors,
     },
     422,

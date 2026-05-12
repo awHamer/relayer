@@ -40,21 +40,23 @@ export type EntityModelWithRelations<
 > = ToPlain<ModelInstance<TSchema, TEntities, TKey>> &
   (Depth['length'] extends 3
     ? {}
-    : {
-        [R in TableRelationKeys<TKey, TSchema>]: IsOneRelation<TSchema, TKey, R> extends true
-          ? EntityModelWithRelations<
-              TSchema,
-              TEntities,
-              RelationTargetName<TKey, TSchema, R> & string,
-              [...Depth, unknown]
-            > | null
-          : EntityModelWithRelations<
-              TSchema,
-              TEntities,
-              RelationTargetName<TKey, TSchema, R> & string,
-              [...Depth, unknown]
-            >[];
-      });
+    : string extends TableRelationKeys<TKey, TSchema>
+      ? {}
+      : {
+          [R in TableRelationKeys<TKey, TSchema>]: IsOneRelation<TSchema, TKey, R> extends true
+            ? EntityModelWithRelations<
+                TSchema,
+                TEntities,
+                RelationTargetName<TKey, TSchema, R> & string,
+                [...Depth, unknown]
+              > | null
+            : EntityModelWithRelations<
+                TSchema,
+                TEntities,
+                RelationTargetName<TKey, TSchema, R> & string,
+                [...Depth, unknown]
+              >[];
+        });
 
 // Shorthand: extract schema + key from entity class statics
 export type EntityModelFromClass<
@@ -88,23 +90,25 @@ export type EntityModelFromInstance<TEntity, TEntities extends Record<string, un
   SchemaFromEntities<TEntities> extends infer S extends Record<string, unknown>
     ? FindEntityKey<TEntity, TEntities> extends infer K extends string
       ? ToPlain<TEntity> &
-          (TableRelationKeys<K, S> extends never
+          ([TableRelationKeys<K, S>] extends [never]
             ? {}
-            : {
-                [R in TableRelationKeys<K, S>]: IsOneRelation<S, K, R> extends true
-                  ? EntityModelWithRelations<
-                      S,
-                      TEntities,
-                      RelationTargetName<K, S, R> & string,
-                      [unknown]
-                    > | null
-                  : EntityModelWithRelations<
-                      S,
-                      TEntities,
-                      RelationTargetName<K, S, R> & string,
-                      [unknown]
-                    >[];
-              })
+            : string extends TableRelationKeys<K, S>
+              ? {}
+              : {
+                  [R in TableRelationKeys<K, S>]: IsOneRelation<S, K, R> extends true
+                    ? EntityModelWithRelations<
+                        S,
+                        TEntities,
+                        RelationTargetName<K, S, R> & string,
+                        [unknown]
+                      > | null
+                    : EntityModelWithRelations<
+                        S,
+                        TEntities,
+                        RelationTargetName<K, S, R> & string,
+                        [unknown]
+                      >[];
+                })
       : ToPlain<TEntity>
     : ToPlain<TEntity>;
 
@@ -116,16 +120,18 @@ export type EntityInstanceWithRelations<
 > = OwnColumns<TSchema, TKey> &
   (Depth['length'] extends 3
     ? {}
-    : {
-        [R in TableRelationKeys<TKey, TSchema>]: IsOneRelation<TSchema, TKey, R> extends true
-          ? EntityInstanceWithRelations<
-              TSchema,
-              RelationTargetName<TKey, TSchema, R> & string,
-              [...Depth, unknown]
-            > | null
-          : EntityInstanceWithRelations<
-              TSchema,
-              RelationTargetName<TKey, TSchema, R> & string,
-              [...Depth, unknown]
-            >[];
-      });
+    : string extends TableRelationKeys<TKey, TSchema>
+      ? {}
+      : {
+          [R in TableRelationKeys<TKey, TSchema>]: IsOneRelation<TSchema, TKey, R> extends true
+            ? EntityInstanceWithRelations<
+                TSchema,
+                RelationTargetName<TKey, TSchema, R> & string,
+                [...Depth, unknown]
+              > | null
+            : EntityInstanceWithRelations<
+                TSchema,
+                RelationTargetName<TKey, TSchema, R> & string,
+                [...Depth, unknown]
+              >[];
+        });

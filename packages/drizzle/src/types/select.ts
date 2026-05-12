@@ -31,11 +31,12 @@ export type ModelSelect<
                     string]?: boolean;
                 }
         : boolean;
-    } & {
-    // Relations
-    [R in TableRelationKeys<TKey, TSchema>]?:
-      | boolean
-      | (ModelSelect<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string> & {
-          $limit?: number;
+    } & (string extends TableRelationKeys<TKey, TSchema> // Relations — collapse to {} when TableRelationKeys degenerates to `string`
+      ? {}
+      : {
+          [R in TableRelationKeys<TKey, TSchema>]?:
+            | boolean
+            | (ModelSelect<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string> & {
+                $limit?: number;
+              });
         });
-  };

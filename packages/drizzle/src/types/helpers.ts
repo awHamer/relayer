@@ -126,15 +126,20 @@ export type OpsForTSType<T> = T extends string
 type ToPlainObject<T> = { [K in keyof T]: T[K] };
 
 // Full entity shape: own fields + relation targets as nested objects (always singular)
+// When TableRelationKeys degenerates to the wide `string` type (e.g. caller provides
+// a non-literal schema), mapping over it explodes the type — guard by collapsing to {}.
 export type EntityWithRelations<
   TSchema extends Record<string, unknown>,
   TEntities extends Record<string, unknown>,
   TKey extends string,
-> = ToPlainObject<ModelInstance<TSchema, TEntities, TKey>> & {
-  [R in TableRelationKeys<TKey, TSchema>]: ToPlainObject<
-    ModelInstance<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string>
-  >;
-};
+> = ToPlainObject<ModelInstance<TSchema, TEntities, TKey>> &
+  (string extends TableRelationKeys<TKey, TSchema>
+    ? {}
+    : {
+        [R in TableRelationKeys<TKey, TSchema>]: ToPlainObject<
+          ModelInstance<TSchema, TEntities, RelationTargetName<TKey, TSchema, R> & string>
+        >;
+      });
 
 // Infer full ResolvedModel from entity class (typeof PostEntity -> ResolvedModel with ModelMeta)
 export type InferModelFromEntity<TEntityClass> = TEntityClass extends {
