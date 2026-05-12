@@ -1,5 +1,14 @@
 # @relayerjs/drizzle
 
+## 0.7.4
+
+### Patch Changes
+
+- 07b3102: - `drizzle`: guard relation types when `TableRelationKeys` widens to `string`
+  - `nestjs-common`: `RelayerModule.forRootAsync` now provides and exports `RELAYER_BASE_URL`
+  - `nestjs-common`: validation error message includes per-error paths instead of bare "Validation failed"
+  - `nestjs-crud`: `handleFindById` honors `?select=` query param (fallback to `findById.defaults.select`)
+
 ## 0.7.3
 
 ### Patch Changes
