@@ -2,6 +2,7 @@ export { createRelayerDrizzle } from './factory';
 export { createRelayerEntity, createDrizzleEntities } from './entity';
 export { buildRegistry, readSchema, readRelations } from './introspect';
 export type { TableInfo } from './introspect';
+export type { DrizzleDatabase, DrizzleQueryBuilder } from './dialect';
 export type {
   EntityClassStatics,
   EntityClassMethods,
