@@ -1,5 +1,16 @@
 # @relayerjs/drizzle
 
+## 0.7.5
+
+### Patch Changes
+
+- 839b5b6: `drizzle`: fix filtering, sorting and aggregation by computed fields. The resolved
+  computed map stores SQL aliased for `SELECT`, but Postgres rejects output aliases in
+  `WHERE`, and `ORDER BY`/aggregate paths mis-handled the alias too. Now:
+  - `WHERE` and `ORDER BY` unwrap the alias and inline the raw expression
+  - aggregate `groupBy` aliases the SQL expression so result rows are keyed by the field
+  - `findMany` resolves computed fields referenced only in `where`/`orderBy` (not just `select`)
+
 ## 0.7.4
 
 ### Patch Changes
