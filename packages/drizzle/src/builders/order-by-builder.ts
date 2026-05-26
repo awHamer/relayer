@@ -51,7 +51,9 @@ export function buildOrderBy(
     if (ctx.metadata.scalarFields.has(entry.field)) {
       column = tableColumns[entry.field];
     } else if (ctx.metadata.computedFields.has(entry.field)) {
-      column = ctx.computedSqlMap.get(entry.field);
+      // map stores aliased SQL for SELECT; ORDER BY uses the raw expression so it works without selecting the field
+      const aliased = ctx.computedSqlMap.get(entry.field);
+      column = aliased instanceof SQL.Aliased ? aliased.sql : aliased;
     } else if (ctx.metadata.derivedFields.has(entry.field)) {
       column = ctx.derivedAliasMap.get(entry.field)?.column;
     } else if (entry.field.includes('.')) {

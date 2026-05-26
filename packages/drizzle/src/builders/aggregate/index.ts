@@ -105,7 +105,9 @@ export function buildAggregate(ctx: BuildAggregateParams): AggregateResult {
       const resolved = resolveFieldColumn(field, resolveCtx);
       if (resolved) {
         const alias = field.includes('.') ? field.replace(/\./g, '_') : field;
-        selectColumns[alias] = field.includes('.') ? resolved : (resolved as Column);
+        // SQL exprs (computed, json paths) need an explicit alias so the result row is keyed by `alias`
+        selectColumns[alias] =
+          resolved instanceof SQL ? (resolved.as(alias) as unknown as SQL) : resolved;
         groupByColumns.push(resolved as Column);
         meta.groupByFields.push(field);
       }

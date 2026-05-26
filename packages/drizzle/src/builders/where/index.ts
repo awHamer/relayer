@@ -85,7 +85,9 @@ export function buildWhere(
     if (ctx.metadata.computedFields.has(key)) {
       const sqlExpr = ctx.computedSqlMap.get(key);
       if (sqlExpr) {
-        const cond = applyOperators(sqlExpr, value, ctx.adapter);
+        // map stores aliased SQL for SELECT; WHERE needs the raw expression (Postgres rejects output aliases in WHERE)
+        const expr = sqlExpr instanceof SQL.Aliased ? sqlExpr.sql : sqlExpr;
+        const cond = applyOperators(expr, value, ctx.adapter);
         if (cond) conditions.push(cond);
       }
       continue;
